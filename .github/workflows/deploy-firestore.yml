@@ -1,0 +1,55 @@
+name: Deploy Firestore
+
+# Firestore rules and indexes are deployed from CI so that what is in the
+# repository is the source of truth. Editing rules by hand in the Firebase
+# console will be silently overwritten by the next run.
+on:
+  push:
+    branches: [main]
+    paths:
+      - firestore.rules
+      - firestore.indexes.json
+      - firebase.json
+      - .firebaserc
+      - .github/workflows/deploy-firestore.yml
+  workflow_dispatch:
+
+# Two runs deploying rules concurrently can land out of order; the later push
+# should win, so cancel anything already in flight.
+concurrency:
+  group: deploy-firestore
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The secret is written to a file outside the workspace so it cannot be
+      # picked up by a later step that globs the repo, and RUNNER_TEMP is
+      # discarded when the job ends.
+      - name: Authenticate
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT secret is not set. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/service-account.json" >> "$GITHUB_ENV"
+
+      # Rules are compiled and diffed against the live project before anything
+      # is written, so a syntax error fails here rather than half-deployed.
+      - name: Deploy rules and indexes
+        run: npx firebase-tools deploy --only firestore --non-interactive

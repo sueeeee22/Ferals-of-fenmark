@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// Default posture: deny everything. Every collection below must opt in
+// explicitly, so a new collection is never reachable until someone writes a
+// rule for it.
+//
+// NOTE: these rules assume Firebase Auth. The project does not have Auth
+// enabled yet, so `request.auth` is always null and the players/ rules below
+// deny every request. That is deliberate — the alternative (`if true`) would
+// leave the database open to anyone who finds the project ID, which is
+// embedded in the client bundle and therefore public.
+//
+// To turn these on, enable Anonymous sign-in in the Firebase console and call
+// signInAnonymously() before touching Firestore.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // A player may read and write only their own save document.
+    match /players/{userId} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId;
+
+      // Subcollections inherit the same owner check; it is not automatic.
+      match /{document=**} {
+        allow read, write: if request.auth != null
+                           && request.auth.uid == userId;
+      }
+    }
+
+    // Anything not matched above is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
