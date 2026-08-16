@@ -72,8 +72,8 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
      "Winter" -> "Wint"). Widen the boxes or shorten the level suffix.
   3. Overworld player and NPC sprites are procedural humanoids, not authored pixel art.
 - Gauntlets 4, 6, 7, 8 are unwritten.
-- `screenshots/` predates the battle-layout fix below and should be regenerated.
-  There is no screenshot script yet - writing one is step 1 of `gauntlet:visual`.
+- `screenshots/` predates the battle-layout fix and is stale. There is no screenshot
+  script yet; writing one is step 2 below.
 - No audio yet.
 - `DEPLOY.md` and `npm run ship` are unwritten. Firebase config, rules and
   `src/firebase.ts` already exist and are good.
@@ -82,10 +82,13 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
 
 ## Next steps, in order
 
-1. **Finish/verify the renderer**, get `gauntlet:types` green again, `npm run build`.
-2. **Run `gauntlet:playthrough`.** It has never completed a run. Expect to fix bot
-   navigation bugs; the harness is written and the bot drives the real reducer with
-   real button presses.
+1. **Run `gauntlet:playthrough`.** It has never completed a run, and it is the one
+   that defines done. The harness and bot are written and drive the real reducer with
+   real button presses; expect to fix bot navigation bugs, not engine bugs.
+2. **Write a screenshot script** (`scripts/shots.ts`): boot the built site with
+   Playwright via `tests/browser.ts`, drive it with key presses to ~20 checkpoints,
+   capture at 160x144 and at phone width. This is step 1 of `gauntlet:visual` and it
+   also regenerates the stale `screenshots/`.
 3. Write `gauntlet:curve` (gym beatable at level, not 20 under, monotonic).
 4. Write `gauntlet:tone` — dialogue is written and waiting to be graded.
 5. Write `gauntlet:ship` + `DEPLOY.md` + `npm run ship`.
