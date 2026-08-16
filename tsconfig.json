@@ -14,12 +14,16 @@
     "moduleDetection": "force",
     "noEmit": true,
 
-    /* Linting */
+    /* Linting — deliberately stricter than the Vite default. gauntlet:types
+       depends on noUncheckedIndexedAccess: array reads in the battle engine are
+       the single most likely source of a silent undefined. */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "tests"]
+  "include": ["src", "tests", "scripts"]
 }
