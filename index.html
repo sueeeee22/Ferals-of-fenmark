@@ -3,11 +3,37 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ferals-of-fenmark</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="theme-color" content="#000000" />
+    <title>Ferals of Fenmark</title>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <canvas id="screen"></canvas>
+      <div id="touch" aria-hidden="true">
+        <div class="dpad">
+          <button type="button" class="dbtn up" data-button="up"></button>
+          <button type="button" class="dbtn down" data-button="down"></button>
+          <button type="button" class="dbtn left" data-button="left"></button>
+          <button type="button" class="dbtn right" data-button="right"></button>
+          <div class="dpad-hub"></div>
+        </div>
+        <div class="ab">
+          <button type="button" class="round b" data-button="b">B</button>
+          <button type="button" class="round a" data-button="a">A</button>
+        </div>
+        <div class="menu-keys">
+          <button type="button" class="pill" data-button="select">SELECT</button>
+          <button type="button" class="pill" data-button="start">START</button>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

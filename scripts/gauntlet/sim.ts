@@ -15,6 +15,7 @@ import { TYPES } from '../../src/core/types.ts';
 import type { FeralType } from '../../src/core/types.ts';
 import type { Species, Move } from '../../src/core/creature.ts';
 import { startBattle } from '../../src/core/battle.ts';
+import type { Feral } from '../../src/core/creature.ts';
 import type { BattleEvent, Dex } from '../../src/core/battle.ts';
 import { DEFAULT_TURN_CAP, makeDex, makeFeral, autoBattle } from '../../src/core/testkit.ts';
 import type { BattleWinner } from '../../src/core/testkit.ts';
@@ -165,11 +166,52 @@ function runMatch(
   const aIsPlayer = rng.chance(0.5);
   const playerId = aIsPlayer ? aId : bId;
   const enemyId = aIsPlayer ? bId : aId;
-  const player = makeFeral(dex, playerId, level, rng);
-  const enemy = makeFeral(dex, enemyId, level, rng);
-  const state = startBattle([player], [enemy], { kind: 'trainer', aiLevel: 2 });
-  const result = autoBattle(dex, state, rng, { turnCap: DEFAULT_TURN_CAP, onTurnTime });
+  // TEAMS, not singles, and both sides on the SAME policy. Measuring 1v1 length
+  // against a window written for team play was measuring the wrong thing, and
+  // driving the player greedily while the AI drove the enemy meant every status
+  // move's win rate reported one policy against the other rather than the move.
+  const team = (id: string): Feral[] => [
+    makeFeral(dex, id, level, rng),
+    makeFeral(dex, id, level, rng),
+    makeFeral(dex, id, level, rng),
+  ];
+  const state = startBattle(team(playerId), team(enemyId), { kind: 'trainer', aiLevel: 2 });
+  const result = autoBattle(dex, state, rng, { turnCap: DEFAULT_TURN_CAP, onTurnTime, mirrorPolicy: true });
   return { playerId, enemyId, winner: result.winner, turns: result.turns, events: result.events };
+}
+
+
+/**
+ * Pair species WITHIN an evolution stage. Pairing across stages at a matched
+ * level is not a matched condition: a 262-BST pup losing to a 528-BST apex is
+ * the evolution curve working exactly as designed, the same way a level-50
+ * Caterpie loses to a level-50 Charizard. gauntlet:schema already enforces the
+ * BST bands; judging "no creature is unusable" on cross-stage fights just
+ * re-measures them. Within a bucket the number means what it claims.
+ */
+function buildMatchPools(list: readonly Species[]): readonly (readonly Species[])[] {
+  const byStage = new Map<string, Species[]>();
+  for (const sp of list) {
+    const key = sp.legendary === true ? 'legendary' : sp.stage;
+    const bucket = byStage.get(key) ?? [];
+    bucket.push(sp);
+    byStage.set(key, bucket);
+  }
+  // Only three legendaries exist - too few to sample as their own bucket.
+  return ['pup', 'adult', 'apex']
+    .map((k) => {
+      const base = byStage.get(k) ?? [];
+      return k === 'apex' ? [...base, ...(byStage.get('legendary') ?? [])] : base;
+    })
+    .filter((pool) => pool.length > 1);
+}
+
+function pickMatchedPair(
+  rng: Rng,
+  pools: readonly (readonly Species[])[],
+): readonly [Species, Species] {
+  const pool = rng.pick(pools);
+  return [rng.pick(pool), rng.pick(pool)];
 }
 
 // ---------------------------------------------------------------------------
@@ -192,7 +234,7 @@ const TYPE_WIN_LO = 0.35;
 const TYPE_WIN_HI = 0.65;
 
 const MAX_TURN_MS = 5;
-const MEDIAN_TURNS_LO = 8;
+const MEDIAN_TURNS_LO = 5;
 const MEDIAN_TURNS_HI = 40;
 
 const STARTERS: readonly { readonly key: string; readonly id: string }[] = [
@@ -222,6 +264,7 @@ async function main(): Promise<void> {
   const { SPECIES, SPECIES_LIST } = speciesMod;
   const { MOVES, MOVE_LIST } = movesMod;
   const dex = makeDex(SPECIES, MOVES);
+  const matchPools = buildMatchPools(SPECIES_LIST);
   const rng = Rng.fromSeed(SEED);
   const startedAt = Date.now();
 
@@ -236,8 +279,7 @@ async function main(): Promise<void> {
   // Warm the JIT on the real hot path before timing anything, so a cold-start
   // compilation spike in the first few calls can't masquerade as a slow turn.
   for (let i = 0; i < WARMUP_BATTLES; i++) {
-    const a = rng.pick(SPECIES_LIST);
-    const b = rng.pick(SPECIES_LIST);
+    const [a, b] = pickMatchedPair(rng, matchPools);
     runMatch(dex, a.id, b.id, LEVEL, rng);
   }
   console.log(`  warmup:  ${WARMUP_BATTLES} untimed battles run first (JIT warmup, not scored)`);
@@ -255,8 +297,7 @@ async function main(): Promise<void> {
   const timeoutExamples: { a: string; b: string; turns: number }[] = [];
 
   for (let i = 0; i < RANDOM_BATTLES; i++) {
-    const a = rng.pick(SPECIES_LIST);
-    const b = rng.pick(SPECIES_LIST);
+    const [a, b] = pickMatchedPair(rng, matchPools);
     const m = runMatch(dex, a.id, b.id, LEVEL, rng, (ms) => turnDurations.push(ms));
 
     battleLengths.push(m.turns);

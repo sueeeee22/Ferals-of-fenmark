@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ferals of Fenmark — Workbench</title>
+<style>
+  :root {
+    --bg:#0d120e; --panel:#151c16; --line:#26331f; --ink:#e0f8d0;
+    --dim:#88c070; --mute:#5a7a52; --ok:#7ec850; --bad:#d4574a; --warn:#d9a441;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:22px; background:var(--bg); color:var(--ink);
+         font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
+  h1 { font-size:17px; margin:0 0 2px; letter-spacing:.14em; text-transform:uppercase; }
+  .sub { color:var(--mute); margin:0 0 20px; font-size:12px; }
+  h2 { font-size:12px; letter-spacing:.12em; text-transform:uppercase;
+       color:var(--dim); margin:0 0 10px; }
+  .grid { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px; }
+  .wide { grid-column:1/-1; }
+  table { width:100%; border-collapse:collapse; }
+  td, th { text-align:left; padding:3px 6px 3px 0; font-weight:400; }
+  th { color:var(--mute); font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+  tr + tr td { border-top:1px solid #1d271c; }
+  .pill { display:inline-block; padding:1px 7px; border-radius:99px; font-size:11px; }
+  .pass { background:#1d3a1a; color:var(--ok); }
+  .fail { background:#3a1d1a; color:var(--bad); }
+  .todo { background:#2c2a18; color:var(--warn); }
+  .num { color:var(--ink); }
+  .bar { height:7px; background:#1d271c; border-radius:4px; overflow:hidden; margin-top:3px; }
+  .bar > i { display:block; height:100%; background:var(--dim); }
+  img.sheet { width:100%; image-rendering:pixelated; background:#e0f8d0;
+              border-radius:6px; border:1px solid var(--line); }
+  .note { color:var(--mute); font-size:11px; margin-top:9px; }
+  code { color:var(--dim); }
+  a { color:var(--dim); }
+</style>
+</head>
+<body>
+
+<h1>Ferals of Fenmark — Workbench</h1>
+<p class="sub">
+  Static snapshot, refreshed by hand at each phase boundary. Regenerate the sprite sheet with
+  <code>npm run forge:sheet</code>; re-read live status with <code>npm run gauntlet</code>.
+</p>
+
+<div class="grid">
+
+  <div class="panel">
+    <h2>Gauntlets</h2>
+    <table>
+      <tr><th>#</th><th>Gate</th><th>Status</th></tr>
+      <tr><td>1</td><td>types</td><td><span class="pill pass">PASS</span></td></tr>
+      <tr><td>2</td><td>schema</td><td><span class="pill pass">PASS</span></td></tr>
+      <tr><td>3</td><td>sim</td><td><span class="pill fail">38 fails</span></td></tr>
+      <tr><td>4</td><td>curve</td><td><span class="pill todo">not written</span></td></tr>
+      <tr><td>5</td><td>playthrough</td><td><span class="pill todo">written, not green</span></td></tr>
+      <tr><td>6</td><td>visual</td><td><span class="pill todo">not written</span></td></tr>
+      <tr><td>7</td><td>tone</td><td><span class="pill todo">not written</span></td></tr>
+      <tr><td>8</td><td>ship</td><td><span class="pill todo">not written</span></td></tr>
+    </table>
+    <p class="note">Only <code>npm run gauntlet</code> exiting 0 counts as finished.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Simulation — 10,000 battles</h2>
+    <table>
+      <tr><td>median battle length</td><td class="num">6 turns <span style="color:var(--mute)">(was 1)</span></td></tr>
+      <tr><td>p10 / p90</td><td class="num">3 / 12</td></tr>
+      <tr><td>turn-cap timeouts</td><td class="num">0 / 10000</td></tr>
+      <tr><td>max turn time</td><td class="num">under 5 ms ceiling</td></tr>
+      <tr><td>failures</td><td class="num">17 move · 15 species · 2 starter · 3 type</td></tr>
+    </table>
+    <p class="note">
+      Median went 1 &rarr; 6 by fixing three real defects: extreme archetype weights
+      (atk/def ~2:1), a 120-power ceiling on every movepool, and a missing Struggle
+      that let PP exhaustion stall a battle forever.
+    </p>
+  </div>
+
+  <div class="panel">
+    <h2>Starter triangle</h2>
+    <table>
+      <tr><th>edge</th><th>win rate</th></tr>
+      <tr><td>Winter beats Plato</td><td class="num">90.3%</td></tr>
+      <tr><td>Plato beats Baloo</td><td class="num">80.3%</td></tr>
+      <tr><td>Baloo beats Winter</td><td class="num">58.7%</td></tr>
+    </table>
+    <p class="note">
+      Cycle is correct and decisive; the edges are uneven, so aggregates are not yet
+      50/50. Diagnosed in <code>BLOCKERS.md</code> item 2 — the lever is defensive
+      typing, not stats.
+    </p>
+  </div>
+
+  <div class="panel">
+    <h2>Difficulty curve</h2>
+    <table>
+      <tr><th>gym</th><th>house</th><th>type</th><th>lvl</th></tr>
+      <tr><td>1 Harrowfen</td><td>Vantry</td><td>Fang</td><td class="num">12</td></tr>
+      <tr><td>2 Saltmere</td><td>Calloway</td><td>Tide</td><td class="num">18</td></tr>
+      <tr><td>3 Ashgrove</td><td>Ashgrove</td><td>Ember</td><td class="num">24</td></tr>
+      <tr><td>4 Briarhold</td><td>Thistle</td><td>Thorn</td><td class="num">29</td></tr>
+      <tr><td>5 Kestrelbridge</td><td>Wren</td><td>Wing</td><td class="num">34</td></tr>
+      <tr><td>6 Blackmourne</td><td>Mourne</td><td>Gloom</td><td class="num">39</td></tr>
+      <tr><td>7 Whitlow</td><td>Sable</td><td>Frost</td><td class="num">44</td></tr>
+      <tr><td>8 Brackhall</td><td>Brack</td><td>Maw</td><td class="num">49</td></tr>
+      <tr><td>Elite Four</td><td>Cross-Fen</td><td>—</td><td class="num">52–58</td></tr>
+      <tr><td>Champion (Cass)</td><td>—</td><td>—</td><td class="num">60–62</td></tr>
+    </table>
+    <p class="note">Monotonic by construction. <code>gauntlet:curve</code> not yet written to prove it.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Content</h2>
+    <table>
+      <tr><td>creatures</td><td class="num">153 <span style="color:var(--mute)">(150 + 3 legendary)</span></td></tr>
+      <tr><td>moves</td><td class="num">96 <span style="color:var(--mute)">(8 per type)</span></td></tr>
+      <tr><td>maps</td><td class="num">52</td></tr>
+      <tr><td>trainers</td><td class="num">47</td></tr>
+      <tr><td>dialogue</td><td class="num">81 keys · 305 boxes</td></tr>
+      <tr><td>orphan moves</td><td class="num">0</td></tr>
+    </table>
+    <div class="note">BST bands</div>
+    <table>
+      <tr><td>pup</td><td class="num">237–287</td><td><div class="bar"><i style="width:44%"></i></div></td></tr>
+      <tr><td>adult</td><td class="num">367–418</td><td><div class="bar"><i style="width:66%"></i></div></td></tr>
+      <tr><td>apex</td><td class="num">497–547</td><td><div class="bar"><i style="width:88%"></i></div></td></tr>
+      <tr><td>legendary</td><td class="num">594–627</td><td><div class="bar"><i style="width:100%"></i></div></td></tr>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>Open blockers</h2>
+    <table>
+      <tr><td>1</td><td>Status moves below the 35% floor — structural: a setup turn cannot repay its tempo in a 6-turn battle.</td></tr>
+      <tr><td>2</td><td>Starter aggregates uneven — speed and defensive typing, not stats.</td></tr>
+      <tr><td>3</td><td>Concurrent agents clobbering shared files. One writer per file.</td></tr>
+    </table>
+    <p class="note">Full diagnoses in <code>BLOCKERS.md</code>. Do not re-derive them.</p>
+  </div>
+
+  <div class="panel wide">
+    <h2>Sprite forge — contact sheet</h2>
+    <img class="sheet" src="public/forge-sheet.png" alt="Procedurally generated creature sprites">
+    <p class="note">
+      Every sprite generated from its species seed: family skeleton, then ears, muzzle,
+      tail, build and coat pattern. Three critic passes so far — proportions were a blob,
+      apex horns read as rabbit ears (now dorsal spines), and dark coats collapsed into
+      their own outline (shade 3 is now reserved for outline, eye and nose).
+      Browse them named at <a href="forge.html">forge.html</a>.
+    </p>
+  </div>
+
+</div>
+</body>
+</html>

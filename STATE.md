@@ -1,71 +1,100 @@
 # STATE.md
 
-**Rewritten after every phase. Written for a fresh context with no memory of this project.**
-If you are that reader: read this file, then `PLAN.md` §0 (the reducer architecture), then
-`MANIFEST.md`. Do not read source files that `MANIFEST.md` already summarises.
+**Rewritten every phase, for a fresh context with no memory of this project.**
+If you are that reader: read this, then `PLAN.md` §0 (the reducer decision), then
+`MANIFEST.md`. Do not re-read source that `MANIFEST.md` already summarises.
+`BLOCKERS.md` has the two open balance problems already diagnosed — read it before
+touching balance, or you will re-derive them.
 
 ---
 
-## Resume command
+## Resume
 
 ```bash
 cd /home/user/Ferals-of-fenmark
-npm install          # node_modules is not committed
-npm run gauntlet     # see exactly where you are
+npm install            # node_modules is not committed
+npm run gen:all        # regenerate content tables from the roster
+npm run gauntlet       # see exactly where you are
 ```
 
 Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
 
 ---
 
-## Where we are
-
-**Phase 0 — tooling and gauntlet harnesses. IN PROGRESS.**
-
-Founding documents are written and are authoritative:
-- `PLAN.md` — architecture. The reducer decision in §0 is load-bearing for gauntlets 3 and 5.
-- `TONE.md` — the voice. Every dialogue line is graded against it. Three hard lines are absolute.
-- `STATE.md` — this file.
-
----
-
 ## Gauntlet status
 
-| # | Gauntlet | Status |
-|---|----------|--------|
-| 1 | `gauntlet:types` | not written |
-| 2 | `gauntlet:schema` | not written |
-| 3 | `gauntlet:sim` | not written |
-| 4 | `gauntlet:curve` | not written |
-| 5 | `gauntlet:playthrough` | not written |
-| 6 | `gauntlet:visual` | not written |
-| 7 | `gauntlet:tone` | not written |
-| 8 | `gauntlet:ship` | not written |
+| # | Gauntlet | Status | Notes |
+|---|----------|--------|-------|
+| 1 | `gauntlet:types` | **PASS** (blocked only by in-flight renderer) | strict tsc, eslint, zero `any`, core purity invariants |
+| 2 | `gauntlet:schema` | **PASS** | 153 species, 96 moves, 0 orphan moves, starter spread 0.0% |
+| 3 | `gauntlet:sim` | **FAIL — 38** | see below; was 89+, all structural failures fixed |
+| 4 | `gauntlet:curve` | not written | needs a harness |
+| 5 | `gauntlet:playthrough` | written, **not yet green** | harness + bot exist; never run to completion |
+| 6 | `gauntlet:visual` | not written | needs renderer to land first |
+| 7 | `gauntlet:tone` | not written | dialogue exists (81 keys, 305 boxes) |
+| 8 | `gauntlet:ship` | not written | needs renderer + `npm run build` |
 
-`npm run gauntlet` runs all eight. That command exiting 0 is the only definition of finished.
-
----
-
-## What's next, in order
-
-1. Phase 0: eslint + tsx, write all eight gauntlet harnesses as **failing** stubs, wire npm scripts.
-2. Phase 1: `src/core/rng.ts`, `src/core/types.ts` (12×12 chart), damage math.
-3. Phase 2: battle engine, validated by `gauntlet:sim` before any UI exists.
+`gauntlet:sim` headline numbers, current run:
+- median battle length **6 turns** (p10 3, p90 12) — was **1**
+- **0/10000** battles hit the turn cap — was 1
+- max `resolveTurn` time under the 5ms ceiling
+- starter triangle correct and decisive: Winter > Plato > Baloo > Winter
+- remaining 38 failures: 17 move, 15 species, 2 starter, 3 type — see `BLOCKERS.md`
 
 ---
 
-## Blocked
+## What exists and works
 
-Nothing.
+- **Type chart** — 12 types on three axes (weapon / habitat / temperament), so dual
+  typing falls out naturally. Verified numerically by `npm run analyze:types`: no dead
+  types, no sweeper, 3.8-point offensive spread, clean starter triangle.
+- **Battle engine** — full turn resolution, status, stat stages, crits, accuracy,
+  catching, fleeing, trainer AI at four skill levels, Struggle. Emits a typed event
+  stream the UI animates and the sim asserts on.
+- **Overworld + reducer** — tile grid, collision, one-way ledges, flag-gated warps,
+  encounter tables, trainer line-of-sight. `step(content, state, buttons)` = one frame.
+- **Content** — 153 creatures (150 real animals + 3 legendaries), 96 moves, 52 maps,
+  47 trainers, 8 gyms on a monotonic curve, 4-stage endgame, 81 dialogue keys.
+- **Sprite forge** — deterministic pixel sprites; `npm run forge:sheet` renders
+  `public/forge-sheet.png` and `forge.html`.
+- **Save/load** — the save file *is* the game state, because the reducer is pure.
+
+## What does NOT exist yet
+
+- The renderer was in flight when this was written: `src/render/gb.ts`,
+  `src/render/draw.ts`, `src/game/` are present but unverified and currently the only
+  thing failing `gauntlet:types` (an unused eslint-disable in `gb.ts`). **Check these
+  first.** `src/main.ts` may still be the Vite demo.
+- Gauntlets 4, 6, 7, 8 are unwritten.
+- No audio yet.
+- `DEPLOY.md` and `npm run ship` are unwritten. Firebase config, rules and
+  `src/firebase.ts` already exist and are good.
 
 ---
 
-## Notes for the next reader
+## Next steps, in order
 
-- The scaffold shipped a Vite demo page (`src/main.ts`, `src/counter.ts`, `src/assets/*`) and a
-  working Firebase/Firestore config. The demo page gets replaced; the Firebase config is good
-  and should be kept — see `src/firebase.ts` and `firestore.rules`.
-- Playwright must launch via `tests/browser.ts` (`launchBrowser()`), which points at the
-  preinstalled `/opt/pw-browsers/chromium`. Never call `chromium.launch()` directly and never
-  run `playwright install`.
-- `git config user.email` is the CI default; commits are fine as-is.
+1. **Finish/verify the renderer**, get `gauntlet:types` green again, `npm run build`.
+2. **Run `gauntlet:playthrough`.** It has never completed a run. Expect to fix bot
+   navigation bugs; the harness is written and the bot drives the real reducer with
+   real button presses.
+3. Write `gauntlet:curve` (gym beatable at level, not 20 under, monotonic).
+4. Write `gauntlet:tone` — dialogue is written and waiting to be graded.
+5. Write `gauntlet:ship` + `DEPLOY.md` + `npm run ship`.
+6. Return to `BLOCKERS.md` items 1 and 2 with the fixes suggested there.
+
+---
+
+## Hard-won facts, so you do not rediscover them
+
+- **One writer per file.** Twice, edits were silently lost to a background builder that
+  still owned the file. Confirm a builder has reported back before editing its files.
+- Playwright must launch via `tests/browser.ts` `launchBrowser()` (points at the
+  preinstalled `/opt/pw-browsers/chromium`). Never run `playwright install`.
+- `noUncheckedIndexedAccess` is ON — every indexed read is `T | undefined`.
+- `gauntlet:types` greps for `any`, `@ts-ignore` and `eslint-disable` and fails on them,
+  including in comments unless stripped — it strips comments and string literals first.
+- Generated tables (`src/data/*.gen.ts`) are committed. Never hand-edit them; edit the
+  generator in `scripts/gen/` and re-run.
+- The reducer is pure and `resolveTurn` **mutates the state it is given**. Build a fresh
+  state per battle and fresh `Feral` objects, or HP and status leak between battles.
