@@ -28,12 +28,19 @@ const BST_LEGENDARY = 618;
 const BST_JITTER = 26;
 
 /** How a role spends its budget. Each row sums to 1. */
+/*
+ * These were originally much more extreme (skirmisher def as low as 0.11), which
+ * pushed attack-to-defense ratios to roughly 2:1 and made a super-effective STAB
+ * hit do 90-107% of max HP. gauntlet:sim caught it: median battle length was ONE
+ * turn. Gen 1 keeps atk and def near parity for most of its roster, which is why
+ * its battles run 10-20 turns. The floor on def/spd/hp below is what buys that.
+ */
 const WEIGHTS: Readonly<Record<Archetype, Readonly<Record<StatKey, number>>>> = {
-  bruiser: { hp: 0.19, atk: 0.26, def: 0.18, spa: 0.09, spd: 0.13, spe: 0.15 },
-  skirmisher: { hp: 0.14, atk: 0.24, def: 0.11, spa: 0.14, spd: 0.12, spe: 0.25 },
-  bulwark: { hp: 0.21, atk: 0.17, def: 0.26, spa: 0.1, spd: 0.16, spe: 0.1 },
-  channeler: { hp: 0.15, atk: 0.09, def: 0.13, spa: 0.28, spd: 0.16, spe: 0.19 },
-  warden: { hp: 0.23, atk: 0.13, def: 0.17, spa: 0.13, spd: 0.24, spe: 0.1 },
+  bruiser: { hp: 0.19, atk: 0.24, def: 0.17, spa: 0.11, spd: 0.14, spe: 0.15 },
+  skirmisher: { hp: 0.16, atk: 0.22, def: 0.14, spa: 0.13, spd: 0.13, spe: 0.22 },
+  bulwark: { hp: 0.2, atk: 0.16, def: 0.24, spa: 0.12, spd: 0.17, spe: 0.11 },
+  channeler: { hp: 0.16, atk: 0.12, def: 0.14, spa: 0.25, spd: 0.16, spe: 0.17 },
+  warden: { hp: 0.21, atk: 0.14, def: 0.16, spa: 0.14, spd: 0.22, spe: 0.13 },
   allrounder: { hp: 0.17, atk: 0.17, def: 0.17, spa: 0.16, spd: 0.16, spe: 0.17 },
 };
 
@@ -50,14 +57,21 @@ const STAT_MAX = 185;
  */
 const LEARN_LEVELS = [1, 1, 4, 7, 11, 15, 19, 23, 28, 33, 38, 43, 48, 53, 58] as const;
 
-/** Move power ceiling as a function of the level it is learned at. */
+/**
+ * Move power ceiling as a function of the level it is learned at.
+ *
+ * Originally topped out at 120, which handed literally every species a
+ * near-maximum-power move by level 58 and made battles a two-hit affair.
+ * Gen 1 tops most movepools out around 85-95 and reserves 110+ for a handful of
+ * moves with real drawbacks. gauntlet:sim measured the difference.
+ */
 function powerCeilingAt(level: number): number {
-  if (level <= 1) return 45;
-  if (level <= 7) return 60;
-  if (level <= 15) return 75;
-  if (level <= 28) return 90;
-  if (level <= 43) return 105;
-  return 120;
+  if (level <= 1) return 40;
+  if (level <= 7) return 55;
+  if (level <= 15) return 65;
+  if (level <= 28) return 75;
+  if (level <= 43) return 85;
+  return 95;
 }
 
 /** Exp yield scales off BST; apex forms are worth grinding. */
@@ -87,10 +101,39 @@ function jitter(id: string, salt: string): number {
 
 const STAT_KEYS: readonly StatKey[] = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
 
+/**
+ * The three starter lines get IDENTICAL stage totals with no jitter.
+ *
+ * "No starter choice is a wrong one" is a promise to the player, and leaving it
+ * to random per-species jitter broke it: gauntlet:sim measured Winter at 546 and
+ * Plato at 529, and in a six-turn battle that gap plus a speed archetype made
+ * Winter the objectively correct pick. Parity here is a guarantee, not a target.
+ */
+const STARTER_LINES = ['winter', 'baloo', 'plato'];
+const STARTER_BST: Readonly<Record<Stage, number>> = { pup: 270, adult: 400, apex: 542 };
+
 function makeStats(entry: RosterEntry): BaseStats {
+  const isStarter = STARTER_LINES.some((k) => entry.id.startsWith(`${k}_`));
   const stageBase = entry.legendary ? BST_LEGENDARY : BST[entry.stage];
-  const total = Math.round(stageBase + jitter(entry.id, 'bst') * BST_JITTER);
-  const w = WEIGHTS[entry.archetype];
+  const total = isStarter
+    ? STARTER_BST[entry.stage]
+    : Math.round(stageBase + jitter(entry.id, 'bst') * BST_JITTER);
+  /*
+   * Starters keep their ROLE but not their tempo extremes.
+   *
+   * With full archetype weights, Winter (skirmisher, 0.22 speed) simply acted
+   * first every turn and the type triangle could not offset it: sim measured
+   * Winter aggregating 66% and Baloo 39% even after BST parity. Blending each
+   * starter halfway toward allrounder keeps Winter fast, Baloo heavy and Plato
+   * balanced, while compressing the tempo gap that made one pick correct.
+   */
+  const archetypeWeights = WEIGHTS[entry.archetype];
+  const flat = WEIGHTS.allrounder;
+  const w: Record<StatKey, number> = isStarter
+    ? (Object.fromEntries(
+        STAT_KEYS.map((k) => [k, (archetypeWeights[k] + flat[k]) / 2]),
+      ) as Record<StatKey, number>)
+    : archetypeWeights;
 
   const raw: Record<StatKey, number> = { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
   for (const k of STAT_KEYS) {

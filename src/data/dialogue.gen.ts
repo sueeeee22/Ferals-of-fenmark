@@ -18,13 +18,12 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "Fenmark. Rain. A kennel gate nobody has painted since the war.",
     "TABITHA ASTACIO: Marlow. There's a rider on the fen road and he's in the good black.",
     "ODD MARLOW: Then the king's dead.",
-    "TABITHA: The king's dead. Aldous. Choked on a plum.",
-    "Nineteen years of war and it was fruit that got him.",
+    "TABITHA: The king's dead. Aldous. Choked on a plum. Nineteen years of war and fruit got him.",
     "MARLOW: God rest him.",
     "TABITHA: God rest the plum. It did more in an afternoon than the rest of us managed in a decade.",
     "MARLOW: No heir.",
     "TABITHA: No heir. Eight houses. Vantry, Kell, Orrin, Pell, Halloway, Ashgrove, Mourne, Brack.",
-    "Each one holds a badge, a road, and a grudge older than you are.",
+    "One crown between them, and a grudge apiece that is older than the both of us.",
     "Three of them share a bed and a vote. Two have been in love for eleven years in total silence.",
     "And one of them puts men down at their own front doors with their coats still half on.",
     "MARLOW: And you're going out in that.",
@@ -40,14 +39,15 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "TABITHA: Winter, who screams. Baloo, who has never once had a thought. Plato, who despises me.",
     "MARLOW: Take the cat. He's the only one on this property who has ever been right about anything.",
     "TABITHA: Thirty years on this gate and you have not been useful for a single one of them.",
-    "MARLOW: I've been very useful. You've been very slow. Pick.",
+    "MARLOW: One useful thing, then. Whatever you come back as, that animal comes back fed.",
+    "MARLOW: I will be checking. Now pick, you're letting the rain in.",
   ],
   starter_winter: [
     "You reach for the black and white husky. Winter screams.",
     "Not a bark. A full, ringing, theatrical scream, held for the room.",
     "TABITHA: She does that at rain, at doors, at me, and once at a duck.",
     "She has already decided the rest of my life is a tragedy she's agreed to appear in.",
-    "MARLOW: She'll do. Nothing scares a warden like a dog with a stage career.",
+    "MARLOW: She'll do. Nothing frightens a toll clerk like a dog with a stage career.",
   ],
   starter_baloo: [
     "The orange husky hits you at the knees and stays there, thrilled, like a landslide with a tail.",
@@ -91,7 +91,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   rival_2: [
     "CASS: Here. Take it. Mourne paper, real seal, opens doors, and don't ask me how I got it.",
     "TABITHA: I'm going to ask how you got it.",
-    "CASS: Then don't ask twice. You'll need it at Orrin and you're too proud to ask Tabitha's people.",
+    "CASS: Then don't ask twice. You'll need it at Orrin, and you'd rather die than ask Thistle.",
     "Nineteen years. I have never once let you walk into a room blind. Remember that bit.",
     "Now fight me, and stop looking at me like I've done something.",
   ],
@@ -117,8 +117,8 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   ],
   rival_4: [
     "CASS: New coat. Mourne grey. Sera picked it, so it's a leash with buttons on.",
-    "Your Tabitha won't see me. Sends my letters back unopened.",
-    "She reads them first. I can tell, because they come back in a nicer envelope than they left in.",
+    "You send my letters back unopened. You read them first, though.",
+    "I can tell, because they come back in a better envelope than the one they went out in.",
     "Go on. Ask me if it was worth it. I've got a beautiful answer and nobody left to say it to.",
     "Or fight me. Same conversation, fewer words, and I don't have to watch your face do that.",
   ],
@@ -133,7 +133,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "Beat me again. It's the only conversation left that either of us is any good at.",
   ],
   rival_5_defeat: [
-    "CASS: Yeah. Take it.",
+    "CASS: Yeah. Take it. I had something clever, but I spent it on Sera's steward this morning.",
     "I'll be at the door at Ostmere. Not to stop you. Just so you have to walk past me.",
   ],
   rival_final: [
@@ -246,8 +246,8 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   gym4_after: [
     "PELL: Brack's people brought me a man last month with his coat still half on.",
     "Four inches in, under the arm, angled up. That isn't a brawl. That's a technique.",
-    "Somebody in this county is teaching it to boys who can't grow a beard yet.",
-    "When you work out who, come back and don't tell me. I'd rather keep sleeping.",
+    "Somebody in this county is teaching that stroke, and charging good money by the lesson.",
+    "When you work out who, come back and don't tell me. I'd like to keep sleeping.",
   ],
 
   // -------------------------------------------------------------------------
@@ -282,7 +282,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   gym6_intro: [
     "LEONORE ASHGROVE: Come in, mind the step, and don't touch Sera's coat. She counts the buttons.",
     "Yes. Me, Sera Mourne and Hollis Brack. Openly, since the thaw. Ask the question properly.",
-    "Three houses, one arrangement, one vote. Four short of a crown, and the county can't sleep.",
+    "Three houses, one arrangement, one vote. Two short of a majority, and nobody sleeps well.",
     "And no, it isn't for the alliance. The alliance is a bonus. Have you actually met Sera?",
     "She files people. She filed me. I have never in my life been so thoroughly flattered.",
     "I'm also marrying Osric Vale in the autumn. He shoes his own horses. Have you seen his hands?",
@@ -322,8 +322,8 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "SERA: Somebody sold me your route in the spring. Cheap. That should worry you more than me.",
     "I won't apologise for buying it. I'll apologise for how little I had to pay.",
     "TABITHA: Say the name.",
-    "SERA: You've known the name since the barn. You want it in someone else's mouth.",
-    "SERA: I don't do that for free. Bring me something Brack wants and we'll talk about mouths.",
+    "SERA: You've known the name since the barn. You want it said in somebody else's voice.",
+    "SERA: I don't do that for free. Bring me something Brack wants and I'll say it twice.",
   ],
 
   // -------------------------------------------------------------------------
@@ -336,7 +336,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "Sera says I'm exactly where she put me. Sera's right. It's my favourite place in Fenmark.",
     "Leonore says she runs us. Also right. That's the trick of letting people think they steer.",
     "Odd Marlow died at your gate with his coat half on. My people. My money. Not my order.",
-    "TABITHA: That distinction matter to you?",
+    "TABITHA: Does that distinction help either of us?",
     "BRACK: No. But it'll matter to a court, and one of us should be thinking about the court.",
   ],
   gym8_defeat: [
@@ -357,7 +357,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   elite_1: [
     "RUTH ANSELL: Sit down, love, you're dripping on the flags. There's soup. There's always soup.",
     "I took forty-one heads for Aldous. I remember every name and what each of them wanted for supper.",
-    "Number twelve asked for eggs. In March. I found him eggs, because kindness costs nothing.",
+    "Number twelve asked for eggs. In March. I found him eggs. I was late. He was very gracious.",
     "Now stand up. I haven't done this in nine years and I've missed it more than is decent.",
   ],
   elite_1_defeat: [
@@ -407,8 +407,9 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "I'd very much like to see you try. I haven't had a hard day since March and I miss them.",
   ],
   champion_defeat: [
-    "Plato looks at the fallen champion. Then at you. Then sits and begins washing himself.",
-    "TABITHA: He is not gloating. I want to be really clear. He has already forgotten it happened.",
+    "The last of March's ferals goes down. Yours sits, considers the room, and starts grooming.",
+    "TABITHA: That is not gloating. I want it on the record. It has already forgotten it happened.",
+    "TABITHA: Thirty years breeding these animals and not one of them has ever been impressed by me.",
     "ISOLDE: Nineteen years. You did it in one summer, in that coat.",
     "The crown's on the sideboard. It's heavier than it looks and it is not even gold.",
     "Take it. And keep hold of whoever still laughs at you, because the job eats the rest.",
@@ -428,7 +429,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   // -------------------------------------------------------------------------
   lodge_heal: [
     "LODGE KEEPER: Beds are two crowns, the animals eat free, and I don't want the news.",
-    "Right. Fed, warm, and the grey one has taken my chair on what looks like a permanent basis.",
+    "Right. Fed, warm, and one of yours has taken my chair on what looks like a permanent basis.",
     "Sleep while you can. Half this county does its best work between midnight and the milk cart.",
   ],
   shop_greet: [
@@ -498,7 +499,10 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   // -------------------------------------------------------------------------
   // Signs
   // -------------------------------------------------------------------------
-  sign_1: ["VANTRY FEN. Warm rooms, cold politics. Bar the door behind you."],
+  sign_1: [
+    "VANTRY FEN. Every room is warm and every door bars from the outside.",
+    "Sleep well.",
+  ],
   sign_2: ["KELL TOLL ROAD. Four crowns a cart. Eleven crowns if you argue about it."],
   sign_3: [
     "ORRIN RIDGE. The mountain road is open.",
@@ -521,8 +525,8 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "It breaks out, deeply insulted, and puts a professional amount of distance between you.",
   ],
   box_full: [
-    "The box is full. Fenmark has a law about how many animals one person may hoard,",
-    "and Tabitha Astacio wrote it, and she is unbearable about it at parties.",
+    "The box is full. Fenmark caps a single household at thirty animals.",
+    "You campaigned two years for that law. You are now going to try to argue with it.",
   ],
   evolve: [
     "Something goes wrong with its shape. Then right. Then extremely right.",

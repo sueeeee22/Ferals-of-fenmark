@@ -281,7 +281,7 @@ const LINES: readonly LineSpec[] = [
   ] },
 
   // --- Rodents ----------------------------------------------------------
-  { key: 'porcupine', family: 'rodent', types: ['Thorn', 'Feral'], at: [19, 36], stages: [
+  { key: 'porcupine', family: 'rodent', types: ['Claw', 'Thorn'], at: [19, 36], stages: [
     S('Quillet', 'North American Porcupine', 'bulwark', 'Thirty thousand quills and absolutely no urgency about anything.'),
     S('Barbcoat', 'North American Porcupine', 'bulwark', 'Backs into problems. The quills are barbed and they do not come out.'),
     S('Thornbristle', 'North American Porcupine', 'bulwark', 'Has been left alone by every predator in the wood, each exactly once.'),
@@ -291,11 +291,11 @@ const LINES: readonly LineSpec[] = [
     S('Damwright', 'North American Beaver', 'bulwark', 'Has rerouted a river because the sound of running water annoyed it.'),
     S('Floodwright', 'North American Beaver', 'bulwark', 'Built a dam visible from a hill. Has flooded two fields and one argument.'),
   ] },
-  { key: 'hedgehog', family: 'rodent', types: ['Thorn', 'Hearth'], at: [22, 0], stages: [
+  { key: 'hedgehog', family: 'rodent', types: ['Claw', 'Hearth'], at: [22, 0], stages: [
     S('Pricklet', 'European Hedgehog', 'warden', 'Rolls into a ball at any provocation, including compliments.'),
     S('Spineball', 'European Hedgehog', 'warden', 'Eats slugs all night, snores audibly, and is beloved for both.'),
   ] },
-  { key: 'capybara', family: 'rodent', types: ['Tide', 'Hearth'], at: [23, 0], stages: [
+  { key: 'capybara', family: 'rodent', types: ['Fang', 'Hearth'], at: [23, 0], stages: [
     S('Sitling', 'Capybara', 'warden', 'Has never been stressed. Birds sit on it. It has no notes.'),
     S('Calmcapy', 'Capybara', 'warden', 'The only thing in the fen that everything else agrees not to fight.'),
   ] },
@@ -309,12 +309,12 @@ const LINES: readonly LineSpec[] = [
   ] },
 
   // --- Ungulates --------------------------------------------------------
-  { key: 'stag', family: 'ungulate', types: ['Crown', 'Thorn'], at: [20, 38], stages: [
+  { key: 'stag', family: 'ungulate', types: ['Claw', 'Crown'], at: [20, 38], stages: [
     S('Spikehorn', 'Red Deer', 'allrounder', 'First antlers, straight and useless. Extremely proud of them.'),
     S('Rutbrow', 'Red Deer', 'bruiser', 'Roars for three weeks straight in autumn and loses a fifth of its body weight.'),
     S('Crownantler', 'Red Deer', 'bruiser', 'Sixteen points. Has never lost the clash. Everything about it is a threat display.'),
   ] },
-  { key: 'moose', family: 'ungulate', types: ['Crown', 'Tide'], at: [21, 39], stages: [
+  { key: 'moose', family: 'ungulate', types: ['Maw', 'Tide'], at: [21, 39], stages: [
     S('Legling', 'Moose', 'bulwark', 'All legs, no coordination, already taller than a man at the shoulder.'),
     S('Bogwader', 'Moose', 'bulwark', 'Eats underwater. Comes up with weed on its head. Is not embarrassed.'),
     S('Palmcrown', 'Moose', 'bulwark', 'Antlers six feet across. Kills more people annually than the bears do.'),
@@ -324,11 +324,11 @@ const LINES: readonly LineSpec[] = [
     S('Tuskrooter', 'Wild Boar', 'bruiser', 'Turns over an acre of ground a night looking for something it will not name.'),
     S('Tuskfury', 'Wild Boar', 'bruiser', 'Three hundred pounds at a dead run in a straight line through anything.'),
   ] },
-  { key: 'ibex', family: 'ungulate', types: ['Crown', 'Frost'], at: [24, 0], stages: [
+  { key: 'ibex', family: 'ungulate', types: ['Claw', 'Frost'], at: [24, 0], stages: [
     S('Ledgeling', 'Alpine Ibex', 'skirmisher', 'Stands on a ledge four inches wide because it wanted the salt.'),
     S('Cliffhorn', 'Alpine Ibex', 'skirmisher', 'Walks up a dam wall. Vertically. Has been photographed doing it and nobody believes it.'),
   ] },
-  { key: 'muskox', family: 'ungulate', types: ['Crown', 'Frost'], at: [23, 0], stages: [
+  { key: 'muskox', family: 'ungulate', types: ['Maw', 'Crown'], at: [23, 0], stages: [
     S('Woolkin', 'Muskox', 'bulwark', 'Undercoat warmer than anything humans have managed to weave.'),
     S('Stormring', 'Muskox', 'bulwark', 'The herd forms a ring facing outward. It has worked for ten thousand years.'),
   ] },
@@ -339,11 +339,11 @@ const LINES: readonly LineSpec[] = [
     S('Venomtongue', 'Komodo Dragon', 'bruiser', 'Bites once, then follows for three days. There is no second bite.'),
     S('Dragonmaw', 'Komodo Dragon', 'bruiser', 'Ten feet of patience. Has eaten things that thought they were the predator.'),
   ] },
-  { key: 'tortoise', family: 'reptile', types: ['Thorn', 'Crown'], at: [24, 0], stages: [
+  { key: 'tortoise', family: 'reptile', types: ['Claw', 'Ember'], at: [24, 0], stages: [
     S('Shellet', 'Galapagos Tortoise', 'bulwark', 'Will outlive you, your children, and the house. Currently eating a flower.'),
     S('Ageshell', 'Galapagos Tortoise', 'bulwark', 'Was alive before the current war and will be alive after the next one.'),
   ] },
-  { key: 'adder', family: 'reptile', types: ['Thorn', 'Gloom'], at: [21, 0], stages: [
+  { key: 'adder', family: 'reptile', types: ['Fang', 'Ember'], at: [21, 0], stages: [
     S('Zigling', 'European Adder', 'channeler', 'Zigzag down its back like a warning label. It is a warning label.'),
     S('Fangzag', 'European Adder', 'channeler', 'The only venomous thing on this island and quietly proud of the distinction.'),
   ] },
@@ -361,13 +361,13 @@ const LINES: readonly LineSpec[] = [
   { key: 'raccoon', family: 'mustelid', types: ['Claw', 'Gloom'], stages: [
     S('Maskhand', 'Raccoon', 'skirmisher', 'Has hands. Understands latches. This combination has cost you a lot of food.'),
   ] },
-  { key: 'skunk', family: 'mustelid', types: ['Gloom', 'Feral'], stages: [
+  { key: 'skunk', family: 'mustelid', types: ['Claw', 'Feral'], stages: [
     S('Sprayback', 'Striped Skunk', 'warden', 'Stamps twice as a courtesy. Nobody has ever waited for the third.'),
   ] },
-  { key: 'platypus', family: 'reptile', types: ['Tide', 'Thorn'], stages: [
+  { key: 'platypus', family: 'reptile', types: ['Claw', 'Tide'], stages: [
     S('Billpaddle', 'Platypus', 'channeler', 'Lays eggs, has a bill, and carries venom. Assembled from spare parts and thriving.'),
   ] },
-  { key: 'pangolin', family: 'reptile', types: ['Thorn', 'Gloom'], stages: [
+  { key: 'pangolin', family: 'reptile', types: ['Claw', 'Gloom'], stages: [
     S('Scalecurl', 'Pangolin', 'bulwark', 'Rolls into a ball a lion cannot open. A lion has tried. The lion left.'),
   ] },
   { key: 'wombat', family: 'rodent', types: ['Maw', 'Crown'], stages: [

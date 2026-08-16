@@ -96,7 +96,7 @@ export const MOVE_LIST: readonly Move[] = [
     accuracy: 101,
     pp: 20,
     priority: 0,
-    effect: { chance: 1, stages: { atk: 1 }, targetsSelf: true },
+    effect: { chance: 1, stages: { atk: 2 }, targetsSelf: true },
     description: "Every hair on end. Looks bigger, hits harder.",
   },
   {
@@ -151,7 +151,7 @@ export const MOVE_LIST: readonly Move[] = [
     type: "Claw",
     category: "physical",
     power: 80,
-    accuracy: 100,
+    accuracy: 90,
     pp: 10,
     priority: 0,
     effect: { chance: 1, highCrit: true },
@@ -189,7 +189,7 @@ export const MOVE_LIST: readonly Move[] = [
     accuracy: 100,
     pp: 20,
     priority: 0,
-    effect: { chance: 1, stages: { def: -1 } },
+    effect: { chance: 1, stages: { def: -2 } },
     description: "Tears at the hide until it stops meaning anything.",
   },
   {
@@ -242,7 +242,7 @@ export const MOVE_LIST: readonly Move[] = [
     type: "Maw",
     category: "physical",
     power: 85,
-    accuracy: 100,
+    accuracy: 90,
     pp: 10,
     priority: 0,
     effect: { chance: 1, highCrit: true },
@@ -281,7 +281,7 @@ export const MOVE_LIST: readonly Move[] = [
     accuracy: 100,
     pp: 20,
     priority: 0,
-    effect: { chance: 1, stages: { def: -1 } },
+    effect: { chance: 1, stages: { def: -2 } },
     description: "Tests the armor with its teeth. Finds the weak point.",
   },
   {
@@ -372,7 +372,7 @@ export const MOVE_LIST: readonly Move[] = [
     accuracy: 101,
     pp: 20,
     priority: 0,
-    effect: { chance: 1, stages: { spe: 1 }, targetsSelf: true },
+    effect: { chance: 1, stages: { spe: 2 }, targetsSelf: true },
     description: "Finds the rising air and stops working so hard.",
   },
   {
@@ -553,7 +553,7 @@ export const MOVE_LIST: readonly Move[] = [
     accuracy: 100,
     pp: 20,
     priority: 0,
-    effect: { chance: 1, stages: { spe: -1 } },
+    effect: { chance: 1, stages: { spe: -2 } },
     description: "Ignores it until it stops moving quite so fast.",
   },
   {
@@ -643,7 +643,7 @@ export const MOVE_LIST: readonly Move[] = [
     accuracy: 101,
     pp: 20,
     priority: 0,
-    effect: { chance: 1, stages: { atk: 1 }, targetsSelf: true },
+    effect: { chance: 1, stages: { atk: 2 }, targetsSelf: true },
     description: "Stretches out in full sun and gets meaner for it.",
   },
   {
@@ -735,7 +735,7 @@ export const MOVE_LIST: readonly Move[] = [
     accuracy: 100,
     pp: 20,
     priority: 0,
-    effect: { chance: 1, stages: { def: -1 } },
+    effect: { chance: 1, stages: { def: -2 } },
     description: "Wears through whatever's protecting you, given time.",
   },
   {
@@ -916,7 +916,7 @@ export const MOVE_LIST: readonly Move[] = [
     accuracy: 101,
     pp: 20,
     priority: 0,
-    effect: { chance: 1, stages: { atk: 1 }, targetsSelf: true },
+    effect: { chance: 1, stages: { atk: 2 }, targetsSelf: true },
     description: "Stops considering the downside entirely.",
   },
   {
@@ -969,7 +969,7 @@ export const MOVE_LIST: readonly Move[] = [
     type: "Crown",
     category: "physical",
     power: 90,
-    accuracy: 100,
+    accuracy: 90,
     pp: 10,
     priority: 0,
     effect: { chance: 1, highCrit: true },

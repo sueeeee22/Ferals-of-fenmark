@@ -197,7 +197,7 @@ export function resolveTurn(
     return finishTurn(dex, state, tryCatch(dex, state, action.bonus, rng, events), events);
   }
 
-  const enemyAction = chooseEnemyAction(dex, state, rng);
+  const enemyAction = chooseAiAction(dex, state, 'enemy', rng);
 
   // Switching always precedes moves, both sides, exactly like Gen 1.
   if (action.kind === 'switch') doSwitch(dex, state.player, 'player', action.index, events);
@@ -346,6 +346,44 @@ function executeMove(
 
   const slotRef = user.moves[slot];
   if (!slotRef) return;
+
+  // Struggle. When every move is out of PP a creature is not simply idle — it
+  // throws itself at the problem and hurts itself doing it. Without this, two
+  // creatures that exhaust their PP stall forever, which is exactly what
+  // gauntlet:sim caught (one battle in ten thousand hit the 300-turn cap).
+  const anyPp = user.moves.some((m) => m.pp > 0);
+  if (!anyPp) {
+    events.push({ t: 'move', side: who, move: 'struggle', name: 'Struggle' });
+    const uSp = dex.species(user.species);
+    const tSp = dex.species(target.species);
+    const res = computeDamage({
+      attackerLevel: user.level,
+      attack: effectiveStat(dex, side, 'atk'),
+      defense: effectiveStat(dex, foeSide, 'def'),
+      power: 50,
+      stabMult: 1,
+      typeMult: 1, // typeless: Struggle ignores the chart entirely
+      critical: false,
+      burned: user.status === 'burn',
+      roll: damageRoll(rng),
+    });
+    const dealt = Math.min(res.damage, target.hp);
+    target.hp -= dealt;
+    events.push({
+      t: 'damage', side: who === 'player' ? 'enemy' : 'player', amount: dealt,
+      hpAfter: target.hp, maxHp: maxHp(tSp, target), effectiveness: 1, critical: false,
+    });
+    const recoil = Math.max(1, Math.floor(dealt / 2));
+    user.hp = Math.max(0, user.hp - recoil);
+    events.push({
+      t: 'damage', side: who, amount: recoil, hpAfter: user.hp,
+      maxHp: maxHp(uSp, user), effectiveness: 1, critical: false,
+    });
+    if (target.hp <= 0) handleFaint(dex, state, who === 'player' ? 'enemy' : 'player', events);
+    if (user.hp <= 0) handleFaint(dex, state, who, events);
+    return;
+  }
+
   const move = dex.move(slotRef.move);
   if (slotRef.pp <= 0) {
     events.push({ t: 'text', text: `${user.nickname} has no power left for that.` });
@@ -797,8 +835,14 @@ function pickEnemySwitch(dex: Dex, state: BattleState): number {
  * Enemy move choice. Level 0 is random; higher levels weight by expected damage
  * and, at gym-leader level, actually use their status moves at the right moment.
  */
-function chooseEnemyAction(dex: Dex, state: BattleState, rng: Rng): BattleAction {
-  const side = state.enemy;
+export function chooseAiAction(
+  dex: Dex,
+  state: BattleState,
+  who: 'player' | 'enemy',
+  rng: Rng,
+): BattleAction {
+  const side = who === 'enemy' ? state.enemy : state.player;
+  const foe = who === 'enemy' ? state.player : state.enemy;
   const f = activeOf(side);
   const usable = f.moves
     .map((m, i) => ({ m, i }))
@@ -806,7 +850,7 @@ function chooseEnemyAction(dex: Dex, state: BattleState, rng: Rng): BattleAction
   if (usable.length === 0) return { kind: 'move', slot: 0 };
   if (state.aiLevel <= 0) return { kind: 'move', slot: rng.pick(usable).i };
 
-  const target = activeOf(state.player);
+  const target = activeOf(foe);
   const targetSp = dex.species(target.species);
   const userSp = dex.species(f.species);
 

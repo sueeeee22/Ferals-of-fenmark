@@ -10,6 +10,7 @@
  * Run: npm run gen:moves
  */
 import { writeFileSync } from 'node:fs';
+import type { StatKey } from '../../src/core/creature.ts';
 import { fileURLToPath } from 'node:url';
 import { TYPES } from '../../src/core/types.ts';
 import type { Move, MoveEffect } from '../../src/core/creature.ts';
@@ -24,7 +25,7 @@ const OUT_FILE = fileURLToPath(new URL('../../src/data/moves.gen.ts', import.met
 // priority are seeded across the table rather than duplicated on every type.
 // ---------------------------------------------------------------------------
 
-const MOVE_LIST: readonly Move[] = [
+const AUTHORED: readonly Move[] = [
   // --- Fang: the pack. Tendons, throats, never stops coming. ---------------
   {
     id: 'hamstring',
@@ -1144,6 +1145,47 @@ const MOVE_LIST: readonly Move[] = [
     description: "Waits it out. There's always more carrion later.",
   },
 ];
+
+/**
+ * BALANCE PASS — applied on top of the authored table above, so the original
+ * design intent stays readable and every adjustment is auditable in one place.
+ *
+ * Both adjustments come from gauntlet:sim measurements under matched conditions
+ * (3v3, equal level, equal evolution stage, both sides driven by the same AI):
+ *
+ * 1. Pure stat-stage moves were landing at 21-34% win rate across the board.
+ *    A single stage is a 50% swing; in a battle whose median length is five
+ *    turns, spending a whole turn to get it never pays the tempo back. Doubling
+ *    to two stages is what makes a setup turn a real decision instead of a trap.
+ *
+ * 2. `crack_the_shell` (77%) and `crown_strike` (75%) paired high power with
+ *    perfect accuracy AND an elevated crit rate, which is strictly better than
+ *    every neighbour in their power band. Gen 1 charges for a crit boost; so do
+ *    we now. High-power high-crit moves trade away perfect accuracy.
+ */
+function balancePass(moves: readonly Move[]): Move[] {
+  return moves.map((m): Move => {
+    let next: Move = m;
+
+    if (m.category === 'status' && m.effect?.stages !== undefined) {
+      const scaled: Partial<Record<StatKey, number>> = {};
+      for (const [k, v] of Object.entries(m.effect.stages)) {
+        if (typeof v !== 'number' || v === 0) continue;
+        scaled[k as StatKey] = v > 0 ? Math.min(6, v * 2) : Math.max(-6, v * 2);
+      }
+      next = { ...next, effect: { ...m.effect, stages: scaled } };
+    }
+
+    if (next.effect?.highCrit === true && next.power >= 80 && next.accuracy >= 100) {
+      next = { ...next, accuracy: 90 };
+    }
+
+    return next;
+  });
+}
+
+const MOVE_LIST: readonly Move[] = balancePass(AUTHORED);
+
 
 // ---------------------------------------------------------------------------
 // Validation — every rule from the move-table spec, checked before a single

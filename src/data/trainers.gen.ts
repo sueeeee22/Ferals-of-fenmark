@@ -65,7 +65,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 8
       },
       {
-        "species": "terrier_adult",
+        "species": "adder_pup",
         "level": 9
       }
     ],
@@ -88,7 +88,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 10
       },
       {
-        "species": "wolf_pup",
+        "species": "capybara_pup",
         "level": 12
       }
     ],
@@ -238,7 +238,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 20
       },
       {
-        "species": "meerkat",
+        "species": "adder_adult",
         "level": 21
       }
     ],
@@ -272,19 +272,19 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "title": "Head of House Ashgrove",
     "team": [
       {
+        "species": "tortoise_adult",
+        "level": 22
+      },
+      {
         "species": "meerkat",
         "level": 22
       },
       {
+        "species": "adder_pup",
+        "level": 22
+      },
+      {
         "species": "caracal_pup",
-        "level": 22
-      },
-      {
-        "species": "sunbear_adult",
-        "level": 22
-      },
-      {
-        "species": "fennec_apex",
         "level": 24
       }
     ],
@@ -338,7 +338,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 25
       },
       {
-        "species": "hedgehog_pup",
+        "species": "blackbear_pup",
         "level": 26
       }
     ],
@@ -357,7 +357,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 25
       },
       {
-        "species": "pangolin",
+        "species": "tiger_adult",
         "level": 26
       }
     ],
@@ -372,19 +372,19 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "title": "Head of House Thistle",
     "team": [
       {
-        "species": "stag_apex",
+        "species": "tiger_adult",
         "level": 27
       },
       {
-        "species": "tortoise_adult",
+        "species": "terrier_pup",
         "level": 27
       },
       {
-        "species": "hedgehog_adult",
+        "species": "porcupine_adult",
         "level": 27
       },
       {
-        "species": "stag_adult",
+        "species": "porcupine_pup",
         "level": 29
       }
     ],
@@ -576,15 +576,15 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 37
       },
       {
-        "species": "adder_adult",
-        "level": 37
-      },
-      {
         "species": "komodo_pup",
         "level": 37
       },
       {
         "species": "blackcat_apex",
+        "level": 37
+      },
+      {
+        "species": "owl_apex",
         "level": 39
       }
     ],
@@ -684,7 +684,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 42
       },
       {
-        "species": "muskox_pup",
+        "species": "arcticfox_apex",
         "level": 44
       }
     ],
@@ -753,11 +753,11 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "title": "of House Brack",
     "team": [
       {
-        "species": "badger_apex",
+        "species": "muskox_adult",
         "level": 45
       },
       {
-        "species": "beaver_apex",
+        "species": "badger_apex",
         "level": 46
       }
     ],
@@ -842,15 +842,15 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 52
       },
       {
+        "species": "hedgehog_adult",
+        "level": 52
+      },
+      {
         "species": "tiger_apex",
         "level": 52
       },
       {
         "species": "snowleopard_apex",
-        "level": 52
-      },
-      {
-        "species": "raccoon",
         "level": 54
       }
     ],
@@ -881,7 +881,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 54
       },
       {
-        "species": "porcupine_adult",
+        "species": "honeybadger_pup",
         "level": 56
       }
     ],
@@ -927,10 +927,6 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "title": "of the Cross-Fen",
     "team": [
       {
-        "species": "moose_apex",
-        "level": 58
-      },
-      {
         "species": "harpy_apex",
         "level": 58
       },
@@ -939,11 +935,15 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 58
       },
       {
-        "species": "ibex_adult",
+        "species": "stag_adult",
         "level": 58
       },
       {
-        "species": "stag_adult",
+        "species": "lion_pup",
+        "level": 58
+      },
+      {
+        "species": "harpy_pup",
         "level": 60
       }
     ],

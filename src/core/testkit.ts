@@ -14,7 +14,7 @@ import type { Rng } from './rng.ts';
 import type { BaseStats, Feral, Move, MoveSlot, Species } from './creature.ts';
 import { computeDamage, expForLevel, maxHp, stab, statOf, typeMultiplier } from './creature.ts';
 import type { BattleEvent, BattleState, Dex, Side } from './battle.ts';
-import { activeOf, forceSwitch, resolveTurn } from './battle.ts';
+import { activeOf, chooseAiAction, forceSwitch, resolveTurn } from './battle.ts';
 
 // ---------------------------------------------------------------------------
 // Dex construction
@@ -162,6 +162,8 @@ export interface AutoBattleOptions {
   readonly turnCap?: number;
   /** Set false to skip retaining events — saves allocation in bulk sims. Default true. */
   readonly collectEvents?: boolean;
+  /** Drive the player with the engine's own AI, so both sides play identically. */
+  readonly mirrorPolicy?: boolean;
   /** Called with the wall-clock duration (ms) of every `resolveTurn` call. */
   readonly onTurnTime?: (ms: number) => void;
 }
@@ -207,9 +209,17 @@ export function autoBattle(
     }
     switchGuard = 0;
 
-    const slot = bestMoveSlot(dex, state.player, state.enemy, rng);
+    // Both sides use the SAME policy. A harness that drives the player greedily
+    // (damage moves only) while the engine AI drives the enemy (damage AND
+    // status) is not measuring matched conditions: every status move's win rate
+    // then reports one policy's results against the other's, and status moves
+    // look like dead weight purely because only one side ever used them.
+    // `mirrorPolicy` makes the comparison honest.
+    const action = opts.mirrorPolicy === true
+      ? chooseAiAction(dex, state, 'player', rng)
+      : { kind: 'move' as const, slot: bestMoveSlot(dex, state.player, state.enemy, rng) };
     const t0 = performance.now();
-    const result = resolveTurn(dex, state, { kind: 'move', slot }, rng);
+    const result = resolveTurn(dex, state, action, rng);
     opts.onTurnTime?.(performance.now() - t0);
     if (collect) events.push(...result.events);
     turns++;

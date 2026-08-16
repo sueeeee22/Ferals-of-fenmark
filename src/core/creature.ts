@@ -279,7 +279,7 @@ export function damageRoll(rng: Rng): number {
  */
 export function critChance(baseSpeed: number, highCrit: boolean): number {
   const base = baseSpeed / 512;
-  return Math.min(0.25, highCrit ? base * 4 : base);
+  return Math.min(0.2, highCrit ? base * 4 : base);
 }
 
 /** Full type multiplier for a move against a defender. */
