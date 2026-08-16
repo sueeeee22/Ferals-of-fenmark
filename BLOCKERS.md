@@ -89,3 +89,37 @@ underneath an agent that had been asked to author it.
 **Rule going forward.** One writer per file, always. Before editing a file a
 builder was given, confirm that builder has reported back. If it has not, either
 wait or send it the change as an instruction rather than making it directly.
+
+---
+
+## 4. Sprite forge: 153 variations on one dog
+
+**Status:** open. Highest-priority visual work. Judged against Red/Blue, we lose.
+
+**The honest comparison.** Gen 1's sprites are crude, but Pidgey, Onix, Gengar and
+Machop have wildly different *silhouettes* — you identify them from the outline alone
+at thumbnail size. Looking at our full 153-sprite contact sheet, the overwhelming
+majority read as the same generic quadruped. A Maine Coon, a German Shepherd, a
+wolverine and a muskox are near-indistinguishable.
+
+**What the forge already gets right** (do not rewrite these): DMG palette, clean
+1px outline, ordered Bayer dithering for the underside shadow, a readable eye with a
+catchlight, coat patterns that survive the shading pass, and a size ramp across an
+evolution line.
+
+**The specific gap: family silhouettes are barely differentiated.** All eight families
+run through one quadruped skeleton with slightly different numbers. Named failures
+from the sheet:
+- **ursids** have no bulk, no shoulder hump, and ears at the wrong scale — they read as dogs
+- **birds** read as blobs on two legs; the beak does not survive at 56px and the folded wing barely registers
+- **reptiles** read as quadrupeds; nothing says low-slung, long-tailed or splayed-legged
+- **rodents/mustelids** are indistinguishable from small canids
+- **leg-length variation is too subtle** — you cannot tell a corgi from a wolfhound
+
+**The fix, and it is not more parameter tuning.** Each family needs its own *drawing
+routine*, not shared numbers: a distinct body-axis angle, limb attachment, head-to-body
+ratio and posture per family. Ursids plantigrade and hump-shouldered; mustelids long and
+low with a horizontal spine; birds with a real head-on-shoulders profile and an oversized
+beak; reptiles with a horizontal spine, splayed limbs and a tail as long as the body.
+Then re-render the sheet and look again. This is the highest-variance remaining work in
+the project and it should be done before any more balance passes.
