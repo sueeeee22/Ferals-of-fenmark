@@ -149,7 +149,8 @@ export interface MoveSlot {
 }
 
 export interface Feral {
-  readonly species: string;
+  /** Mutable: evolution rewrites this in place, keeping level, EVs and nickname. */
+  species: string;
   /** Player-given name, or the species name. */
   nickname: string;
   level: number;
@@ -165,7 +166,8 @@ export interface Feral {
   statusTurns: number;
   /** Set once at capture; used by the Hall of Fame and the dex. */
   readonly caughtAt: number;
-  readonly originalTrainer: string;
+  /** Mutable: set to the catcher's name at the moment of capture. */
+  originalTrainer: string;
 }
 
 // ---------------------------------------------------------------------------
