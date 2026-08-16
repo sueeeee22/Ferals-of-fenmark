@@ -234,11 +234,15 @@ export function drawBox(ctx: CanvasRenderingContext2D, x: number, y: number, w: 
   ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
 }
 
-export const TEXTBOX_X = 8;
+// 18 chars * 8px = 144px of actual text, so the box has to be wider than that
+// once its own padding is added back — sizing the box to 144 and *then*
+// padding inward (the obvious way to write this) quietly clips two characters
+// off every row.
+export const TEXTBOX_PAD = 4;
+export const TEXTBOX_X = 4;
 export const TEXTBOX_Y = 96;
-export const TEXTBOX_W = 144;
+export const TEXTBOX_W = 18 * 8 + TEXTBOX_PAD * 2;
 export const TEXTBOX_H = 40;
-const TEXTBOX_PAD = 8;
 const TEXTBOX_ROW_H = 14;
 
 /**

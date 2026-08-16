@@ -25,7 +25,7 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
 
 | # | Gauntlet | Status | Notes |
 |---|----------|--------|-------|
-| 1 | `gauntlet:types` | **PASS** (blocked only by in-flight renderer) | strict tsc, eslint, zero `any`, core purity invariants |
+| 1 | `gauntlet:types` | **PASS** | strict tsc, eslint, zero `any`, core purity invariants |
 | 2 | `gauntlet:schema` | **PASS** | 153 species, 96 moves, 0 orphan moves, starter spread 0.0% |
 | 3 | `gauntlet:sim` | **FAIL — 38** | see below; was 89+, all structural failures fixed |
 | 4 | `gauntlet:curve` | not written | needs a harness |
@@ -61,11 +61,19 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
 
 ## What does NOT exist yet
 
-- The renderer was in flight when this was written: `src/render/gb.ts`,
-  `src/render/draw.ts`, `src/game/` are present but unverified and currently the only
-  thing failing `gauntlet:types` (an unused eslint-disable in `gb.ts`). **Check these
-  first.** `src/main.ts` may still be the Vite demo.
+- **The renderer has landed and the game boots.** `src/render/gb.ts` (8x8 font, 26
+  hand-authored tile patterns, animated water and tall grass), `src/render/draw.ts`,
+  `src/game/content.ts`, and a real `src/main.ts` with a 60fps fixed-timestep loop,
+  keyboard and touch input. `npm run build` succeeds. Screenshots in `screenshots/`.
+- **Known renderer gaps, in priority order:**
+  1. The player's creature in battle is the front-facing sprite flipped and scaled -
+     there is no true back sprite. Gen 1 has one; this is a visible fidelity gap.
+  2. Creature names are over-truncated in battle boxes ("Cinderkit" -> "Cinder",
+     "Winter" -> "Wint"). Widen the boxes or shorten the level suffix.
+  3. Overworld player and NPC sprites are procedural humanoids, not authored pixel art.
 - Gauntlets 4, 6, 7, 8 are unwritten.
+- `screenshots/` predates the battle-layout fix below and should be regenerated.
+  There is no screenshot script yet - writing one is step 1 of `gauntlet:visual`.
 - No audio yet.
 - `DEPLOY.md` and `npm run ship` are unwritten. Firebase config, rules and
   `src/firebase.ts` already exist and are good.

@@ -94,13 +94,32 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-function cameraFor(x: number, y: number, fromX: number, fromY: number, progress: number): Camera {
+/**
+ * Centers on the player, then clamps to the map's edges so a room smaller
+ * than the screen (or a player standing by a door) never scrolls out into
+ * void — exactly like Gen 1's camera, which never shows past the map edge.
+ * Returns the *clamped* origin plus the player's true (pre-clamp) world
+ * pixel position, since near an edge the two diverge and the player sprite
+ * has to be drawn off-center to match.
+ */
+function cameraFor(
+  map: GameMap,
+  x: number, y: number, fromX: number, fromY: number, progress: number,
+): Camera & { playerPxX: number; playerPxY: number } {
   const t = progress > 0 ? Math.min(1, progress / WALK_FRAMES) : 0;
-  const px = lerp(fromX, x, t) * TILE_SIZE;
-  const py = lerp(fromY, y, t) * TILE_SIZE;
-  const originX = Math.round(LOGICAL_W / 2 - TILE_SIZE / 2 - px);
-  const originY = Math.round(LOGICAL_H / 2 - TILE_SIZE / 2 - py);
-  return { originX, originY };
+  const playerPxX = lerp(fromX, x, t) * TILE_SIZE;
+  const playerPxY = lerp(fromY, y, t) * TILE_SIZE;
+  const rawX = LOGICAL_W / 2 - TILE_SIZE / 2 - playerPxX;
+  const rawY = LOGICAL_H / 2 - TILE_SIZE / 2 - playerPxY;
+  const mapPxW = map.width * TILE_SIZE;
+  const mapPxH = map.height * TILE_SIZE;
+  const originX = Math.round(
+    mapPxW <= LOGICAL_W ? (LOGICAL_W - mapPxW) / 2 : Math.min(0, Math.max(LOGICAL_W - mapPxW, rawX)),
+  );
+  const originY = Math.round(
+    mapPxH <= LOGICAL_H ? (LOGICAL_H - mapPxH) / 2 : Math.min(0, Math.max(LOGICAL_H - mapPxH, rawY)),
+  );
+  return { originX, originY, playerPxX, playerPxY };
 }
 
 const ANIM_TICKS = 20;
@@ -141,7 +160,7 @@ function drawWorldBackground(
   const progress = walk?.progress ?? 0;
   const fromX = walk?.fromX ?? p.x;
   const fromY = walk?.fromY ?? p.y;
-  const cam = cameraFor(p.x, p.y, fromX, fromY, progress);
+  const cam = cameraFor(map, p.x, p.y, fromX, fromY, progress);
 
   clearScreen(ctx, map.indoor ? 0 : 1);
   drawTiles(ctx, map, cam, state.frame);
@@ -156,8 +175,8 @@ function drawWorldBackground(
 
   const pose = walkPose(progress, fromX, fromY);
   const dir = progress > 0 ? (walk?.dir ?? p.facing) : p.facing;
-  const playerSx = Math.round(LOGICAL_W / 2 - TILE_SIZE / 2);
-  const playerSy = Math.round(LOGICAL_H / 2 - TILE_SIZE / 2);
+  const playerSx = Math.round(cam.originX + cam.playerPxX);
+  const playerSy = Math.round(cam.originY + cam.playerPxY);
   gb.drawActor(ctx, 'player', dir, pose.frame, pose.step, playerSx, playerSy);
 }
 
@@ -240,10 +259,14 @@ function drawDialogue(ctx: CanvasRenderingContext2D, content: Content, state: Ga
 // Battle — the most important screen
 // ---------------------------------------------------------------------------
 
-const ENEMY_BOX = { x: 4, y: 4, w: 92, h: 28 };
-const PLAYER_BOX = { x: 84, y: 58, w: 72, h: 34 };
-const ENEMY_ANCHOR = { cx: 126, cy: 56, scale: 0.72 };
-const PLAYER_ANCHOR = { cx: 38, cy: 104, scale: 1.02 };
+// A non-overlapping grid over the full 160x144 screen. Sprites are anchored
+// by their *baseline* (feet/platform), not their bounding-box center, so
+// "how tall is this sprite" can never sneak it into a box below it — a bug
+// the center-anchored version of this code had.
+const ENEMY_BOX = { x: 2, y: 2, w: 98, h: 26 };
+const PLAYER_BOX = { x: 82, y: 54, w: 76, h: 32 };
+const ENEMY_ANCHOR = { cx: 128, baseline: 48, scale: 0.66 };
+const PLAYER_ANCHOR = { cx: 40, baseline: 92, scale: 0.92 };
 
 function creatureLabel(f: Feral): string {
   return f.nickname.length > 10 ? f.nickname.slice(0, 10) : f.nickname;
@@ -257,12 +280,19 @@ function drawSideInfo(
   sp: Species,
 ): void {
   gb.drawBox(ctx, box.x, box.y, box.w, box.h);
-  const name = `${creatureLabel(f)} ${f.level < 10 ? ' ' : ''}Lv${f.level}`;
-  gb.drawText(ctx, box.x + 5, box.y + 4, name, 3);
+  const levelText = `Lv${f.level}`;
+  const levelX = box.x + box.w - gb.measureText(levelText) - 4;
+  const nameX = box.x + 4;
+  const nameBudget = Math.max(3, Math.floor((levelX - nameX - 4) / 8));
+  const name = f.nickname.length > nameBudget ? f.nickname.slice(0, nameBudget) : f.nickname;
+  gb.drawText(ctx, nameX, box.y + 4, name, 3);
+  gb.drawText(ctx, levelX, box.y + 4, levelText, 3);
+
+  const barWidth = Math.min(48, box.w - 12);
+  gb.drawHpBar(ctx, box.x + 5, box.y + 14, f.hp, maxHp(sp, f), barWidth);
   if (f.status) {
-    gb.drawText(ctx, box.x + box.w - 34, box.y + 4, STATUS_TAG[f.status], 3);
+    gb.drawText(ctx, box.x + 8 + barWidth, box.y + 12, STATUS_TAG[f.status], 3);
   }
-  gb.drawHpBar(ctx, box.x + 5, box.y + 14, f.hp, maxHp(sp, f), Math.min(48, box.w - 12));
   if (showNumbers) {
     const text = `${f.hp}/${maxHp(sp, f)}`;
     gb.drawText(ctx, box.x + box.w - gb.measureText(text) - 5, box.y + 22, text, 3);
@@ -276,27 +306,39 @@ function sideActive(side: Side): Feral {
 const BOTTOM_Y = 96;
 const BOTTOM_W = 144;
 const BOTTOM_H = 40;
-const LEFT_W = 84;
-const RIGHT_X = 8 + LEFT_W;
-const RIGHT_W = BOTTOM_W - LEFT_W;
 
 const COMMANDS = ['FIGHT', 'BAG', 'PARTY', 'RUN'] as const;
 
+/*
+ * Gen 1's battle bottom is a FULL-WIDTH text box with the command menu drawn as
+ * an overlay panel on its right, not a bottom bar split into two halves.
+ *
+ * The split version was wrong twice over: the message box came out 9 characters
+ * wide (the brief and the Game Boy both want 18), and the command menu tried to
+ * fit two 5-character columns into 60px at an 8px fixed advance, so FIGHT and
+ * BAG were literally drawn on top of each other - "FIGHBAG" on screen.
+ *
+ * One fixed-width column of four is the honest fit for an 8px font. Gen 1 got a
+ * 2x2 out of a narrower kerned font; we do not have one, so we do not pretend.
+ */
+const CMD_W = 64;
+const CMD_X = 8 + BOTTOM_W - CMD_W;
+
 function drawCommandGrid(ctx: CanvasRenderingContext2D, cursor: number): void {
-  gb.drawBox(ctx, RIGHT_X, BOTTOM_Y, RIGHT_W, BOTTOM_H);
+  gb.drawBox(ctx, CMD_X, BOTTOM_Y, CMD_W, BOTTOM_H);
   for (let i = 0; i < COMMANDS.length; i++) {
-    const col = i % 2;
-    const row = Math.floor(i / 2);
-    const x = RIGHT_X + 8 + col * 32;
-    const y = BOTTOM_Y + 6 + row * 16;
-    if (i === cursor) gb.drawText(ctx, x - 8, y, gb.CURSOR_GLYPH, 3);
-    gb.drawText(ctx, x, y, COMMANDS[i] ?? '', 3);
+    const y = BOTTOM_Y + 5 + i * 9;
+    if (i === cursor) gb.drawText(ctx, CMD_X + 4, y, gb.CURSOR_GLYPH, 3);
+    gb.drawText(ctx, CMD_X + 13, y, COMMANDS[i] ?? '', 3);
   }
 }
 
+/** Full width: 18 characters at an 8px advance, exactly like the Game Boy. */
+export const TEXT_COLS = 18;
+
 function drawMessageBox(ctx: CanvasRenderingContext2D, text: string): void {
-  gb.drawBox(ctx, 8, BOTTOM_Y, LEFT_W, BOTTOM_H);
-  const rows = gb.wrapText(text, 12);
+  gb.drawBox(ctx, 8, BOTTOM_Y, BOTTOM_W, BOTTOM_H);
+  const rows = gb.wrapText(text, TEXT_COLS);
   for (let i = 0; i < 2; i++) {
     const row = rows[i];
     if (row) gb.drawText(ctx, 8 + 6, BOTTOM_Y + 6 + i * 14, row, 3);
@@ -304,19 +346,23 @@ function drawMessageBox(ctx: CanvasRenderingContext2D, text: string): void {
 }
 
 function drawMoveList(ctx: CanvasRenderingContext2D, content: Content, scene: BattleScene): void {
-  const box = { x: 8, y: 80, w: 144, h: 56 };
+  // Starts right where PLAYER_BOX ends (y=86) so the two never overlap.
+  const box = { x: 8, y: 88, w: 144, h: 48 };
   gb.drawBox(ctx, box.x, box.y, box.w, box.h);
   const moves = activeOf(scene.battle.player).moves;
   for (let i = 0; i < 4; i++) {
     const slot = moves[i];
-    const y = box.y + 6 + i * 12;
+    const y = box.y + 5 + i * 10;
     if (i === scene.moveCursor) gb.drawText(ctx, box.x + 4, y, gb.CURSOR_GLYPH, 3);
     if (!slot) continue;
     const mv = content.dex.move(slot.move);
-    const name = mv.name.length > 12 ? `${mv.name.slice(0, 11)}.` : mv.name;
-    gb.drawText(ctx, box.x + 16, y, name, 3);
     const pp = `${slot.pp}/${slot.maxPp}`;
-    gb.drawText(ctx, box.x + box.w - gb.measureText(pp) - 8, y, pp, 3);
+    const ppX = box.x + box.w - gb.measureText(pp) - 8;
+    const nameX = box.x + 16;
+    const budget = Math.max(3, Math.floor((ppX - nameX - 4) / 8));
+    const name = mv.name.length > budget ? `${mv.name.slice(0, budget - 1)}.` : mv.name;
+    gb.drawText(ctx, nameX, y, name, 3);
+    gb.drawText(ctx, ppX, y, pp, 3);
   }
 }
 
@@ -380,20 +426,20 @@ function drawBattle(ctx: CanvasRenderingContext2D, content: Content, state: Game
   const player = sideActive(battle.player);
   const playerSp = content.dex.species(player.species);
 
-  fillEllipse(ctx, ENEMY_ANCHOR.cx, ENEMY_ANCHOR.cy + 20, 22, 6, 1);
+  fillEllipse(ctx, ENEMY_ANCHOR.cx, ENEMY_ANCHOR.baseline, 20, 5, 1);
   gb.drawSprite(
     ctx, creaturePixels(content, enemy.species),
     ENEMY_ANCHOR.cx - (SPRITE_SIZE * ENEMY_ANCHOR.scale) / 2,
-    ENEMY_ANCHOR.cy - SPRITE_SIZE * ENEMY_ANCHOR.scale + 20,
+    ENEMY_ANCHOR.baseline - SPRITE_SIZE * ENEMY_ANCHOR.scale,
     ENEMY_ANCHOR.scale, false,
   );
   drawSideInfo(ctx, ENEMY_BOX, enemy, false, enemySp);
 
-  fillEllipse(ctx, PLAYER_ANCHOR.cx, PLAYER_ANCHOR.cy + 20, 26, 7, 1);
+  fillEllipse(ctx, PLAYER_ANCHOR.cx, PLAYER_ANCHOR.baseline, 26, 6, 1);
   gb.drawSprite(
     ctx, creaturePixels(content, player.species),
     PLAYER_ANCHOR.cx - (SPRITE_SIZE * PLAYER_ANCHOR.scale) / 2,
-    PLAYER_ANCHOR.cy - SPRITE_SIZE * PLAYER_ANCHOR.scale + 20,
+    PLAYER_ANCHOR.baseline - SPRITE_SIZE * PLAYER_ANCHOR.scale,
     PLAYER_ANCHOR.scale, true,
   );
   drawSideInfo(ctx, PLAYER_BOX, player, true, playerSp);
