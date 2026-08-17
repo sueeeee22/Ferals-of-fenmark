@@ -295,7 +295,7 @@ function drawStarterPick(
 ): void {
   ctx.fillStyle = gb.shadeColor(0);
   ctx.fillRect(0, 0, gb.LOGICAL_W, gb.LOGICAL_H);
-  gb.drawText(ctx, 20, 6, 'PICK ONE. CAREFULLY.', 3);
+  gb.drawText(ctx, 44, 6, 'PICK ONE.', 3);
 
   const ids = starterChoices();
   for (let i = 0; i < ids.length; i++) {
@@ -303,7 +303,7 @@ function drawStarterPick(
     if (id === undefined) continue;
     const cx = 30 + i * 50;
     const selected = i === scene.cursor;
-    const baseline = selected ? 74 : 78;
+    const baseline = selected ? 68 : 72;
     const scale = selected ? 0.72 : 0.56;
 
     fillEllipse(ctx, cx, baseline, selected ? 18 : 14, 4, 1);
@@ -317,13 +317,13 @@ function drawStarterPick(
   const chosen = ids[scene.cursor] ?? ids[0];
   if (chosen !== undefined) {
     const sp = content.dex.species(chosen);
-    gb.drawBox(ctx, 4, 88, 152, 48);
-    gb.drawText(ctx, 10, 94, sp.name, 3);
-    gb.drawText(ctx, 10, 104, sp.types.join('/'), 3);
+    gb.drawBox(ctx, 4, 80, 152, 56);
+    gb.drawText(ctx, 10, 84, sp.name, 3);
+    gb.drawText(ctx, 10, 94, sp.types.join('/'), 3);
     const rows = gb.wrapText(sp.dexEntry, 17);
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < 3; i++) {
       const row = rows[i];
-      if (row !== undefined) gb.drawText(ctx, 10, 114 + i * 10, row, 3);
+      if (row !== undefined) gb.drawText(ctx, 10, 106 + i * 10, row, 3);
     }
   }
 }
@@ -371,6 +371,8 @@ const BOTTOM_W = 144;
 const BOTTOM_H = 40;
 
 const COMMANDS = ['FIGHT', 'BAG', 'PARTY', 'RUN'] as const;
+const CMD_W = 64;
+const CMD_X = 8 + BOTTOM_W - CMD_W;
 
 /*
  * Gen 1's battle bottom is a FULL-WIDTH text box with the command menu drawn as
@@ -384,8 +386,6 @@ const COMMANDS = ['FIGHT', 'BAG', 'PARTY', 'RUN'] as const;
  * One fixed-width column of four is the honest fit for an 8px font. Gen 1 got a
  * 2x2 out of a narrower kerned font; we do not have one, so we do not pretend.
  */
-const CMD_W = 64;
-const CMD_X = 8 + BOTTOM_W - CMD_W;
 
 function drawCommandGrid(ctx: CanvasRenderingContext2D, cursor: number): void {
   gb.drawBox(ctx, CMD_X, BOTTOM_Y, CMD_W, BOTTOM_H);
@@ -398,10 +398,18 @@ function drawCommandGrid(ctx: CanvasRenderingContext2D, cursor: number): void {
 
 /** Full width: 18 characters at an 8px advance, exactly like the Game Boy. */
 export const TEXT_COLS = 18;
+/**
+ * When the command panel is up it overlays the right end of the full-width text
+ * box, so the message must wrap short or it renders underneath the menu -
+ * "A wild Stripeling blocks the way" showed as "A wild St / blocks th".
+ */
+const TEXT_COLS_WITH_MENU = Math.floor((BOTTOM_W - CMD_W - 12) / 8);
 
-function drawMessageBox(ctx: CanvasRenderingContext2D, text: string): void {
-  gb.drawBox(ctx, 8, BOTTOM_Y, BOTTOM_W, BOTTOM_H);
-  const rows = gb.wrapText(text, TEXT_COLS);
+function drawMessageBox(ctx: CanvasRenderingContext2D, text: string, narrow = false): void {
+  // With the menu up the box stops where the panel starts, rather than running
+  // underneath it. Full width otherwise.
+  gb.drawBox(ctx, 8, BOTTOM_Y, narrow ? CMD_X - 8 : BOTTOM_W, BOTTOM_H);
+  const rows = gb.wrapText(text, narrow ? TEXT_COLS_WITH_MENU : TEXT_COLS);
   for (let i = 0; i < 2; i++) {
     const row = rows[i];
     if (row) gb.drawText(ctx, 8 + 6, BOTTOM_Y + 6 + i * 14, row, 3);
@@ -530,7 +538,10 @@ function drawBattle(ctx: CanvasRenderingContext2D, content: Content, state: Game
     return;
   }
 
-  drawMessageBox(ctx, state.lastText || `What will ${creatureLabel(player)} do?`);
+  // Gen 1 puts the active creature's NAME here beside the command menu, not a
+  // sentence: there is only room for about nine characters once the panel takes
+  // its half, and "What will Winter do?" simply clips.
+  drawMessageBox(ctx, creatureLabel(player), true);
   drawCommandGrid(ctx, scene.cursor);
 }
 
