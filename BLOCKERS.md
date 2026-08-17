@@ -101,12 +101,28 @@ birds are upright with a real beak, folded wing and tail behind; rodents sit
 back on heavy haunches; ungulates are tall and leggy with long necks; mustelids
 and reptiles run long and horizontal. A bear no longer reads as a dog.
 
-**What is still weaker than Gen 1:** variety *within* a family. All the cats
-look like the same cat. Gen 1 gets Gengar, Machop and Onix out of one "biped"
-bucket; we get one silhouette per family plus size and coat. The next lever is
-per-species proportion jitter that is large enough to actually read - and a few
-signature features (a mane, a shell, antlers, a ruff) distributed across the
-roster rather than reserved for apex forms.
+**Within-family variety: also FIXED.** Each species now draws a signature
+FEATURE from a family-plausible pool - mane, antlers, horns, quills, shell,
+crest, ear tufts, neck frill, shoulder hump - assigned by seed and drawn into
+the silhouette before outlining, so it picks up the border and coat shading like
+the body does. Proportion jitter was widened at the same time (bulk 0.17 -> 0.26,
+muzzle 0.18 -> 0.28, head 0.10 -> 0.17, ears 0.22 -> 0.30), because at the old
+amounts two same-family species differed by a couple of pixels.
+
+The distribution across the roster: canids run 20 plain / 9 maned / 5 humped /
+5 tufted; ungulates 7 antlered / 3 horned; birds 11 crested / 5 frilled; ursids
+mostly humped. Antlers versus horns now separates deer from goats at a glance,
+and a lynx is distinguishable from a house cat by its ear tufts.
+
+Features that grow upward shrink the fitted body slightly (`featureHeadroom`)
+so antlers do not clip the top margin. The nine starter sprites have their
+feature pinned deliberately rather than rolled: Winter and Baloo gain a mane as
+they evolve, Plato gains ear tufts.
+
+**What is still weaker than Gen 1:** rodents are the weakest family - several
+still read as a rounded lump with an eye. And a fully dark coat loses interior
+detail, because shade 3 is reserved for the outline so a dark animal has only
+one shade left to model with.
 
 The original diagnosis is kept below because it is still the right way to think
 about the problem.

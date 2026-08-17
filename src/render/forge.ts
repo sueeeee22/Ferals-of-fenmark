@@ -55,6 +55,31 @@ function mulberry(seed: number): () => number {
 // Parameters
 // ---------------------------------------------------------------------------
 
+/**
+ * Signature silhouette features.
+ *
+ * Per-family body plans fixed "every animal is the same dog", but left "every
+ * cat is the same cat": within a family the only differences were proportion
+ * jitter, and at 56x56 a 30% change in barrel width does not read. A distinct
+ * FEATURE does. These are assigned per species from a family-plausible pool, so
+ * a roster of twenty canids contains maned ones, humped ones, tufted ones and
+ * plain ones rather than twenty of the same outline.
+ *
+ * They are drawn into the silhouette before outlining, so they pick up the
+ * 1px border and the coat shading exactly like the body does.
+ */
+export type SpriteFeature =
+  | 'none'
+  | 'mane'      // ruff standing out around the skull
+  | 'antlers'   // branching, upward - deer
+  | 'horns'     // swept back, smooth - ibex, muskox
+  | 'quills'    // spines along the spine - porcupine, hedgehog
+  | 'shell'     // domed carapace over the barrel - tortoise, pangolin
+  | 'crest'     // fan of feathers on the crown - birds
+  | 'tufts'     // long ear tips - lynx, caracal
+  | 'frill'     // ruff of skin around the neck - reptiles
+  | 'humpback'; // shoulder mass higher than the skull
+
 export type EarShape = 'prick' | 'drop' | 'round' | 'tuft' | 'none';
 export type TailShape = 'curl' | 'plume' | 'brush' | 'stub' | 'whip' | 'fan';
 export type CoatPattern =
@@ -76,6 +101,8 @@ export interface ForgeParams {
   readonly muzzle: number;
   /** 0..1 — head size relative to body. */
   readonly head: number;
+  /** A distinguishing silhouette feature. See FAMILY_FEATURES. */
+  readonly feature: SpriteFeature;
   readonly ears: EarShape;
   /** 0..1 — ear size. */
   readonly earSize: number;
@@ -91,14 +118,14 @@ export interface ForgeParams {
 
 /** Family skeletons: the proportions that make a silhouette read as its animal. */
 const FAMILY_BASE: Readonly<Record<Family, Omit<ForgeParams, 'family'>>> = {
-  canid: { bulk: 0.5, legs: 0.58, muzzle: 0.7, head: 0.5, ears: 'prick', earSize: 0.6, tail: 'plume', ruff: 0.4, pattern: 'mask', coat: 1, majesty: 0 },
-  felid: { bulk: 0.42, legs: 0.44, muzzle: 0.25, head: 0.55, ears: 'prick', earSize: 0.55, tail: 'whip', ruff: 0.2, pattern: 'tabby', coat: 1, majesty: 0 },
-  ursid: { bulk: 0.9, legs: 0.36, muzzle: 0.5, head: 0.55, ears: 'round', earSize: 0.35, tail: 'stub', ruff: 0.3, pattern: 'solid', coat: 2, majesty: 0 },
-  bird: { bulk: 0.5, legs: 0.5, muzzle: 0.5, head: 0.45, ears: 'none', earSize: 0, tail: 'fan', ruff: 0.4, pattern: 'counter', coat: 1, majesty: 0 },
-  mustelid: { bulk: 0.4, legs: 0.3, muzzle: 0.45, head: 0.45, ears: 'round', earSize: 0.3, tail: 'brush', ruff: 0.15, pattern: 'counter', coat: 2, majesty: 0 },
-  rodent: { bulk: 0.4, legs: 0.4, muzzle: 0.35, head: 0.62, ears: 'round', earSize: 0.7, tail: 'whip', ruff: 0.1, pattern: 'counter', coat: 1, majesty: 0 },
-  ungulate: { bulk: 0.6, legs: 0.7, muzzle: 0.7, head: 0.4, ears: 'drop', earSize: 0.5, tail: 'stub', ruff: 0.25, pattern: 'patch', coat: 1, majesty: 0 },
-  reptile: { bulk: 0.45, legs: 0.3, muzzle: 0.7, head: 0.4, ears: 'none', earSize: 0, tail: 'whip', ruff: 0, pattern: 'spot', coat: 2, majesty: 0 },
+  canid: { feature: 'none', bulk: 0.5, legs: 0.58, muzzle: 0.7, head: 0.5, ears: 'prick', earSize: 0.6, tail: 'plume', ruff: 0.4, pattern: 'mask', coat: 1, majesty: 0 },
+  felid: { feature: 'none', bulk: 0.42, legs: 0.44, muzzle: 0.25, head: 0.55, ears: 'prick', earSize: 0.55, tail: 'whip', ruff: 0.2, pattern: 'tabby', coat: 1, majesty: 0 },
+  ursid: { feature: 'none', bulk: 0.9, legs: 0.36, muzzle: 0.5, head: 0.55, ears: 'round', earSize: 0.35, tail: 'stub', ruff: 0.3, pattern: 'solid', coat: 2, majesty: 0 },
+  bird: { feature: 'none', bulk: 0.5, legs: 0.5, muzzle: 0.5, head: 0.45, ears: 'none', earSize: 0, tail: 'fan', ruff: 0.4, pattern: 'counter', coat: 1, majesty: 0 },
+  mustelid: { feature: 'none', bulk: 0.4, legs: 0.3, muzzle: 0.45, head: 0.45, ears: 'round', earSize: 0.3, tail: 'brush', ruff: 0.15, pattern: 'counter', coat: 2, majesty: 0 },
+  rodent: { feature: 'none', bulk: 0.4, legs: 0.4, muzzle: 0.35, head: 0.62, ears: 'round', earSize: 0.7, tail: 'whip', ruff: 0.1, pattern: 'counter', coat: 1, majesty: 0 },
+  ungulate: { feature: 'none', bulk: 0.6, legs: 0.7, muzzle: 0.7, head: 0.4, ears: 'drop', earSize: 0.5, tail: 'stub', ruff: 0.25, pattern: 'patch', coat: 1, majesty: 0 },
+  reptile: { feature: 'none', bulk: 0.45, legs: 0.3, muzzle: 0.7, head: 0.4, ears: 'none', earSize: 0, tail: 'whip', ruff: 0, pattern: 'spot', coat: 2, majesty: 0 },
 };
 
 /**
@@ -136,22 +163,39 @@ const FAMILY_TAILS: Readonly<Record<Family, readonly TailShape[]>> = {
  */
 const STARTER_TUNING: Readonly<Record<string, Partial<ForgeParams>>> = {
   // Winter — black-and-white Siberian Husky. Aloof, dramatic, screams.
-  winter_pup: { bulk: 0.34, legs: 0.4, muzzle: 0.5, head: 0.66, ears: 'prick', earSize: 0.72, tail: 'curl', ruff: 0.5, pattern: 'mask', coat: 1, majesty: 0 },
-  winter_adult: { bulk: 0.54, legs: 0.6, muzzle: 0.72, head: 0.5, ears: 'prick', earSize: 0.66, tail: 'curl', ruff: 0.66, pattern: 'mask', coat: 1, majesty: 0.2 },
-  winter_apex: { bulk: 0.74, legs: 0.72, muzzle: 0.78, head: 0.52, ears: 'prick', earSize: 0.8, tail: 'plume', ruff: 1, pattern: 'mask', coat: 1, majesty: 0.95 },
+  winter_pup: { feature: 'none', bulk: 0.34, legs: 0.4, muzzle: 0.5, head: 0.66, ears: 'prick', earSize: 0.72, tail: 'curl', ruff: 0.5, pattern: 'mask', coat: 1, majesty: 0 },
+  winter_adult: { feature: 'none', bulk: 0.54, legs: 0.6, muzzle: 0.72, head: 0.5, ears: 'prick', earSize: 0.66, tail: 'curl', ruff: 0.66, pattern: 'mask', coat: 1, majesty: 0.2 },
+  winter_apex: { feature: 'mane', bulk: 0.74, legs: 0.72, muzzle: 0.78, head: 0.52, ears: 'prick', earSize: 0.8, tail: 'plume', ruff: 1, pattern: 'mask', coat: 1, majesty: 0.95 },
 
   // Baloo — orange-and-white Siberian Husky. Enthusiastic idiot.
-  baloo_pup: { bulk: 0.4, legs: 0.42, muzzle: 0.52, head: 0.64, ears: 'prick', earSize: 0.62, tail: 'curl', ruff: 0.45, pattern: 'mask', coat: 1, majesty: 0 },
-  baloo_adult: { bulk: 0.62, legs: 0.58, muzzle: 0.7, head: 0.5, ears: 'prick', earSize: 0.6, tail: 'plume', ruff: 0.7, pattern: 'mask', coat: 1, majesty: 0.25 },
-  baloo_apex: { bulk: 0.92, legs: 0.64, muzzle: 0.74, head: 0.56, ears: 'prick', earSize: 0.7, tail: 'plume', ruff: 1, pattern: 'mask', coat: 1, majesty: 1 },
+  baloo_pup: { feature: 'none', bulk: 0.4, legs: 0.42, muzzle: 0.52, head: 0.64, ears: 'prick', earSize: 0.62, tail: 'curl', ruff: 0.45, pattern: 'mask', coat: 1, majesty: 0 },
+  baloo_adult: { feature: 'mane', bulk: 0.62, legs: 0.58, muzzle: 0.7, head: 0.5, ears: 'prick', earSize: 0.6, tail: 'plume', ruff: 0.7, pattern: 'mask', coat: 1, majesty: 0.25 },
+  baloo_apex: { feature: 'mane', bulk: 0.92, legs: 0.64, muzzle: 0.74, head: 0.56, ears: 'prick', earSize: 0.7, tail: 'plume', ruff: 1, pattern: 'mask', coat: 1, majesty: 1 },
 
   // Plato — grey-and-white tabby. Contemptuous. Will not fetch.
-  plato_pup: { bulk: 0.3, legs: 0.3, muzzle: 0.2, head: 0.7, ears: 'prick', earSize: 0.66, tail: 'whip', ruff: 0.12, pattern: 'tabby', coat: 1, majesty: 0 },
-  plato_adult: { bulk: 0.46, legs: 0.46, muzzle: 0.26, head: 0.56, ears: 'prick', earSize: 0.56, tail: 'whip', ruff: 0.3, pattern: 'tabby', coat: 1, majesty: 0.2 },
-  plato_apex: { bulk: 0.6, legs: 0.52, muzzle: 0.3, head: 0.6, ears: 'tuft', earSize: 0.74, tail: 'plume', ruff: 0.8, pattern: 'tabby', coat: 1, majesty: 0.9 },
+  plato_pup: { feature: 'none', bulk: 0.3, legs: 0.3, muzzle: 0.2, head: 0.7, ears: 'prick', earSize: 0.66, tail: 'whip', ruff: 0.12, pattern: 'tabby', coat: 1, majesty: 0 },
+  plato_adult: { feature: 'tufts', bulk: 0.46, legs: 0.46, muzzle: 0.26, head: 0.56, ears: 'prick', earSize: 0.56, tail: 'whip', ruff: 0.3, pattern: 'tabby', coat: 1, majesty: 0.2 },
+  plato_apex: { feature: 'tufts', bulk: 0.6, legs: 0.52, muzzle: 0.3, head: 0.6, ears: 'tuft', earSize: 0.74, tail: 'plume', ruff: 0.8, pattern: 'tabby', coat: 1, majesty: 0.9 },
 };
 
 /** Derive parameters for a species from its family, stage and seed. */
+/**
+ * Which features are plausible on which family. A deer may have antlers, a
+ * tortoise a shell, a lynx ear tufts; none of them may have each other's.
+ * 'none' appears more than once so plain animals stay common and a feature
+ * still reads as distinguishing rather than standard issue.
+ */
+const FAMILY_FEATURES: Readonly<Record<Family, readonly SpriteFeature[]>> = {
+  canid: ['none', 'none', 'mane', 'humpback', 'tufts'],
+  felid: ['none', 'none', 'mane', 'tufts', 'tufts'],
+  ursid: ['none', 'humpback', 'humpback', 'mane', 'horns'],
+  mustelid: ['none', 'none', 'quills', 'mane'],
+  rodent: ['none', 'quills', 'quills', 'tufts', 'horns'],
+  ungulate: ['none', 'antlers', 'antlers', 'horns', 'horns', 'mane', 'humpback'],
+  bird: ['none', 'crest', 'crest', 'frill'],
+  reptile: ['none', 'shell', 'frill', 'quills', 'horns'],
+};
+
 export function paramsFor(
   id: string,
   family: Family,
@@ -176,15 +220,18 @@ export function paramsFor(
 
   const params: ForgeParams = {
     family,
-    bulk: vary(base.bulk + stageBulk, 0.17),
+    // Jitter widened across the board: at the old amounts two same-family
+    // species differed by a couple of pixels, which is invisible at this size.
+    bulk: vary(base.bulk + stageBulk, 0.26),
+    feature: pick(FAMILY_FEATURES[family], 'none'),
     // Legs get a much wider spread than anything else: at ±0.13 every dog in the
     // roster stood on the same 2px band of leg and you could not tell a corgi
     // from a wolfhound. The draw routines map this across their whole range.
     legs: vary(base.legs, 0.34),
-    muzzle: vary(base.muzzle, 0.18),
-    head: vary(base.head + stageHead, 0.1),
+    muzzle: vary(base.muzzle, 0.28),
+    head: vary(base.head + stageHead, 0.17),
     ears: rnd() < 0.45 ? base.ears : pick(FAMILY_EARS[family], base.ears),
-    earSize: vary(base.earSize, 0.22),
+    earSize: vary(base.earSize, 0.3),
     tail: rnd() < 0.45 ? base.tail : pick(FAMILY_TAILS[family], base.tail),
     ruff: vary(base.ruff + majesty * 0.35, 0.14),
     pattern: rnd() < 0.5 ? base.pattern : pick(patternPool, base.pattern),
@@ -1532,6 +1579,150 @@ function detailBack(px: Pixels, p: ForgeParams, g: Geom): void {
 // The forge
 // ---------------------------------------------------------------------------
 
+
+// ---------------------------------------------------------------------------
+// Signature features
+// ---------------------------------------------------------------------------
+
+/**
+ * Draw the species' distinguishing feature into the silhouette.
+ *
+ * Called after the body and before outlining, so the feature gets the same 1px
+ * border and coat shading the body does and reads as part of the animal rather
+ * than as something stuck on top.
+ */
+function drawFeature(px: Pixels, p: ForgeParams, g: Geom, fill: number): void {
+  const s = g.scale;
+  const hx = g.headCx;
+  const hy = g.headCy;
+  const hr = g.headR;
+
+  switch (p.feature) {
+    case 'none':
+      return;
+
+    case 'mane': {
+      // A ring of mass hugging the skull. Hugging matters: a halo of blobs at
+      // arm's length erases the head outline instead of framing it.
+      const n = 11;
+      for (let i = 0; i < n; i++) {
+        const a = Math.PI * 0.2 + (i / (n - 1)) * Math.PI * 1.25;
+        const rr = hr * 1.18;
+        ellipse(px, hx + Math.cos(a) * rr + hr * 0.2, hy + Math.sin(a) * rr,
+          1.5 * s + hr * 0.16, 1.5 * s + hr * 0.16, fill);
+      }
+      return;
+    }
+
+    case 'antlers': {
+      // Two beams sweeping up and back, each throwing two tines forward. Even
+      // at this size the tines are what say "deer" rather than "horns".
+      for (const off of [0, 2.2 * s] as const) {
+        const bx = hx + hr * 0.25 + off;
+        const by = hy - hr * 0.72;
+        const tipX = bx + 2 * s;
+        const tipY = by - (9 + p.majesty * 5) * s;
+        curve(px, bx, by, bx + 4 * s, by - 5 * s, tipX, tipY, 1.5 * s, 0.7 * s, fill);
+        taper(px, bx + 1.5 * s, by - 3.5 * s, bx - 2.5 * s, by - 6.5 * s, 1 * s, 0.5 * s, fill);
+        taper(px, bx + 2.5 * s, by - 6.5 * s, bx - 1.5 * s, by - 9.5 * s, 0.9 * s, 0.45 * s, fill);
+      }
+      return;
+    }
+
+    case 'horns': {
+      // Smooth, swept back over the shoulder. No tines.
+      for (const off of [0, 2 * s] as const) {
+        curve(px,
+          hx + hr * 0.3 + off, hy - hr * 0.75,
+          hx + hr * 1.2 + off, hy - hr * 1.5,
+          hx + hr * 2.1 + off, hy - hr * 0.4,
+          2 * s, 0.6 * s, fill);
+      }
+      return;
+    }
+
+    case 'quills': {
+      // Spines following the curve of the back, longest over the shoulder.
+      const n = 9;
+      for (let i = 0; i < n; i++) {
+        const t = i / (n - 1);
+        const sx = g.bodyCx - g.bodyRx * 0.85 + t * g.bodyRx * 1.7;
+        const norm = (sx - g.bodyCx) / g.bodyRx;
+        const backY = g.bodyCy - g.bodyRy * Math.sqrt(Math.max(0, 1 - norm * norm)) * 0.98;
+        const h = (5.5 - Math.abs(t - 0.35) * 4) * s;
+        if (h <= 0.5) continue;
+        triangle(px, sx - 1.5 * s, backY + 1, sx + 1.5 * s, backY + 1, sx - 1.2 * s, backY - h, fill);
+      }
+      return;
+    }
+
+    case 'shell': {
+      // A dome sitting over the barrel, wider and taller than the body itself,
+      // which is what makes the animal read as carrying something.
+      ellipse(px, g.bodyCx, g.bodyCy - g.bodyRy * 0.35,
+        g.bodyRx * 1.05, g.bodyRy * 1.25, fill);
+      return;
+    }
+
+    case 'crest': {
+      // A fan standing off the crown, leaning back.
+      const n = 5;
+      for (let i = 0; i < n; i++) {
+        const t = i / (n - 1);
+        const a = -Math.PI * 0.62 + t * Math.PI * 0.5;
+        const len = (5 + p.majesty * 3) * s * (1 - Math.abs(t - 0.5) * 0.5);
+        taper(px, hx + Math.cos(a) * hr * 0.7, hy + Math.sin(a) * hr * 0.7,
+          hx + Math.cos(a) * (hr * 0.7 + len), hy + Math.sin(a) * (hr * 0.7 + len),
+          1.1 * s, 0.4 * s, fill);
+      }
+      return;
+    }
+
+    case 'tufts': {
+      // Long ear tips. The single cheapest way to say "wild cat".
+      const size = (2.5 + p.earSize * 6.5) * s;
+      for (const dir of [-1, 1] as const) {
+        const ex = hx + dir * hr * 0.62;
+        const ey = hy - hr * 0.66 - size;
+        taper(px, ex, ey + 1, ex + dir * 1.6 * s, ey - 4.5 * s, 1.1 * s, 0.35 * s, fill);
+      }
+      return;
+    }
+
+    case 'frill': {
+      // A collar standing out behind the skull.
+      const n = 9;
+      for (let i = 0; i < n; i++) {
+        const a = -Math.PI * 0.75 + (i / (n - 1)) * Math.PI * 1.5;
+        const rr = hr * 1.5;
+        ellipse(px, hx + Math.cos(a) * rr + hr * 0.55, hy + Math.sin(a) * rr * 0.85,
+          1.6 * s, 1.6 * s, fill);
+      }
+      return;
+    }
+
+    case 'humpback': {
+      // Shoulder mass standing proud of the spine.
+      ellipse(px, g.bodyCx - g.bodyRx * 0.35, g.bodyCy - g.bodyRy * 0.72,
+        g.bodyRx * 0.55, g.bodyRy * 0.62, fill);
+      return;
+    }
+  }
+}
+
+/** Features that grow upward need headroom, or they clip on the top margin. */
+function featureHeadroom(f: SpriteFeature): number {
+  switch (f) {
+    case 'antlers': return 0.82;
+    case 'crest': return 0.9;
+    case 'horns': return 0.92;
+    case 'quills': return 0.92;
+    case 'tufts': return 0.93;
+    case 'shell': return 0.9;
+    default: return 1;
+  }
+}
+
 export function forgeSprite(params: ForgeParams, seed: number, view: SpriteView = 'front'): Pixels {
   const px = new Uint8Array(S * S);
   const rnd = mulberry(seed ^ 0x5bf03635);
@@ -1552,8 +1743,11 @@ export function forgeSprite(params: ForgeParams, seed: number, view: SpriteView 
   }
 
   const art = FAMILY_ART[params.family];
-  const g = fit(art.layout, params, base);
+  // Features that grow upward eat into the top margin, so the body is fitted a
+  // little smaller when one is present rather than letting antlers clip.
+  const g = fit(art.layout, params, base * featureHeadroom(params.feature));
   art.draw(px, params, g, fill, rnd);
+  drawFeature(px, params, g, fill);
   outline(px);
   shade(px, params, g, rnd, 'front');
   art.detail?.(px, params, g);
