@@ -1,0 +1,74 @@
+name: Deploy to GitHub Pages
+
+# The shareable link. Every push to the game's source rebuilds the static site
+# and publishes it to https://sueeeee22.github.io/Ferals-of-fenmark/
+#
+# There is no backend and no secret involved: the build output is a folder of
+# static files, and saves live in each player's own browser. That is also why
+# this workflow needs no account setup beyond switching Pages on once, under
+# Settings > Pages > Source: GitHub Actions.
+on:
+  push:
+    branches: [main, claude/ferals-fenmark-rpg-ga42yt]
+    paths:
+      - src/**
+      - public/**
+      - index.html
+      - vite.config.ts
+      - tsconfig.json
+      - package.json
+      - package-lock.json
+      - .github/workflows/deploy-pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race. A cancelled in-flight run is fine; a half-applied
+# one is not, so in-progress runs are cancelled rather than queued.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Fail here rather than publishing a broken page. `ship` runs the build
+      # and then asserts the output is actually servable: entry present, no
+      # absolute URLs that break under the Pages subpath, save round-trip
+      # intact, budget respected.
+      - name: Build and verify
+        env:
+          # Pages serves a project site from /<repo>/, so assets must be
+          # prefixed. `github.event.repository.name` keeps this correct even if
+          # the repository is renamed.
+          BASE_PATH: /${{ github.event.repository.name }}/
+        run: npm run ship
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

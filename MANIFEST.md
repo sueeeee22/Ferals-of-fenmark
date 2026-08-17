@@ -25,7 +25,7 @@ enough to work with it; open it only when you are about to change it.
 | `world.ts` | Tile grid, tile property table, collision, ledges, warps, encounter tables, trainer line of sight. |
 | `game.ts` | The top-level reducer. `step(content, state, buttons)` = one frame. Save file is this state. |
 | `testkit.ts` | Shared helpers for gauntlets: `makeDex`, `makeFeral`, `autoBattle`. |
-| `save.ts` | Serialize / deserialize / migrate. |
+| `save.ts` | Serialize / deserialize / migrate, plus transfer codes (pure, no DOM). |
 
 ## `src/render` — drawing only, never rules
 
@@ -84,4 +84,11 @@ enough to work with it; open it only when you are about to change it.
 | `workbench.html` | One live page: gauntlet status, contact sheet, difficulty curve, latest screenshots. |
 | `forge.html` | The sprite contact sheet, browsable. |
 | `firestore.rules` | Deny-by-default. Each save locked to its owning uid. |
-| `src/firebase.ts` | Firebase init. Config is public by design; access is enforced by rules. |
+| `src/firebase.ts` | Firebase init. Config is public by design; access is enforced by rules. NOT wired up - see DEPLOY.md. |
+| `src/saves.ts` | Save slots, autosave, backup-on-write and corrupt-save recovery. Shell-side, because `src/core` may not touch localStorage. |
+| `src/save-ui.ts` | The SAVES panel: slots and transfer codes. HTML overlay, deliberately not on the DMG screen. |
+| `vite.config.ts` | Build config. `BASE_PATH` sets the asset prefix - `/Ferals-of-fenmark/` for GitHub Pages, `/` for a root host. |
+| `scripts/ship.ts` | `npm run ship`. Builds, then defers to gauntlet 8 so there is one definition of shippable. |
+| `scripts/gauntlet/ship.ts` | Gauntlet 8. Serves the real `dist/` from the Pages subpath and drives it in a browser. |
+| `.github/workflows/deploy-pages.yml` | Builds, verifies and publishes to GitHub Pages on push. |
+| `DEPLOY.md` | How to get the link live, what saves do and do not protect against, and the Firebase path if wanted. |

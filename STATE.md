@@ -32,7 +32,7 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
 | 5 | `gauntlet:playthrough` | **PASS** | all three starters reach the Champion, on 4 seeds |
 | 6 | `gauntlet:visual` | not written | but `scripts/shots.ts` EXISTS: 17/18 checkpoints |
 | 7 | `gauntlet:tone` | **PASS** | 96 keys, 325 boxes, 1 warning |
-| 8 | `gauntlet:ship` | not written | needs `DEPLOY.md` + `npm run ship` too |
+| 8 | `gauntlet:ship` | **PASS** | real build, served from the Pages subpath, driven in a browser |
 
 `gauntlet:sim` headline numbers, current run:
 - median battle length **6 turns** (p10 3, p90 12) — was **1**
@@ -99,6 +99,31 @@ is reproducible; `PT_SEED` exists so a pass can be distinguished from a lucky ru
 
 ---
 
+## Shipping
+
+The game is a static site: no server, no database, no login, **77KB gzipped**.
+
+- **The link:** `https://sueeeee22.github.io/Ferals-of-fenmark/`
+- **One-time setup, and only a human can do it:** Settings → Pages → Source:
+  **GitHub Actions**. Until that is switched on the link 404s. After it, every
+  push redeploys. Full instructions and troubleshooting live in `DEPLOY.md`.
+- `npm run ship` builds and then *proves the build is publishable* — it serves
+  the real `dist/` over HTTP from the `/Ferals-of-fenmark/` subpath, drives it in
+  a real browser, and checks every request 200s, the loop runs, the canvas draws
+  more than one colour, input reaches the reducer, and **a save survives a real
+  page reload**. CI runs the same thing and refuses to publish if it fails.
+- **Saves:** three slots in `localStorage`, an autosave every 30s and on tab
+  hide/close (own key, can never clobber a manual save), backup-on-write with
+  automatic recovery from a corrupt primary, and **transfer codes** — the whole
+  save as one line of text, so a player can move devices or survive a site-data
+  wipe. The SAVES button is top-right, outside the DMG screen deliberately.
+- Firebase is NOT wired up. It was not needed for a link, and it costs an
+  account and a login this project otherwise does not require. The groundwork
+  (rules, config, `src/firebase.ts`, the rules-deploy workflow) is committed and
+  still valid — see the end of `DEPLOY.md` for what turning it on would take.
+
+---
+
 ## Next steps, in order
 
 1. **Write `gauntlet:visual`.** `scripts/shots.ts` already captures and writes
@@ -107,15 +132,12 @@ is reproducible; `PT_SEED` exists so a pass can be distinguished from a lucky ru
    DMG palette (off-palette means the renderer smoothed or fractionally scaled).
    This is the largest remaining hole - it is the only gauntlet with no assertions
    at all, so nothing currently stops a rendering regression.
-2. **Write `gauntlet:ship` + `DEPLOY.md` + `npm run ship`.** Firebase config and rules
-   already exist and are good; the deploy script and docs do not. Do not attempt to
-   log in to Firebase - the brief forbids it. Write the config and the instructions.
-3. **Fix the 8 `gauntlet:curve` failures.** Most are the OPPOSITE of too hard - gyms
+2. **Fix the 8 `gauntlet:curve` failures.** Most are the OPPOSITE of too hard - gyms
    beatable while well under level, because the guaranteed type counters make an
    underlevelled team viable. Elite Four #2 and #4 are the remaining "too hard" ones.
-4. **Audio.** Nothing exists. The brief asks for chiptune via WebAudio.
-5. Overworld player/NPC sprites: authored pixel art instead of procedural humanoids.
-6. `BLOCKERS.md` items 1 and 2 (status moves, starter parity).
+3. **Audio.** Nothing exists. The brief asks for chiptune via WebAudio.
+4. Overworld player/NPC sprites: authored pixel art instead of procedural humanoids.
+5. `BLOCKERS.md` items 1 and 2 (status moves, starter parity).
 
 ---
 
@@ -132,6 +154,20 @@ is reproducible; `PT_SEED` exists so a pass can be distinguished from a lucky ru
   generator in `scripts/gen/` and re-run.
 - The reducer is pure and `resolveTurn` **mutates the state it is given**. Build a fresh
   state per battle and fresh `Feral` objects, or HP and status leak between battles.
+- **The base path is how you ship a blank page.** GitHub Pages serves a project site
+  from `/Ferals-of-fenmark/`, so any asset URL starting with `/` resolves to the domain
+  root and 404s. `BASE_PATH` drives `vite.config.ts`; CI sets it from the repo name.
+  `gauntlet:ship` checks it twice - once by reading the built HTML, once by actually
+  serving `dist/` from that subpath and watching for a non-200.
+- **`src/core` may not touch `localStorage`** (gauntlet:types bans DOM globals there),
+  which is why the save slots, autosave and recovery live in `src/saves.ts` and the
+  panel in `src/save-ui.ts`. The reducer only raises `saveRequested`; the shell decides
+  where bytes land. That separation is also why none of the save work could regress
+  `gauntlet:playthrough` - it never touches `step()`.
+- **Driving the intro in a browser: `z` is A, `x` is B.** And press A a BLIND fixed
+  number of times, not "until the scene stops being dialogue" - the intro runs several
+  dialogue segments with overworld frames between them, so a state-driven loop exits
+  on the first gap and stops half way through.
 - **A playthrough bot that can out-grind a problem will hide it.** Two separate bugs
   were masked this way. The bot could not catch anything, so it padded the party gate
   with levels and arrived at gym 1 twenty levels over and finished at 100/100/100 -

@@ -12,52 +12,27 @@ import {
   newGame, step, chooseStarter, STARTERS,
   type Buttons, type ButtonName, type GameState,
 } from './core/game.ts';
-import { SAVE_KEY, serialize, deserialize, restore, type SaveStore } from './core/save.ts';
+import { serialize, restore, type SaveFile } from './core/save.ts';
+import { activeSlot, loadSlot, setActiveSlot, slotStore } from './saves.ts';
+import { createSavePanel } from './save-ui.ts';
 
 if (Object.values(usingPlaceholder).some(Boolean)) {
   console.info('[content] placeholder data in use for:', usingPlaceholder);
 }
 
 // ---------------------------------------------------------------------------
-// Save storage — localStorage, degrading to "no persistence" rather than
-// throwing if it is unavailable (private browsing, storage quota, etc).
+// Save storage. `src/saves.ts` owns the slots, the backup-on-write and the
+// autosave; this file only decides WHEN to call it. Nothing here can throw:
+// a browser that refuses to persist gets a playable game and a warning in the
+// save panel, not a crash.
 // ---------------------------------------------------------------------------
 
-function localStorageStore(): SaveStore {
-  return {
-    read(): string | null {
-      try {
-        return window.localStorage.getItem(SAVE_KEY);
-      } catch {
-        return null;
-      }
-    },
-    write(data: string): void {
-      try {
-        window.localStorage.setItem(SAVE_KEY, data);
-      } catch {
-        /* storage unavailable — play on without persistence */
-      }
-    },
-    clear(): void {
-      try {
-        window.localStorage.removeItem(SAVE_KEY);
-      } catch {
-        /* ignore */
-      }
-    },
-  };
-}
-
-const store = localStorageStore();
+let slot = activeSlot();
+const store = slotStore(() => slot);
 
 function loadInitialState(): GameState {
-  const raw = store.read();
-  if (raw) {
-    const file = deserialize(raw);
-    if (file) return restore(file);
-  }
-  return newGame(Date.now());
+  const loaded = loadSlot(slot);
+  return loaded === null ? newGame(Date.now()) : restore(loaded.file);
 }
 
 let state = loadInitialState();
@@ -197,7 +172,69 @@ function advance(buttons: Buttons): void {
     frame: state.frame,
   };
   if (state.saveRequested) store.write(serialize(state));
+  maybeAutosave();
 }
+
+// ---------------------------------------------------------------------------
+// Autosave.
+//
+// A Game Boy could assume the player chose to stop. A tab cannot: it gets
+// closed, backgrounded until the OS reclaims it, or reloaded by accident. The
+// autosave lives on its own key and never overwrites a deliberate save, so the
+// worst it can do is offer a NEWER state than the one the player last wrote.
+//
+// Only written from the overworld: mid-battle and mid-dialogue states collapse
+// on restore anyway (see save.ts), so autosaving there would quietly rewind the
+// player to the start of the fight and look like a bug.
+// ---------------------------------------------------------------------------
+
+const AUTOSAVE_EVERY = 60 * 30; // frames — every 30 seconds
+let lastAutosave = 0;
+
+function autosaveable(s: GameState): boolean {
+  return s.scene.kind === 'overworld' && s.player.starter !== '';
+}
+
+function maybeAutosave(): void {
+  if (!autosaveable(state)) return;
+  if (state.frame - lastAutosave < AUTOSAVE_EVERY) return;
+  lastAutosave = state.frame;
+  store.autosave(serialize(state));
+}
+
+/** Last-moment autosave. `visibilitychange` is the only one phones reliably fire. */
+function autosaveNow(): void {
+  if (autosaveable(state)) store.autosave(serialize(state));
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') autosaveNow();
+});
+window.addEventListener('pagehide', autosaveNow);
+
+// ---------------------------------------------------------------------------
+// Save panel — slots and transfer codes, outside the DMG screen.
+// ---------------------------------------------------------------------------
+
+const panel = createSavePanel({
+  getState: () => state,
+  loadFile: (file: SaveFile) => {
+    state = restore(file);
+    lastAutosave = state.frame;
+    store.write(serialize(state));
+  },
+  switchSlot: (next: number) => {
+    // Preserve the outgoing slot before leaving it, or switching away loses
+    // whatever happened since the last manual save.
+    autosaveNow();
+    slot = next;
+    setActiveSlot(next);
+    state = loadInitialState();
+    lastAutosave = state.frame;
+  },
+});
+
+const savesButton = document.querySelector<HTMLButtonElement>('#saves-button');
+savesButton?.addEventListener('click', () => panel.open());
 
 // ---------------------------------------------------------------------------
 // Fixed-timestep loop: simulate at exactly 1/60s per tick, render once per
