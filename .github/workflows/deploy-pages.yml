@@ -45,6 +45,15 @@ jobs:
 
       - run: npm ci
 
+      # gauntlet:ship drives the built site in a real browser, which is the
+      # whole reason it catches subpath 404s and dead pages. `npm ci` installs
+      # the Playwright package but not a browser to drive, so without this the
+      # verification step fails on a missing executable rather than on anything
+      # about the game. (The dev image has a prebuilt Chromium; a CI runner
+      # does not.)
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
       # Fail here rather than publishing a broken page. `ship` runs the build
       # and then asserts the output is actually servable: entry present, no
       # absolute URLs that break under the Pages subpath, save round-trip
