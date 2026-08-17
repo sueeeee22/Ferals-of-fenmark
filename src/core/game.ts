@@ -10,6 +10,7 @@
  */
 
 import { Rng, type RngState } from './rng.ts';
+import { paginate, pageLength } from './text.ts';
 import type { Feral, Species } from './creature.ts';
 import { computeStat, expForLevel, maxHp, selectMoveset } from './creature.ts';
 import {
@@ -127,8 +128,14 @@ export interface DialogueScene {
   readonly kind: 'dialogue';
   lines: string[];
   index: number;
-  /** Characters revealed of the current line, for the typewriter. */
+  /** Characters revealed of the current PAGE, for the typewriter. */
   chars: number;
+  /**
+   * Which box of the current line is showing. A line longer than two rows is
+   * shown a box at a time - without this the renderer drew the first two rows
+   * and silently dropped the rest.
+   */
+  page: number;
   /** Queued scene to enter when the dialogue ends. */
   then: PendingAction | null;
 }
@@ -314,13 +321,14 @@ function say(state: GameState, content: Content, key: string, then: PendingActio
     lines: lines.length > 0 ? [...lines] : ['...'],
     index: 0,
     chars: 0,
+    page: 0,
     then,
   };
   state.lastText = lines[0] ?? '';
 }
 
 function sayRaw(state: GameState, lines: readonly string[], then: PendingAction | null = null): void {
-  state.scene = { kind: 'dialogue', lines: [...lines], index: 0, chars: 0, then };
+  state.scene = { kind: 'dialogue', lines: [...lines], index: 0, chars: 0, page: 0, then };
   state.lastText = lines[0] ?? '';
 }
 
@@ -600,15 +608,31 @@ function stepDialogue(
   const line = scene.lines[scene.index] ?? '';
   const advance = pressed(state, b, 'a') || pressed(state, b, 'b');
 
-  if (scene.chars < line.length) {
-    scene.chars = Math.min(line.length, scene.chars + (advance ? line.length : TYPE_SPEED));
+  // A line is shown a BOX at a time. The renderer only ever draws two rows, so
+  // anything longer has to be paged through here - it used to be drawn once and
+  // the overflow thrown away, which lost the tail of 96% of the script.
+  const pages = paginate(line);
+  const rows = pages[scene.page] ?? [];
+  const visible = pageLength(rows);
+
+  // Still typing: A/B fills the box instantly rather than advancing past it.
+  if (scene.chars < visible) {
+    scene.chars = advance ? visible : Math.min(visible, scene.chars + TYPE_SPEED);
     state.lastText = line;
     return;
   }
   if (!advance) return;
 
+  // More of this line to read before moving on.
+  if (scene.page < pages.length - 1) {
+    scene.page++;
+    scene.chars = 0;
+    return;
+  }
+
   if (scene.index < scene.lines.length - 1) {
     scene.index++;
+    scene.page = 0;
     scene.chars = 0;
     state.lastText = scene.lines[scene.index] ?? '';
     return;
@@ -699,6 +723,29 @@ export function starterChoices(): readonly StarterId[] {
 /** Frames each battle event is held on screen before the next is shown. */
 const EVENT_FRAMES = 6;
 
+/**
+ * Push battle events, splitting any message too long for the text box into one
+ * event per box.
+ *
+ * The battle box shows two rows and drains on a timer, so unlike dialogue there
+ * is nobody to press A for a second page - an over-long message simply lost its
+ * tail. Move names run to twenty-one characters ("Under The Floorboards") and
+ * creature names to twelve, so "Nightreynard used Under The Floorboards!" needs
+ * three rows and used to show two. Splitting here means the existing drain
+ * shows each box in turn and nothing is dropped.
+ */
+function pushEvents(scene: BattleScene, events: readonly BattleEvent[]): void {
+  for (const ev of events) {
+    if (ev.t !== 'text') {
+      scene.queue.push(ev);
+      continue;
+    }
+    for (const rows of paginate(ev.text)) {
+      scene.queue.push({ t: 'text', text: rows.join(' ') });
+    }
+  }
+}
+
 function stepBattle(
   content: Content,
   state: GameState,
@@ -730,7 +777,7 @@ function stepBattle(
     handlePartyMenu(state, scene, b, (idx) => {
       const target = battle.player.party[idx];
       if (!target || target.hp <= 0) return false;
-      scene.queue.push(...forceSwitch(content.dex, battle, 'player', idx));
+      pushEvents(scene, forceSwitch(content.dex, battle, 'player', idx));
       scene.sub = 'main';
       return true;
     });
@@ -852,7 +899,7 @@ function submitAction(
 ): void {
   const result = resolveTurn(content.dex, scene.battle, action, rng);
   scene.battle = result.state;
-  scene.queue.push(...result.events);
+  pushEvents(scene, result.events);
   scene.sub = 'main';
   scene.ticks = 0;
   if (scene.queue.length === 0) afterEvents(content, state, scene, rng);

@@ -300,12 +300,14 @@ try {
   // Driven through the real title screen and the real save flow, then a genuine
   // page reload. Writing to localStorage directly would prove only that
   // localStorage works.
+  // ~70ms is comfortably more than the ~2 frames the reducer needs to see a
+  // button; the release gap only has to exceed one frame for the edge detector.
   const pressKey = async (key: string, times = 1): Promise<void> => {
     for (let i = 0; i < times; i++) {
       await page.keyboard.down(key);
-      await page.waitForTimeout(80);
+      await page.waitForTimeout(70);
       await page.keyboard.up(key);
-      await page.waitForTimeout(140);
+      await page.waitForTimeout(70);
     }
   };
 
@@ -330,8 +332,12 @@ try {
   // segments with overworld frames BETWEEN them, so a state-driven loop exits
   // on the first gap and stops half way through. Extra presses in the overworld
   // are harmless - they just interact with whatever is in front of the player.
+  //
+  // The count has to cover BOXES, not authored lines. Long lines are paged two
+  // rows at a time, so one line of dialogue can be four presses; 45 was enough
+  // before pagination and silently stopped mid-intro after it.
   let started = before;
-  for (let i = 0; i < 45; i++) await pressKey('z');
+  for (let i = 0; i < 220; i++) await pressKey('z');
   started = await snapshot();
 
   // Then prove the D-pad reaches the reducer too. Direction is deliberately not

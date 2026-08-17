@@ -167,7 +167,7 @@ export const CURSOR_GLYPH = '▶';
 const glyphCanvasCache = new Map<string, HTMLCanvasElement>();
 
 function glyphCanvas(ch: string, shade: Shade): HTMLCanvasElement | null {
-  const key = `${ch} ${shade}`;
+  const key = `${ch}\u0000${shade}`;
   const cached = glyphCanvasCache.get(key);
   if (cached) return cached;
   const bits = FONT[ch];
@@ -205,22 +205,12 @@ export function drawText(
 }
 
 /** Greedy word wrap at `maxChars` per row. Overlong single words are hard-cut. */
-export function wrapText(text: string, maxChars = 18): string[] {
-  const words = text.split(' ');
-  const rows: string[] = [];
-  let cur = '';
-  for (const w of words) {
-    const candidate = cur.length === 0 ? w : `${cur} ${w}`;
-    if (candidate.length <= maxChars) {
-      cur = candidate;
-    } else {
-      if (cur.length > 0) rows.push(cur);
-      cur = w.length > maxChars ? w.slice(0, maxChars) : w;
-    }
-  }
-  if (cur.length > 0 || rows.length === 0) rows.push(cur);
-  return rows;
-}
+/**
+ * Re-exported from core so the renderer and the reducer wrap identically.
+ * They MUST agree: the reducer decides which page you are on, the renderer
+ * draws it, and a disagreement means text is revealed that nobody can read.
+ */
+export { wrapText } from '../core/text.ts';
 
 // ---------------------------------------------------------------------------
 // Windows (Gen 1's bordered boxes)

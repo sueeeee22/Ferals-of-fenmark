@@ -13,6 +13,7 @@
  */
 
 import type { Content, GameState, BattleScene, MenuScene } from '../core/game.ts';
+import { paginate, pageLength } from '../core/text.ts';
 import { STARTERS, WALK_FRAMES, starterChoices } from '../core/game.ts';
 import { activeOf } from '../core/battle.ts';
 import type { BattleState, Side } from '../core/battle.ts';
@@ -253,9 +254,12 @@ function drawDialogue(ctx: CanvasRenderingContext2D, content: Content, state: Ga
   const scene = state.scene;
   drawWorldBackground(ctx, content, state, null);
   const line = scene.lines[scene.index] ?? '';
-  const rows = gb.wrapText(line, 18);
-  const revealed = rows.reduce((a, r) => a + r.length + 1, 0) - 1;
-  const showPrompt = scene.chars >= line.length && Math.floor(state.frame / 20) % 2 === 0;
+  // Draw the page the reducer says we are on. Both sides count characters with
+  // pageLength() so the "press A" prompt can never appear over hidden text.
+  const pages = paginate(line);
+  const rows = pages[scene.page] ?? [];
+  const revealed = pageLength(rows);
+  const showPrompt = scene.chars >= revealed && Math.floor(state.frame / 20) % 2 === 0;
   gb.drawTextBox(ctx, rows, Math.min(scene.chars, Math.max(0, revealed)), showPrompt);
 }
 
@@ -520,7 +524,10 @@ function drawBattle(ctx: CanvasRenderingContext2D, content: Content, state: Game
 
   const draining = scene.queue.length > 0 || battle.outcome !== 'ongoing';
   if (draining) {
-    const rows = gb.wrapText(state.lastText, 18);
+    // Battle messages auto-advance through a queue, so there is nobody to press
+    // A for a second page. Keep them inside one box instead of dropping the
+    // overflow: gauntlet:tone enforces the length that makes this fit.
+    const rows = gb.wrapText(state.lastText, 18).slice(0, 2);
     gb.drawTextBox(ctx, rows, 999, false);
     return;
   }
