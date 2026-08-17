@@ -180,6 +180,22 @@ function advance(buttons: Buttons): void {
     return;
   }
   state = step(content, state, buttons);
+
+  // Read-only observation hook for scripts/shots.ts and gauntlet:visual. It
+  // exposes what the game is currently showing so a screenshot run can tell a
+  // battle from a menu. It deliberately offers no way to SET anything: a
+  // screenshot suite that can stage its own scenes proves nothing about the game.
+  (
+    window as unknown as {
+      __fenmark: { scene: string; map: string; x: number; y: number; frame: number };
+    }
+  ).__fenmark = {
+    scene: state.scene.kind,
+    map: state.player.mapId,
+    x: state.player.x,
+    y: state.player.y,
+    frame: state.frame,
+  };
   if (state.saveRequested) store.write(serialize(state));
 }
 

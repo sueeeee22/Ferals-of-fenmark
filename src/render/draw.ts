@@ -19,7 +19,7 @@ import type { BattleState, Side } from '../core/battle.ts';
 import { tileAt, visibleNpcs, type GameMap, type Dir } from '../core/world.ts';
 import { maxHp } from '../core/creature.ts';
 import type { Feral, Species, StatusName } from '../core/creature.ts';
-import { spriteFor, SPRITE_SIZE, type Pixels } from './forge.ts';
+import { spriteFor, SPRITE_SIZE, type Pixels, type SpriteView } from './forge.ts';
 import * as gb from './gb.ts';
 import { LOGICAL_W, LOGICAL_H, TILE_SIZE, shadeColor } from './gb.ts';
 
@@ -29,12 +29,16 @@ import { LOGICAL_W, LOGICAL_H, TILE_SIZE, shadeColor } from './gb.ts';
 
 const creaturePixelsCache = new Map<string, Pixels>();
 
-function creaturePixels(content: Content, speciesId: string): Pixels {
-  const cached = creaturePixelsCache.get(speciesId);
+function creaturePixels(content: Content, speciesId: string, view: SpriteView = 'front'): Pixels {
+  // The view MUST be part of the cache key, or the first sprite drawn for a
+  // species is reused for both orientations and the player's creature faces the
+  // wrong way for the rest of the session.
+  const key = `${speciesId}:${view}`;
+  const cached = creaturePixelsCache.get(key);
   if (cached) return cached;
   const sp = content.dex.species(speciesId);
-  const px = spriteFor(sp.id, sp.family, sp.stage, sp.spriteSeed, sp.legendary ?? false);
-  creaturePixelsCache.set(speciesId, px);
+  const px = spriteFor(sp.id, sp.family, sp.stage, sp.spriteSeed, sp.legendary ?? false, view);
+  creaturePixelsCache.set(key, px);
   return px;
 }
 
@@ -263,13 +267,21 @@ function drawDialogue(ctx: CanvasRenderingContext2D, content: Content, state: Ga
 // by their *baseline* (feet/platform), not their bounding-box center, so
 // "how tall is this sprite" can never sneak it into a box below it — a bug
 // the center-anchored version of this code had.
+/*
+ * The player box was 76px wide with the level sharing the name's row, which left
+ * exactly four characters for a name: "Winter" rendered as "Wint" and
+ * "Cinderkit" as "Cinder". The level now sits on the HP row, beside the bar,
+ * so the whole top row belongs to the name - eleven characters, more than the
+ * ten-character nickname limit.
+ */
 const ENEMY_BOX = { x: 2, y: 2, w: 98, h: 26 };
-const PLAYER_BOX = { x: 82, y: 54, w: 76, h: 32 };
+const PLAYER_BOX = { x: 62, y: 54, w: 96, h: 32 };
 const ENEMY_ANCHOR = { cx: 128, baseline: 48, scale: 0.66 };
-const PLAYER_ANCHOR = { cx: 40, baseline: 92, scale: 0.92 };
+const PLAYER_ANCHOR = { cx: 34, baseline: 92, scale: 0.92 };
 
+/** Nicknames are capped at 10 in game, so this only ever guards bad data. */
 function creatureLabel(f: Feral): string {
-  return f.nickname.length > 10 ? f.nickname.slice(0, 10) : f.nickname;
+  return f.nickname.length > 11 ? `${f.nickname.slice(0, 10)}.` : f.nickname;
 }
 
 function drawSideInfo(
@@ -280,18 +292,25 @@ function drawSideInfo(
   sp: Species,
 ): void {
   gb.drawBox(ctx, box.x, box.y, box.w, box.h);
-  const levelText = `Lv${f.level}`;
-  const levelX = box.x + box.w - gb.measureText(levelText) - 4;
-  const nameX = box.x + 4;
-  const nameBudget = Math.max(3, Math.floor((levelX - nameX - 4) / 8));
-  const name = f.nickname.length > nameBudget ? f.nickname.slice(0, nameBudget) : f.nickname;
-  gb.drawText(ctx, nameX, box.y + 4, name, 3);
-  gb.drawText(ctx, levelX, box.y + 4, levelText, 3);
 
+  // Top row: the name alone, with the full box width to itself.
+  const nameX = box.x + 4;
+  const nameBudget = Math.max(3, Math.floor((box.w - 8) / 8));
+  const label = creatureLabel(f);
+  const name = label.length > nameBudget ? `${label.slice(0, nameBudget - 1)}.` : label;
+  gb.drawText(ctx, nameX, box.y + 4, name, 3);
+
+  // Second row: HP bar, then the level, then any status tag.
   const barWidth = Math.min(48, box.w - 12);
   gb.drawHpBar(ctx, box.x + 5, box.y + 14, f.hp, maxHp(sp, f), barWidth);
-  if (f.status) {
-    gb.drawText(ctx, box.x + 8 + barWidth, box.y + 12, STATUS_TAG[f.status], 3);
+  const levelText = `Lv${f.level}`;
+  let cursorX = box.x + 8 + barWidth;
+  if (cursorX + gb.measureText(levelText) <= box.x + box.w - 3) {
+    gb.drawText(ctx, cursorX, box.y + 12, levelText, 3);
+    cursorX += gb.measureText(levelText) + 3;
+  }
+  if (f.status && cursorX + gb.measureText(STATUS_TAG[f.status]) <= box.x + box.w - 3) {
+    gb.drawText(ctx, cursorX, box.y + 12, STATUS_TAG[f.status], 3);
   }
   if (showNumbers) {
     const text = `${f.hp}/${maxHp(sp, f)}`;
@@ -436,11 +455,14 @@ function drawBattle(ctx: CanvasRenderingContext2D, content: Content, state: Game
   drawSideInfo(ctx, ENEMY_BOX, enemy, false, enemySp);
 
   fillEllipse(ctx, PLAYER_ANCHOR.cx, PLAYER_ANCHOR.baseline, 26, 6, 1);
+  // A real back view, not the front sprite mirrored. Gen 1 draws your creature
+  // from behind; flipping the front sprite leaves it staring at the camera with
+  // its face and nose visible, which reads immediately as wrong.
   gb.drawSprite(
-    ctx, creaturePixels(content, player.species),
+    ctx, creaturePixels(content, player.species, 'back'),
     PLAYER_ANCHOR.cx - (SPRITE_SIZE * PLAYER_ANCHOR.scale) / 2,
     PLAYER_ANCHOR.baseline - SPRITE_SIZE * PLAYER_ANCHOR.scale,
-    PLAYER_ANCHOR.scale, true,
+    PLAYER_ANCHOR.scale, false,
   );
   drawSideInfo(ctx, PLAYER_BOX, player, true, playerSp);
 
