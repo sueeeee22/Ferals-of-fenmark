@@ -829,15 +829,33 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
     bot.healUp();
     bot.saveAndReload();
 
+    trace(
+      `ENDGAME: badges=${bot.state.player.badges.length} ` +
+        `party=${bot.state.player.party.map((f) => f.level).join('/')} ` +
+        `at ${bot.state.player.mapId}`,
+    );
     for (const [i, id] of elite.entries()) {
       const mapId = id === 'champion' ? 'champion_hall' : `elite_${i + 1}`;
-      if (!bot.travelTo(mapId)) return bail(`could not reach ${mapId}`);
+      if (!bot.travelTo(mapId)) {
+        return bail(
+          `could not reach ${mapId} from ${bot.state.player.mapId} ` +
+            `(flags: ${bot.state.player.flags.filter((f) => f.startsWith('beat_')).join(',')})`,
+        );
+      }
+      trace(`entered ${mapId} at ${bot.state.player.x},${bot.state.player.y}`);
       for (let attempt = 0; attempt < 12; attempt++) {
         if (hasFlag(bot.state.player, `beat_${id}`) || reachedHallOfFame(bot)) break;
         if (!bot.goTo(5, 4)) { bot.settle(); continue; }
         bot.press('up');
         bot.press('a');
         bot.settle();
+        trace(
+          `  ${id} attempt ${attempt}: map=${bot.state.player.mapId} ` +
+            `pos=${bot.state.player.x},${bot.state.player.y} ` +
+            `party=${bot.state.player.party.map((f) => f.level).join('/')} ` +
+            `beat=${hasFlag(bot.state.player, `beat_${id}`)} ` +
+            `last="${bot.state.lastText.slice(0, 44)}"`,
+        );
         if (reachedHallOfFame(bot)) break;
         const lead = bot.state.player.party.reduce((b, f) => Math.max(b, f.level), 58);
         bot.restockSnares();

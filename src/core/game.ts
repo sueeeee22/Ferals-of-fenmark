@@ -11,7 +11,7 @@
 
 import { Rng, type RngState } from './rng.ts';
 import type { Feral, Species } from './creature.ts';
-import { computeStat, expForLevel, maxHp } from './creature.ts';
+import { computeStat, expForLevel, maxHp, selectMoveset } from './creature.ts';
 import {
   canWalk, DIR_VEC, isLedgeHop, npcAt, rollEncounter, triggeredTrainer, tileAt,
   warpAt, facingToward, propsOf,
@@ -243,12 +243,7 @@ export function makeFeral(dex: Dex, speciesId: string, level: number, rng: Rng, 
   };
   const evs = { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
 
-  const known = sp.learnset.filter((l) => l.level <= level).map((l) => l.move);
-  const unique: string[] = [];
-  for (let i = known.length - 1; i >= 0 && unique.length < 4; i--) {
-    const m = known[i];
-    if (m !== undefined && !unique.includes(m)) unique.unshift(m);
-  }
+  const unique = selectMoveset(sp.learnset, level, sp.types, (id) => dex.move(id));
   if (unique.length === 0) {
     const first = sp.learnset[0];
     if (first) unique.push(first.move);

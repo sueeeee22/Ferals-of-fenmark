@@ -12,7 +12,7 @@
 
 import type { Rng } from './rng.ts';
 import type { BaseStats, Feral, Move, MoveSlot, Species } from './creature.ts';
-import { computeDamage, expForLevel, maxHp, stab, statOf, typeMultiplier } from './creature.ts';
+import { computeDamage, expForLevel, maxHp, selectMoveset, stab, statOf, typeMultiplier } from './creature.ts';
 import type { BattleEvent, BattleState, Dex, Side } from './battle.ts';
 import { activeOf, chooseAiAction, forceSwitch, resolveTurn } from './battle.ts';
 
@@ -82,12 +82,16 @@ export function makeFeral(dex: Dex, speciesId: string, level: number, rng: Rng):
   return feral;
 }
 
-/** The last (up to) 4 learnset entries whose level does not exceed `level`. */
+/**
+ * The four moves this creature carries, using the SAME rule the game itself
+ * uses. Taking "the last four learned" produced creatures whose whole movepool
+ * was status moves - see selectMoveset's note - and the gauntlets then measured
+ * a game nobody would ever actually play.
+ */
 function recentLearnableMoves(dex: Dex, species: Species, level: number): MoveSlot[] {
-  const eligible = species.learnset.filter((entry) => entry.level <= level);
-  const recent = eligible.slice(-4);
-  return recent.map((entry) => {
-    const mv = dex.move(entry.move);
+  const ids = selectMoveset(species.learnset, level, species.types, (id) => dex.move(id));
+  return ids.map((id) => {
+    const mv = dex.move(id);
     return { move: mv.id, pp: mv.pp, maxPp: mv.pp };
   });
 }

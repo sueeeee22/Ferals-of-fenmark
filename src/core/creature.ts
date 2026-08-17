@@ -352,3 +352,77 @@ export function catchShakes(input: CatchInput, rng: Rng): number {
   }
   return shakes;
 }
+
+// ---------------------------------------------------------------------------
+// Moveset selection
+// ---------------------------------------------------------------------------
+
+/**
+ * Choose the four moves a creature of `level` actually carries.
+ *
+ * Taking simply "the four most recently learned" is what the game did, and it
+ * produced helpless creatures: `plato_apex` at level 75 ended up with three
+ * Hearth moves (two of them status) and one Claw status move - a single
+ * damaging move, which happened to be 0x against the Elite Four member it had
+ * to fight. It could not deal damage at all and fell back on Struggle. The bot
+ * lost that fight twelve times in a row while seventeen levels ahead.
+ *
+ * A real player never builds that. The rules here are what a player does by
+ * instinct: keep your best attacks, make sure one of them is same-type, and
+ * only then spend a slot on utility.
+ */
+export function selectMoveset(
+  learnset: readonly LearnEntry[],
+  level: number,
+  types: readonly FeralType[],
+  lookup: (id: string) => Move,
+  max = 4,
+): string[] {
+  // Most recently learned first; a creature favours what it just learned.
+  const known: string[] = [];
+  for (const entry of learnset) {
+    if (entry.level > level) continue;
+    if (!known.includes(entry.move)) known.push(entry.move);
+  }
+  known.reverse();
+  if (known.length === 0) return [];
+
+  const damaging = known.filter((id) => lookup(id).power > 0);
+  const status = known.filter((id) => lookup(id).power <= 0);
+
+  // Best attacks first, strongest by power, with same-type ones winning ties -
+  // a STAB move is worth 1.5x, so it beats a slightly stronger off-type move.
+  const rank = (id: string): number => {
+    const mv = lookup(id);
+    return mv.power * (types.includes(mv.type) ? 1.5 : 1) * (mv.accuracy >= 100 ? 1 : mv.accuracy / 100);
+  };
+  const byPower = [...damaging].sort((a, b) => rank(b) - rank(a));
+
+  const picked: string[] = [];
+
+  // At least one same-type attack, so the creature can always use its own
+  // typing offensively. Without this a Hearth creature can end up unable to
+  // threaten anything its Hearth moves do not hit.
+  const stab = byPower.find((id) => types.includes(lookup(id).type));
+  if (stab !== undefined) picked.push(stab);
+
+  // Then the best remaining attacks, up to three of the four slots. Coverage
+  // beats a second copy of the same type: prefer a type we are not carrying yet.
+  while (picked.length < Math.min(3, max) ) {
+    const next = byPower.find((id) => {
+      if (picked.includes(id)) return false;
+      const t = lookup(id).type;
+      return !picked.some((p) => lookup(p).type === t);
+    }) ?? byPower.find((id) => !picked.includes(id));
+    if (next === undefined) break;
+    picked.push(next);
+  }
+
+  // The last slot goes to utility if any exists, otherwise another attack.
+  for (const id of [...status, ...byPower]) {
+    if (picked.length >= max) break;
+    if (!picked.includes(id)) picked.push(id);
+  }
+
+  return picked.slice(0, max);
+}
