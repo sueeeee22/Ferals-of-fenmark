@@ -27,12 +27,12 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
 |---|----------|--------|-------|
 | 1 | `gauntlet:types` | **PASS** | strict tsc, eslint, zero `any`, core purity invariants |
 | 2 | `gauntlet:schema` | **PASS** | 153 species, 96 moves, 0 orphan moves, starter spread 0.0% |
-| 3 | `gauntlet:sim` | **FAIL — 38** | see below; was 89+, all structural failures fixed |
-| 4 | `gauntlet:curve` | not written | needs a harness |
-| 5 | `gauntlet:playthrough` | written, **not yet green** | harness + bot exist; never run to completion |
-| 6 | `gauntlet:visual` | not written | needs renderer to land first |
-| 7 | `gauntlet:tone` | not written | dialogue exists (81 keys, 305 boxes) |
-| 8 | `gauntlet:ship` | not written | needs renderer + `npm run build` |
+| 3 | `gauntlet:sim` | **FAIL — 38** | was 89+; all structural failures fixed |
+| 4 | `gauntlet:curve` | **FAIL — 12** | written and working; found the trainer-legality bug |
+| 5 | `gauntlet:playthrough` | **FAIL — 2 of 3** | Baloo reaches CHAMPION; Winter and Plato stall at gym 6 |
+| 6 | `gauntlet:visual` | not written | `scripts/shots.ts` also missing |
+| 7 | `gauntlet:tone` | **PASS** | 96 keys, 325 boxes, 1 warning |
+| 8 | `gauntlet:ship` | not written | needs `DEPLOY.md` + `npm run ship` too |
 
 `gauntlet:sim` headline numbers, current run:
 - median battle length **6 turns** (p10 3, p90 12) — was **1**
@@ -65,6 +65,9 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
   hand-authored tile patterns, animated water and tall grass), `src/render/draw.ts`,
   `src/game/content.ts`, and a real `src/main.ts` with a 60fps fixed-timestep loop,
   keyboard and touch input. `npm run build` succeeds. Screenshots in `screenshots/`.
+- **A full playthrough is possible.** `baloo_pup` starts a new save and plays to the
+  Champion on real button presses: 8 badges, 9 save/reload round trips, party at level
+  ~80. That is the first end-to-end proof the game is completable.
 - **Known renderer gaps, in priority order:**
   1. The player's creature in battle is the front-facing sprite flipped and scaled -
      there is no true back sprite. Gen 1 has one; this is a visible fidelity gap.
@@ -82,17 +85,24 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
 
 ## Next steps, in order
 
-1. **Run `gauntlet:playthrough`.** It has never completed a run, and it is the one
-   that defines done. The harness and bot are written and drive the real reducer with
-   real button presses; expect to fix bot navigation bugs, not engine bugs.
-2. **Write a screenshot script** (`scripts/shots.ts`): boot the built site with
-   Playwright via `tests/browser.ts`, drive it with key presses to ~20 checkpoints,
-   capture at 160x144 and at phone width. This is step 1 of `gauntlet:visual` and it
-   also regenerates the stale `screenshots/`.
-3. Write `gauntlet:curve` (gym beatable at level, not 20 under, monotonic).
-4. Write `gauntlet:tone` — dialogue is written and waiting to be graded.
-5. Write `gauntlet:ship` + `DEPLOY.md` + `npm run ship`.
-6. Return to `BLOCKERS.md` items 1 and 2 with the fixes suggested there.
+1. **Winter and Plato stall at gym 6 (`blackmourne`, Gloom, level 39) with 5 badges.**
+   Both produce IDENTICAL party levels across runs (30/34/37/39 and 25/28/31/36), so
+   `grindTo` is making zero progress there - a specific stall, not slowness. Raising the
+   grind budget changed nothing, which rules out "too slow". Start by running
+   `PT_TRACE=1 npx tsx scripts/gauntlet/playthrough.ts` and instrumenting `grindTo`
+   around `findEncounterMap` / `findGrassTile` at that point in the map graph. Baloo
+   clears the same code path to level 80, so the machinery works; something about the
+   Blackmourne region specifically defeats it.
+2. **Fix the 12 `gauntlet:curve` failures.** Gym 1, Gym 7 and the Champion are below the
+   65% floor for most starters, and Elite Four #1 is a starter lockout (Winter clears it,
+   Baloo and Plato do not). Run `npx tsx scripts/gauntlet/curve.ts` for the table.
+3. **Write `scripts/shots.ts` + `gauntlet:visual`.** Neither exists. `screenshots/` is
+   stale - it predates the battle-layout fix.
+4. **Write `gauntlet:ship` + `DEPLOY.md` + `npm run ship`.** Firebase config and rules
+   already exist and are good; the deploy script and docs do not.
+5. Renderer gaps above (back sprite, name truncation, overworld sprites).
+6. `BLOCKERS.md` items 1, 2 and 4 - item 4 (sprite silhouettes) is the biggest
+   remaining quality gap against Red/Blue.
 
 ---
 
@@ -109,3 +119,10 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
   generator in `scripts/gen/` and re-run.
 - The reducer is pure and `resolveTurn` **mutates the state it is given**. Build a fresh
   state per battle and fresh `Feral` objects, or HP and status leak between battles.
+- `PT_TRACE=1` narrates a playthrough run. `settle()` carries a soft-lock detector that
+  throws a LOCATED error after 40 no-progress iterations - that is how the Struggle
+  soft-lock was found. Trust it; a "frame budget exhausted" failure means the detector
+  did not fire and something is spinning while still changing state.
+- Trainers and encounter tables may only use species whose evolution chain is legal at
+  that level (`minLevelFor` in `scripts/gen/maps.ts`). Breaking this makes gyms
+  unwinnable in a way that looks like a balance problem but is not.

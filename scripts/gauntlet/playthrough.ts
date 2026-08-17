@@ -83,6 +83,21 @@ class Bot {
     return this.content.world.map(this.state.player.mapId);
   }
 
+  /** Cheap fingerprint of the parts of state the bot can move. */
+  private stateSignature(): string {
+    const sc = this.state.scene;
+    const p = this.state.player;
+    let extra = '';
+    if (sc.kind === 'battle') {
+      extra = `${sc.sub}:${sc.cursor}:${sc.queue.length}:${sc.battle.outcome}:${sc.battle.turn}:` +
+        sc.battle.player.party.map((f) => f.hp).join(',') + '|' +
+        sc.battle.enemy.party.map((f) => f.hp).join(',');
+    } else if (sc.kind === 'dialogue') {
+      extra = `${sc.index}:${sc.chars}`;
+    }
+    return `${sc.kind}:${p.mapId}:${p.x},${p.y}:${extra}`;
+  }
+
   /** Mash A until the scene stops being dialogue. */
   clearDialogue(limit = 4000): void {
     let n = 0;
@@ -92,7 +107,28 @@ class Bot {
   /** Advance until a predicate holds, pressing A to move things along. */
   settle(limit = 20000): void {
     let n = 0;
+    // Soft-lock detector. fightBattle can return with the scene STILL 'battle'
+    // (for example every party member is fainted but the outcome was never set),
+    // and settle would then call it forever and die thousands of frames later as
+    // an unattributable "frame budget exhausted". Detecting no-progress here
+    // turns a silent hang into a located, reportable failure - which is the
+    // whole point of this gauntlet.
+    let lastSignature = '';
+    let stalled = 0;
     while (n++ < limit) {
+      const sig = this.stateSignature();
+      if (sig === lastSignature) {
+        if (++stalled > 40) {
+          throw new Error(
+            `soft-lock in scene '${this.state.scene.kind}' at ${this.state.player.mapId} ` +
+              `${this.state.player.x},${this.state.player.y} - state unchanged for 40 iterations ` +
+              `(last text: "${this.state.lastText.slice(0, 60)}")`,
+          );
+        }
+      } else {
+        stalled = 0;
+        lastSignature = sig;
+      }
       if (this.scene.kind === 'overworld') return;
       if (this.scene.kind === 'dialogue') { this.press('a'); continue; }
       if (this.scene.kind === 'battle') { this.fightBattle(); continue; }
@@ -109,6 +145,7 @@ class Bot {
   /** Plays a battle to completion through the real battle menus. */
   fightBattle(limit = 4000): void {
     let n = 0;
+    let softenTurns = 0;
     while (this.scene.kind === 'battle' && n++ < limit) {
       const s = this.scene;
       if (s.kind !== 'battle') break;
@@ -141,7 +178,8 @@ class Bot {
             // bot's normal policy picks maximum damage, which one-shot every
             // wild creature it met, so it never once got to throw a snare -
             // it reached gym 1 with a lone starter every single run.
-            if (foe.hp / foeMax > 0.45) {
+            if (foe.hp / foeMax > 0.45 && softenTurns < 6) {
+              softenTurns++;
               const weak = this.weakestMoveIndex();
               if (weak >= 0) {
                 while (s.cursor !== 0) this.press('right');
@@ -188,7 +226,9 @@ class Bot {
 
       if (s.sub === 'moves') {
         const best = this.bestMoveIndex();
-        while (s.moveCursor !== best) this.press('down');
+        const target = best < 0 ? 0 : best;
+        let g = 0;
+        while (s.moveCursor !== target && g++ < 8) this.press('down');
         this.press('a');
         continue;
       }
@@ -246,7 +286,8 @@ class Bot {
     const foeSp = this.content.dex.species(foe.species);
     const mySp = this.content.dex.species(me.species);
 
-    let best = 0;
+    // -1 when nothing has PP, so the caller submits anyway and Struggle fires.
+    let best = -1;
     let bestScore = -Infinity;
     for (let i = 0; i < me.moves.length; i++) {
       const slot = me.moves[i];
@@ -516,11 +557,18 @@ class Bot {
    * underlevelled.
    */
   grindTo(target: number, budget = 150000, minParty = 1): void {
+    // Exp requirement is cubic in level, so grinding budget must grow with it.
+    budget = Math.round(budget * (1 + target / 20));
     const start = this.frames;
     const lead = (): number =>
       this.state.player.party.reduce((best, f) => Math.max(best, f.level), 0);
-    const done = (): boolean =>
-      lead() >= target && this.state.player.party.length >= minParty;
+    const done = (): boolean => {
+      if (lead() < target) return false;
+      // Past the halfway mark, stop insisting on a party size. A run where
+      // nothing catchable shows up must still make progress.
+      if (this.frames - start > budget / 2) return true;
+      return this.state.player.party.length >= minParty;
+    };
     if (done()) return;
 
     const grassMap = this.findEncounterMap();
@@ -667,7 +715,7 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
   const bail = (reason: string): RunResult => ({
     starter,
     ok: false,
-    reason,
+    reason: `${reason} [at ${bot.state.player.mapId} ${bot.state.player.x},${bot.state.player.y} scene=${bot.state.scene.kind}]`,
     frames: bot.frames,
     badges: bot.state.player.badges.length,
     partyLevels: bot.state.player.party.map((f) => f.level),

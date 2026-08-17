@@ -730,7 +730,15 @@ function stepBattle(
       if (pressed(state, b, 'b')) { scene.sub = 'main'; return; }
       if (!pressed(state, b, 'a')) return;
       const slot = moves[scene.moveCursor];
-      if (!slot || slot.pp <= 0) { state.lastText = 'No power left in that one.'; return; }
+      // If EVERY move is spent, the selection must still go through: the engine
+      // answers an empty movepool with Struggle. Rejecting it here left the
+      // player unable to act at all - a real, shipping soft-lock, found by
+      // gauntlet:playthrough hanging on route 1 with "No power left in that one."
+      const anyPp = moves.some((m) => m.pp > 0);
+      if (anyPp && (!slot || slot.pp <= 0)) {
+        state.lastText = 'No power left in that one.';
+        return;
+      }
       submitAction(content, state, scene, { kind: 'move', slot: scene.moveCursor }, rng);
       return;
     }
