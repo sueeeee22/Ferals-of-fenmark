@@ -94,7 +94,26 @@ wait or send it the change as an instruction rather than making it directly.
 
 ## 4. Sprite forge: 153 variations on one dog
 
-**Status:** open. Highest-priority visual work. Judged against Red/Blue, we lose.
+**Status: FIXED.** Each family now has its own drawing routine, and the contact
+sheet shows eight genuinely different body plans instead of one. Bears are
+humped, low-headed and stocky; cats are long and low with a curled whip tail;
+birds are upright with a real beak, folded wing and tail behind; rodents sit
+back on heavy haunches; ungulates are tall and leggy with long necks; mustelids
+and reptiles run long and horizontal. A bear no longer reads as a dog.
+
+**What is still weaker than Gen 1:** variety *within* a family. All the cats
+look like the same cat. Gen 1 gets Gengar, Machop and Onix out of one "biped"
+bucket; we get one silhouette per family plus size and coat. The next lever is
+per-species proportion jitter that is large enough to actually read - and a few
+signature features (a mane, a shell, antlers, a ruff) distributed across the
+roster rather than reserved for apex forms.
+
+The original diagnosis is kept below because it is still the right way to think
+about the problem.
+
+---
+
+**(original diagnosis, resolved)** Judged against Red/Blue, we lost.
 
 **The honest comparison.** Gen 1's sprites are crude, but Pidgey, Onix, Gengar and
 Machop have wildly different *silhouettes* — you identify them from the outline alone
