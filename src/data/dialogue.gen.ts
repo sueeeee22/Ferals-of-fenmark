@@ -22,8 +22,8 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "MARLOW: God rest him.",
     "TABITHA: God rest the plum. It did more in an afternoon than the rest of us managed in a decade.",
     "MARLOW: No heir.",
-    "TABITHA: No heir. Eight houses. Vantry, Kell, Orrin, Pell, Halloway, Ashgrove, Mourne, Brack.",
-    "One crown between them, and a grudge apiece that is older than the both of us.",
+    "TABITHA: No heir. Eight houses, forty claimants, and not one of them can prove it on paper.",
+    "One crown between them, and eight grudges older than the war, the wine, and the both of us.",
     "Three of them share a bed and a vote. Two have been in love for eleven years in total silence.",
     "And one of them puts men down at their own front doors with their coats still half on.",
     "MARLOW: And you're going out in that.",
@@ -50,11 +50,11 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "MARLOW: She'll do. Nothing frightens a toll clerk like a dog with a stage career.",
   ],
   starter_baloo: [
-    "The orange husky hits you at the knees and stays there, thrilled, like a landslide with a tail.",
+    "The orange husky arrives at full speed with all four feet off the ground, a landslide with a tail.",
     "TABITHA: Baloo has never had a second thought. He is still working on the first one.",
     "He'll follow me into a river. Into a house fire. Into House Brack, if the door was open.",
     "MARLOW: Then don't leave doors open.",
-    "TABITHA: Marlow, that's the most useful thing you've said since the war.",
+    "TABITHA: He heard the word 'door.' Look at him. He'll be on that until Thursday.",
   ],
   starter_plato: [
     "The grey tabby does not come when called. He arrives when it suits him, which is now.",
@@ -182,10 +182,10 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   // Gym 2 - MARGIT KELL, House Kell. Transactional and profoundly bored.
   // -------------------------------------------------------------------------
   gym2_intro: [
-    "MARGIT KELL: Challenge fee is forty crowns, the badge itself is free, and I am not being funny.",
+    "MARGIT KELL: Challenge fee is forty crowns. The badge is free. Nobody has ever found that funny.",
     "House Kell holds the tolls, the mint, and four of the eight houses' outstanding debt.",
     "I've read your file. Nine crowns, a bad coat, and an animal you've given a name to.",
-    "Everyone eventually asks who I'm sleeping with, so: Tuesdays. Corwin. He runs a barge.",
+    "Everyone gets around to asking who I'm sleeping with, so: Tuesdays. Dace. He runs a barge.",
     "He's gone by six and I get my entire Wednesday back. That is what an arrangement is for.",
     "Right. Battle. Try to be interesting - I have the Ottrey ledgers at noon and they're better company.",
   ],
@@ -340,7 +340,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "BRACK: No. But it'll matter to a court, and one of us should be thinking about the court.",
   ],
   gym8_defeat: [
-    "BRACK: Hah. Well. There it is.",
+    "BRACK: Hah. Six people have come at me across this table. You're the first who finished the food.",
     "Crown Badge. Eight of eight. That makes you a candidate, whether you fancy the job or not.",
     "You'll want me dead for Marlow. Do it at a door. It's the only manners I have any respect for.",
   ],
@@ -348,7 +348,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "BRACK: The Table sits at Ostmere. Four of them. They chose the last three kings",
     "while eight houses screamed at each other about the seating. Nobody voted. Nobody noticed.",
     "Go through them, then go through Isolde March, and the crown is yours by Sunday.",
-    "Refuse it and I'll take it on Tuesday, and you'll have to watch me be good at it.",
+    "Refuse it and I'll take it instead, and you will have to stand there and watch me be good at it.",
   ],
 
   // -------------------------------------------------------------------------
@@ -364,6 +364,10 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "RUTH: Oh, that was lovely. Cruel in the middle. I do so like a cruel middle.",
     "Go through, and eat something at Drue's. That man lays a table like an apology.",
   ],
+  elite_1_after: [
+    "RUTH: Still here? Sit. There's soup. There is always soup and it has always been the same soup.",
+    "I've started thinking about what you'd want for supper. Don't read into that, love. Eat up.",
+  ],
   elite_2: [
     "NIKOLAI DRUE: You've seen my handwriting. Everybody in Fenmark has seen my handwriting.",
     "Dara Vantry paid me two crowns to write on a warden at four in the morning. I'd have done it free.",
@@ -375,8 +379,12 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "NIKOLAI: Beautifully done. I'll write it up, and I'll be generous, which is rare and expensive.",
     "The letter came on Mourne paper in Kell ink. Somebody borrowed a desk. Somebody always does.",
   ],
+  elite_2_after: [
+    "NIKOLAI: You want the name. Everybody wants the name. Nobody wants it in my handwriting.",
+    "Third drawer, under the poem. You may take it the day I die and not one hour before that.",
+  ],
   elite_3: [
-    "ODILE HARROW: Eleven years I held a vow of silence. Do you know what that does to a woman?",
+    "ODILE HARROW: Sixteen years I kept a vow of silence. Do you know what that does to a woman?",
     "It makes her the best informed person in the country and completely intolerable at dinner.",
     "The Order holds the bank, the orphanage, and the deeds under two of the badges you're wearing.",
     "I have forgiven murderers. I have not forgiven Margit Kell. It's a genuine theological problem.",
@@ -384,7 +392,11 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   ],
   elite_3_defeat: [
     "ODILE: Well. That's humbling, and I have had eleven years of practice at humbling.",
-    "Go on through. Boyd's been polishing that helmet since Tuesday and it was not dirty.",
+    "Go on through. Boyd has been polishing that helmet for three days and it was not dirty then.",
+  ],
+  elite_3_after: [
+    "ODILE: I prayed about you last night. At length. Out loud. The choir has asked me to stop.",
+    "God said nothing, so I've written to Margit Kell instead. See what you have reduced me to.",
   ],
   elite_4: [
     "BOYD TERN: You'll want to know if I'll swear to you. They all ask. None of them ask well.",
@@ -397,6 +409,10 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "BOYD: Right. Twelve thousand spears, and they're yours the moment March hands the thing over.",
     "She won't hand it over. She has never handed anything over in her life. Good luck in there.",
   ],
+  elite_4_after: [
+    "BOYD: Funeral went well. Six of us, one priest, and a man crying who had no business there.",
+    "The spears are yours the day it's signed. I've told them. They took it better than I did.",
+  ],
   champion_intro: [
     "ISOLDE MARCH: Sit. You've come a very long way and I have read every mile of the reports.",
     "I was chief of staff to Aldous for nineteen years. I ran this country. He named the horses.",
@@ -404,15 +420,19 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "That's the coup. There wasn't a coup. There was a Tuesday, and I was already at the desk.",
     "They call me Champion because 'the woman who never left the building' won't fit on a coin.",
     "You've beaten eight houses and four ghosts. Beat me, and I'll hand you the worst job in Fenmark.",
-    "I'd very much like to see you try. I haven't had a hard day since March and I miss them.",
+    "I'd very much like to see you try. Nothing has been difficult in a year and it's making me stupid.",
   ],
   champion_defeat: [
     "The last of March's ferals goes down. Yours sits, considers the room, and starts grooming.",
     "TABITHA: That is not gloating. I want it on the record. It has already forgotten it happened.",
-    "TABITHA: Thirty years breeding these animals and not one of them has ever been impressed by me.",
+    "TABITHA: I have bred these animals my whole life and not one has ever been impressed by me.",
     "ISOLDE: Nineteen years. You did it in one summer, in that coat.",
     "The crown's on the sideboard. It's heavier than it looks and it is not even gold.",
     "Take it. And keep hold of whoever still laughs at you, because the job eats the rest.",
+  ],
+  champion_after: [
+    "ISOLDE: They've given me a cottage, a pension, and a view of the water. It is very restful.",
+    "Ask me something. Anything. I have reorganised that pantry twice and it isn't yet Thursday.",
   ],
   hall_of_fame: [
     "The Hall at Ostmere records the name, the animals, and the date. Nothing else. It never has.",
@@ -443,7 +463,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "Off with you. And tell Vantry her order's late because her wardens keep arriving broken.",
   ],
   blackout: [
-    "Everything you brought is down. You are alone in the dark with a very expensive lesson.",
+    "Everything you brought is down. You are face down in a ditch that House Kell owns by deed.",
     "Somebody drags you to the nearest lodge and takes a coin for it. Everyone here takes a coin.",
     "TABITHA: Alive, fed, and four crowns owed to a stranger with a cart. Get up. Get up.",
   ],
@@ -469,12 +489,12 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "There's a bucket in Pell's back room and every soul in this town knows whose knee is in it.",
   ],
   npc_gossip_6: [
-    "Abbess Harrow kept a vow of silence for eleven years.",
+    "Abbess Harrow kept a vow of silence for sixteen years.",
     "She has been making up the shortfall daily and the choir has started drinking.",
   ],
   npc_gossip_7: [
-    "Aldous choked on a plum. Nineteen years of war and it was fruit that finished him.",
-    "There's a lesson in that and nobody at the Table has gone looking for it.",
+    "The king's fruiterer ran to Ottrey that same night. Still there. Still writing to say it wasn't him.",
+    "Four men taste the fruit at Ostmere now. Four. For fruit. Somebody draws a wage off that plum.",
   ],
   npc_gossip_8: [
     "Brack's people never do it at the table. They do it at the door.",
@@ -485,7 +505,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "Not about her. About his forearms. There's a collected edition.",
   ],
   npc_gossip_10: [
-    "Boyd Tern hasn't smiled since the border closed. Twelve thousand spears and one very flat face.",
+    "Boyd Tern has turned down a lordship twice. Said the paperwork would interfere with the funerals.",
   ],
   npc_gossip_11: [
     "Astacio's grey cat walked into the Kell counting house and sat down on the open ledger.",
@@ -493,7 +513,44 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   ],
   npc_gossip_12: [
     "Somebody sold Kell the flaw in the Astacio deed. Cheap, too.",
-    "Whole fen wants a name, and the whole fen has already guessed it.",
+    "Everyone wants the name said out loud. Everyone has guessed it. Nobody wants to go first.",
+  ],
+
+  // -------------------------------------------------------------------------
+  // Beaten road trainers and gym guards. The reducer says `<npc.dialogue>_after`
+  // once the npc's flag is set, so every gossip key used as an npc dialogue
+  // field needs one of these or the player reads a placeholder off the screen.
+  // Each one answers the gossip it hangs off, from a person who has just lost.
+  // -------------------------------------------------------------------------
+  npc_gossip_2_after: [
+    "Beaten on a public road by a woman with a wet dog. I'll write it up and cross out the good part.",
+  ],
+  npc_gossip_3_after: [
+    "My uncle will have heard about this by supper. My uncle hears everything by supper. I hate him.",
+  ],
+  npc_gossip_4_after: [
+    "Fine. Take the money. I'd rather be beaten out here than found smiling in somebody's herb bed.",
+  ],
+  npc_gossip_5_after: [
+    "I'm going to Pell's. Not for the arm. For my pride, which is in roughly the same condition.",
+  ],
+  npc_gossip_6_after: [
+    "The Abbess says a loss is good for the soul. The Abbess has never lost anything but her voice.",
+  ],
+  npc_gossip_7_after: [
+    "Ruined in an afternoon, by a stranger, in the open. My father went out with considerably less.",
+  ],
+  npc_gossip_8_after: [
+    "Go on, out the door ahead of me. Nothing will happen. I would simply like to know that for certain.",
+  ],
+  npc_gossip_9_after: [
+    "Beaten in front of the whole road. Somebody will write a poem. It won't be about my forearms.",
+  ],
+  npc_gossip_10_after: [
+    "Tern held a border for a decade. I held a hedge for six minutes. We are not the same soldier.",
+  ],
+  npc_gossip_11_after: [
+    "Your animal watched the entire thing. I felt reviewed. I did not care to be reviewed.",
   ],
 
   // -------------------------------------------------------------------------
@@ -533,7 +590,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "It stands taller and looks at you as though you have been holding it back for months.",
   ],
   badge_get: [
-    "Badge taken. One house down, and seven still think you're a rumour off the fen road.",
+    "Badge taken. That house now has to be polite about you in writing, and it will cost them.",
   ],
 });
 

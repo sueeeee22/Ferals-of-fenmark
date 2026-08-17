@@ -103,6 +103,14 @@ export interface PlayerState {
   repelSteps: number;
   steps: number;
   playtimeFrames: number;
+  /**
+   * Where a blackout sends you. Gen 1 returns you to the last healer you used,
+   * not to your mother's house; hardcoding the start town meant every loss late
+   * in the game teleported you across the entire map.
+   */
+  respawnMap: string;
+  respawnX: number;
+  respawnY: number;
 }
 
 export interface WalkState {
@@ -218,6 +226,9 @@ export function newGame(seed: number | string): GameState {
       repelSteps: 0,
       steps: 0,
       playtimeFrames: 0,
+      respawnMap: 'fenmark_lodge',
+      respawnX: 4,
+      respawnY: 6,
     },
   };
 }
@@ -484,6 +495,9 @@ function interactWithNpc(content: Content, state: GameState, npc: NpcDef): void 
   switch (npc.kind) {
     case 'healer':
       healParty(content, p);
+      p.respawnMap = p.mapId;
+      p.respawnX = p.x;
+      p.respawnY = p.y;
       say(state, content, npc.dialogue);
       return;
     case 'item': {
@@ -836,9 +850,9 @@ function endBattle(content: Content, state: GameState, scene: BattleScene, rng: 
     // Gen 1's blackout: wake up at the last healer, lighter in the pocket.
     p.money = Math.floor(p.money / 2);
     healParty(content, p);
-    p.mapId = 'fenmark_lodge';
-    p.x = 4;
-    p.y = 6;
+    p.mapId = p.respawnMap;
+    p.x = p.respawnX;
+    p.y = p.respawnY;
     sayRaw(state, [
       'You come round on a bench that smells like wet dog and cheap brandy.',
       'Someone has taken half your money and left a note reading "FOR THE TROUBLE".',

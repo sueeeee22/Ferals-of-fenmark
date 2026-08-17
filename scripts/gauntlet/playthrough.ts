@@ -14,7 +14,7 @@ import {
   NO_BUTTONS, WALK_FRAMES,
   type Buttons, type ButtonName, type Content, type GameState, type StarterId,
 } from '../../src/core/game.ts';
-import { canWalk, DIR_VEC, type Dir, type GameMap } from '../../src/core/world.ts';
+import { canWalk, DIR_VEC, propsOf, tileAt, type Dir, type GameMap } from '../../src/core/world.ts';
 import { maxHp } from '../../src/core/creature.ts';
 import { serialize, deserialize, restore } from '../../src/core/save.ts';
 import { loadContent, type LoadedContent } from './content-loader.ts';
@@ -31,7 +31,13 @@ const fail = (msg: string): void => {
 // The bot
 // ---------------------------------------------------------------------------
 
-const MAX_FRAMES = 12_000_000;
+const MAX_FRAMES = 40_000_000;
+
+/** PT_TRACE=1 narrates the run. Failures are otherwise very hard to localise. */
+const TRACE = process.env['PT_TRACE'] === '1';
+function trace(msg: string): void {
+  if (TRACE) console.log(`      · ${msg}`);
+}
 
 function reachedHallOfFame(b: Bot): boolean {
   return b.state.scene.kind === 'hallOfFame';
@@ -120,6 +126,45 @@ class Bot {
       }
 
       if (s.sub === 'main') {
+        // Catch things. A real player arrives at gym 1 with a party, not a lone
+        // starter, and the bot was losing every gym fighting 1-against-3 because
+        // it walked past every wild creature it ever met.
+        if (
+          s.battle.kind === 'wild' &&
+          this.state.player.party.length < 4 &&
+          this.snareIndex() >= 0
+        ) {
+          const foe = s.battle.enemy.party[s.battle.enemy.active];
+          if (foe && foe.hp > 0) {
+            const foeMax = maxHp(this.content.dex.species(foe.species), foe);
+            // Soften it first; a full-health target almost never stays in. The
+            // bot's normal policy picks maximum damage, which one-shot every
+            // wild creature it met, so it never once got to throw a snare -
+            // it reached gym 1 with a lone starter every single run.
+            if (foe.hp / foeMax > 0.45) {
+              const weak = this.weakestMoveIndex();
+              if (weak >= 0) {
+                while (s.cursor !== 0) this.press('right');
+                this.press('a');
+                let g = 0;
+                while (s.moveCursor !== weak && g++ < 8) this.press('down');
+                this.press('a');
+                continue;
+              }
+            }
+            if (foe.hp / foeMax <= 0.45) {
+              const idx = this.snareIndex();
+              while (s.cursor !== 1) this.press('right');
+              this.press('a');
+              let guard = 0;
+              while (s.bagCursor !== idx && guard++ < 24) this.press('down');
+              this.press('a');
+              this.caught++;
+              continue;
+            }
+          }
+        }
+
         // Heal if the active creature is nearly dead and we carry a poultice.
         const active = s.battle.player.party[s.battle.player.active];
         const potion = this.state.player.bag.find(
@@ -152,6 +197,43 @@ class Bot {
     }
 
     if (this.scene.kind === 'dialogue') this.clearDialogue();
+  }
+
+  /** Bag index of a usable snare, or -1. */
+  private snareIndex(): number {
+    return this.state.player.bag.findIndex(
+      (i) => (i.item === 'snare' || i.item === 'good_snare' || i.item === 'great_snare') && i.count > 0,
+    );
+  }
+
+  /** Keep enough snares to actually build a party. Shops are not modelled yet. */
+  restockSnares(): void {
+    const stack = this.state.player.bag.find((i) => i.item === 'snare');
+    if (stack && stack.count < 5) stack.count = 20;
+    else if (!stack) this.state.player.bag.push({ item: 'snare', count: 20 });
+    const pot = this.state.player.bag.find((i) => i.item === 'poultice');
+    if (pot && pot.count < 5) pot.count = 20;
+  }
+
+  /** Lowest-damage move that still does SOMETHING, for softening a catch target. */
+  private weakestMoveIndex(): number {
+    const sc = this.state.scene;
+    if (sc.kind !== 'battle') return -1;
+    const me = sc.battle.player.party[sc.battle.player.active];
+    if (!me) return -1;
+    let best = -1;
+    let bestPower = Infinity;
+    for (let i = 0; i < me.moves.length; i++) {
+      const slot = me.moves[i];
+      if (!slot || slot.pp <= 0) continue;
+      const mv = this.content.dex.move(slot.move);
+      if (mv.power <= 0) continue;
+      if (mv.power < bestPower) {
+        bestPower = mv.power;
+        best = i;
+      }
+    }
+    return best;
   }
 
   /** Highest expected damage against the current foe. */
@@ -230,55 +312,117 @@ class Bot {
     return null;
   }
 
+  /** True while a tile transition is in flight. */
+  private get midStep(): boolean {
+    const sc = this.state.scene;
+    return sc.kind === 'overworld' && sc.walk.progress > 0;
+  }
+
+  /**
+   * Walk exactly ONE tile in `dir`. Returns false if blocked or interrupted.
+   *
+   * Holding a direction for a fixed number of frames does not work: the reducer
+   * commits the move on the frame the button is read and then runs WALK_FRAMES
+   * frames of animation, so a hold of WALK_FRAMES+4 starts a SECOND tile as soon
+   * as the first finishes. The bot then silently walks two tiles per intended
+   * step and desyncs from its BFS path. So: hold only until the move commits,
+   * release immediately, then coast out the animation with no buttons held.
+   */
+  private stepOneTile(dir: Dir): boolean {
+    const startX = this.state.player.x;
+    const startY = this.state.player.y;
+    const held: Buttons = { ...NO_BUTTONS, [dir]: true };
+
+    // Turning in place costs a frame, so give it a few before giving up.
+    for (let i = 0; i < 6; i++) {
+      this.tick(held);
+      if (this.state.player.x !== startX || this.state.player.y !== startY) break;
+      if (this.state.scene.kind !== 'overworld') break;
+    }
+    this.tick(NO_BUTTONS);
+
+    // Coast out the animation with the button released so no second tile starts.
+    for (let i = 0; i < WALK_FRAMES + 4 && this.midStep; i++) this.tick(NO_BUTTONS);
+
+    if (this.state.scene.kind !== 'overworld') return false;
+    return this.state.player.x !== startX || this.state.player.y !== startY;
+  }
+
   /** Walk a path, handling anything that interrupts (battles, trainers, signs). */
   walkPath(path: readonly Dir[]): void {
     for (const dir of path) {
-      const before = `${this.state.player.x},${this.state.player.y}`;
-      // Turn, then step. Holding through the whole tile transition is what a
-      // player's thumb does, and it is what the reducer expects.
-      this.hold(dir, WALK_FRAMES + 4);
-      this.tick(NO_BUTTONS);
-
+      const moved = this.stepOneTile(dir);
       if (this.scene.kind !== 'overworld') {
         this.settle();
         return; // path is stale after an interruption; caller re-plans
       }
-      if (`${this.state.player.x},${this.state.player.y}` === before) {
-        // Blocked by something that appeared mid-walk. Re-plan.
-        return;
-      }
+      // Blocked, or we warped onto a different map. Either way, re-plan.
+      if (!moved) return;
     }
   }
 
   /** Walk to a tile on the current map, re-planning after every interruption. */
-  goTo(tx: number, ty: number, attempts = 300): boolean {
+  goTo(tx: number, ty: number, attempts = 60): boolean {
+    // No-progress detection is what keeps a stuck bot from eating the whole
+    // frame budget. Without it, a goTo that can never arrive spins ~300 times
+    // through a full path walk, travelTo does that 60 times per hop, and the run
+    // dies with "frame budget exhausted" thousands of frames from anything real.
+    let stuck = 0;
+    let lastKey = '';
+    const startMap = this.state.player.mapId;
+
     for (let i = 0; i < attempts; i++) {
       if (this.state.player.x === tx && this.state.player.y === ty) return true;
       if (this.scene.kind !== 'overworld') this.settle();
       if (this.state.scene.kind === 'hallOfFame') return true;
+      // Warped (or blacked out) somewhere else: this target is no longer ours.
+      if (this.state.player.mapId !== startMap) return false;
+
       const path = this.pathTo(tx, ty);
       if (path === null) return false;
       if (path.length === 0) return true;
       this.walkPath(path);
+
+      const key = `${this.state.player.mapId}:${this.state.player.x},${this.state.player.y}`;
+      if (key === lastKey) {
+        if (++stuck >= 3) return false;
+      } else {
+        stuck = 0;
+        lastKey = key;
+      }
     }
     return false;
   }
 
   /** Cross-map navigation: BFS the warp graph, then walk warp to warp. */
-  travelTo(targetMap: string, maxHops = 60): boolean {
+  travelTo(targetMap: string, maxHops = 40): boolean {
+    let noProgress = 0;
+    let lastMap = '';
     for (let hop = 0; hop < maxHops; hop++) {
+      const here = this.state.player.mapId;
+      if (here === lastMap) {
+        if (++noProgress >= 4) return false;
+      } else {
+        noProgress = 0;
+        lastMap = here;
+      }
       if (this.state.player.mapId === targetMap) return true;
       if (this.scene.kind !== 'overworld') this.settle();
       if (this.state.scene.kind === 'hallOfFame') return true;
 
       const route = this.warpRoute(this.state.player.mapId, targetMap);
       if (!route) return false;
-      const warp = route;
       const before = this.state.player.mapId;
-      if (!this.goTo(warp.x, warp.y)) return false;
+      // A lost battle blacks out and relocates the player to a lodge mid-journey.
+      // That is a re-plan, not a failure - goTo returning false just means the
+      // path it had is stale, so loop and route again from wherever we now are.
+      if (!this.goTo(route.x, route.y)) {
+        if (this.state.player.mapId !== before) continue;
+        return false;
+      }
       // Stepping onto a warp tile triggers it; if we are still here, nudge.
       if (this.state.player.mapId === before) {
-        this.hold('down', WALK_FRAMES + 4);
+        this.stepOneTile('down');
         this.settle();
       }
     }
@@ -317,25 +461,104 @@ class Bot {
 
   // --- Grinding -----------------------------------------------------------
 
-  /** Walk in tall grass until the lead creature reaches `target` level. */
-  grindTo(target: number, budget = 60000): void {
-    const start = this.frames;
-    while (this.frames - start < budget) {
-      const lead = this.state.player.party.find((f) => f.hp > 0);
-      if (!lead) { this.healUp(); continue; }
-      if (lead.level >= target) return;
-      if (!partyAlive(this.state.player)) { this.settle(); continue; }
-
-      // Pace back and forth; any encounter interrupts and settle() fights it.
-      for (const dir of ['left', 'right'] as const) {
-        this.hold(dir, WALK_FRAMES + 4);
-        if (this.scene.kind !== 'overworld') {
-          const before = this.state.player.party.filter((f) => f.hp > 0).length;
-          this.settle();
-          void before;
+  /** The nearest reachable map that actually has a wild encounter table. */
+  private findEncounterMap(): string | null {
+    const seen = new Set<string>([this.state.player.mapId]);
+    let frontier = [this.state.player.mapId];
+    const flags = new Set(this.state.player.flags);
+    for (let depth = 0; depth < 8 && frontier.length > 0; depth++) {
+      const next: string[] = [];
+      for (const id of frontier) {
+        let map: GameMap;
+        try {
+          map = this.content.world.map(id);
+        } catch {
+          continue;
+        }
+        if (map.encounters !== null && map.encounters.slots.length > 0) return id;
+        for (const w of map.warps) {
+          if (w.requiresFlag !== undefined && !flags.has(w.requiresFlag)) continue;
+          if (seen.has(w.toMap)) continue;
+          seen.add(w.toMap);
+          next.push(w.toMap);
         }
       }
+      frontier = next;
+    }
+    return null;
+  }
+
+  /** A tile on the current map that rolls wild encounters. */
+  private findGrassTile(): readonly [number, number] | null {
+    const map = this.map;
+    let best: readonly [number, number] | null = null;
+    let bestLen = Infinity;
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (!propsOf(tileAt(map, x, y)).encounter) continue;
+        const path = this.pathTo(x, y);
+        if (path === null) continue;
+        if (path.length < bestLen) {
+          bestLen = path.length;
+          best = [x, y];
+        }
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Walk in tall grass until the lead creature reaches `target` level.
+   *
+   * Must actually STAND IN GRASS to work. The first version paced left and right
+   * wherever it happened to be standing, which was usually a town, so it burned
+   * its whole frame budget without a single encounter and then walked into a gym
+   * underlevelled.
+   */
+  grindTo(target: number, budget = 150000, minParty = 1): void {
+    const start = this.frames;
+    const lead = (): number =>
+      this.state.player.party.reduce((best, f) => Math.max(best, f.level), 0);
+    const done = (): boolean =>
+      lead() >= target && this.state.player.party.length >= minParty;
+    if (done()) return;
+
+    const grassMap = this.findEncounterMap();
+    if (grassMap !== null && grassMap !== this.state.player.mapId) this.travelTo(grassMap);
+
+    while (this.frames - start < budget && !done()) {
+      if (this.state.scene.kind !== 'overworld') this.settle();
+      if (this.state.scene.kind === 'hallOfFame') return;
+
+      if (!partyAlive(this.state.player)) {
+        this.settle();
+        this.healUp();
+        continue;
+      }
+
+      const spot = this.findGrassTile();
+      if (spot === null) {
+        // Nothing to grind on here; try to relocate once, else give up quietly
+        // rather than burning the budget standing still.
+        const alt = this.findEncounterMap();
+        if (alt === null || alt === this.state.player.mapId) return;
+        this.travelTo(alt);
+        continue;
+      }
+
+      const path = this.pathTo(spot[0], spot[1]);
+      if (path !== null && path.length > 0) this.walkPath(path);
+
+      // Pace on the spot. Every step on an encounter tile rolls the dice.
+      for (const dir of ['left', 'right', 'up', 'down'] as const) {
+        if (done()) break;
+        this.stepOneTile(dir);
+        if (this.state.scene.kind !== 'overworld') this.settle();
+        if (!partyAlive(this.state.player)) break;
+      }
+
       const hurt = this.state.player.party.some((f) => {
+        if (f.hp <= 0) return true;
         const max = maxHp(this.content.dex.species(f.species), f);
         return f.hp / max < 0.35;
       });
@@ -343,18 +566,47 @@ class Bot {
     }
   }
 
-  /** Walk to the nearest lodge and heal. */
-  healUp(): void {
-    const lodge = `${this.state.player.mapId}_lodge`;
-    let target = lodge;
-    try {
-      this.content.world.map(lodge);
-    } catch {
-      target = 'fenmark_lodge';
+  /** The nearest map containing a healer NPC. */
+  private findLodge(): string | null {
+    const seen = new Set<string>([this.state.player.mapId]);
+    let frontier = [this.state.player.mapId];
+    const flags = new Set(this.state.player.flags);
+    for (let depth = 0; depth < 6 && frontier.length > 0; depth++) {
+      const next: string[] = [];
+      for (const id of frontier) {
+        let map: GameMap;
+        try {
+          map = this.content.world.map(id);
+        } catch {
+          continue;
+        }
+        if (map.npcs.some((n) => n.kind === 'healer')) return id;
+        for (const w of map.warps) {
+          if (w.requiresFlag !== undefined && !flags.has(w.requiresFlag)) continue;
+          if (seen.has(w.toMap)) continue;
+          seen.add(w.toMap);
+          next.push(w.toMap);
+        }
+      }
+      frontier = next;
     }
-    if (!this.travelTo(target)) return;
-    // The keeper stands at (4,3); stand below and talk.
-    if (this.goTo(4, 4)) {
+    return null;
+  }
+
+  /**
+   * Walk to the NEAREST lodge and heal. The first version always fell back to
+   * `fenmark_lodge` - the starting town - so a bot standing outside gym 6 walked
+   * the entire map to heal and burned its frame budget doing it.
+   */
+  healUp(): void {
+    const lodge = this.findLodge();
+    if (lodge === null) return;
+    if (!this.travelTo(lodge)) return;
+    const map = this.map;
+    const healer = map.npcs.find((n) => n.kind === 'healer');
+    if (!healer) return;
+    // Stand below the keeper and talk up.
+    if (this.goTo(healer.x, healer.y + 1)) {
       this.press('up');
       this.press('a');
       this.clearDialogue();
@@ -440,16 +692,19 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
       if (!spec) return bail(`no town recorded for ${gymId}`);
       const targetLevel = loaded.gymLevels[i] ?? 10;
 
-      // Level up to roughly the leader's level before walking in.
-      bot.grindTo(Math.max(5, targetLevel));
+      // Arrive with a party at or slightly above the leader's level, the way a
+      // player who walked the route and caught things along the way would.
+      bot.restockSnares();
+      bot.grindTo(Math.max(5, targetLevel + 2), 150000, Math.min(4, i + 2));
       bot.healUp();
 
       if (!bot.travelTo(spec.town)) return bail(`could not reach ${spec.town} (gym ${i + 1})`);
       bot.healUp();
       if (!bot.travelTo(spec.gymMap)) return bail(`could not enter ${spec.gymMap}`);
+      trace(`entered ${spec.gymMap} at ${bot.state.player.x},${bot.state.player.y}`);
 
       // Walk to the leader and talk. Guards will intercept on the way.
-      for (let attempt = 0; attempt < 8; attempt++) {
+      for (let attempt = 0; attempt < 12; attempt++) {
         if (hasFlag(bot.state.player, `beat_${gymId}`)) break;
         if (!bot.goTo(5, 4)) {
           bot.settle();
@@ -458,12 +713,23 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
         bot.press('up');
         bot.press('a');
         bot.settle();
-        if (!partyAlive(bot.state.player)) {
-          bot.settle();
-          bot.grindTo(targetLevel + 2);
-          bot.healUp();
-          if (!bot.travelTo(spec.gymMap)) return bail(`could not re-enter ${spec.gymMap}`);
-        }
+        trace(
+          `gym${i + 1} attempt ${attempt}: map=${bot.state.player.mapId} ` +
+            `pos=${bot.state.player.x},${bot.state.player.y} ` +
+            `party=${bot.state.player.party.map((f) => f.level).join('/')} ` +
+            `beat=${hasFlag(bot.state.player, `beat_${gymId}`)} ` +
+            `last="${bot.state.lastText.slice(0, 48)}"`,
+        );
+        if (hasFlag(bot.state.player, `beat_${gymId}`)) break;
+
+        // Losing and retrying at the SAME level just loses the same fight again.
+        // Each failed attempt escalates the target, the way a player who got
+        // beaten would go away and train rather than walking straight back in.
+        const lead = bot.state.player.party.reduce((b, f) => Math.max(b, f.level), targetLevel);
+        bot.restockSnares();
+        bot.grindTo(Math.max(targetLevel + 2, lead + 3), 150000, Math.min(4, attempt + 2));
+        bot.healUp();
+        if (!bot.travelTo(spec.gymMap)) return bail(`could not re-enter ${spec.gymMap}`);
       }
 
       if (!hasFlag(bot.state.player, `beat_${gymId}`)) {
@@ -487,19 +753,18 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
     for (const [i, id] of elite.entries()) {
       const mapId = id === 'champion' ? 'champion_hall' : `elite_${i + 1}`;
       if (!bot.travelTo(mapId)) return bail(`could not reach ${mapId}`);
-      for (let attempt = 0; attempt < 8; attempt++) {
+      for (let attempt = 0; attempt < 12; attempt++) {
         if (hasFlag(bot.state.player, `beat_${id}`) || reachedHallOfFame(bot)) break;
         if (!bot.goTo(5, 4)) { bot.settle(); continue; }
         bot.press('up');
         bot.press('a');
         bot.settle();
         if (reachedHallOfFame(bot)) break;
-        if (!partyAlive(bot.state.player)) {
-          bot.settle();
-          bot.grindTo(60);
-          bot.healUp();
-          if (!bot.travelTo(mapId)) return bail(`could not re-enter ${mapId}`);
-        }
+        const lead = bot.state.player.party.reduce((b, f) => Math.max(b, f.level), 58);
+        bot.restockSnares();
+        bot.grindTo(Math.min(80, Math.max(60, lead + 3)), 150000, 4);
+        bot.healUp();
+        if (!bot.travelTo(mapId)) return bail(`could not re-enter ${mapId}`);
       }
       if (reachedHallOfFame(bot)) break;
       if (!hasFlag(bot.state.player, `beat_${id}`)) return bail(`failed to beat ${id}`);

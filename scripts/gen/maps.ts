@@ -88,6 +88,46 @@ function pick(n: number, key: string, pred: (r: RosterEntry) => boolean): Roster
 const isType = (t: FeralType) => (r: RosterEntry): boolean => r.types.includes(t);
 const isStage = (s: RosterEntry['stage']) => (r: RosterEntry): boolean => r.stage === s;
 
+/**
+ * The earliest level at which a species can legally exist.
+ *
+ * A base-stage creature is available immediately; anything further along a line
+ * cannot appear before the evolution that produces it, and never before its own
+ * parent could exist. Walk the whole chain, because a three-stage line's apex is
+ * gated by BOTH thresholds.
+ *
+ * This exists because gauntlet:curve caught trainers fielding evolved forms at
+ * levels no player could match: gym 1 was running `shepherd_adult` (evolves at
+ * 17) at level 10, roughly double the stat tier a legal level-12 team can build.
+ * It made gyms 1, 2 and 7 and the Champion effectively unwinnable.
+ */
+const BY_ID = new Map(ROSTER.map((r) => [r.id, r]));
+const minLevelCache = new Map<string, number>();
+
+function minLevelFor(entry: RosterEntry): number {
+  const cached = minLevelCache.get(entry.id);
+  if (cached !== undefined) return cached;
+  let level = 1;
+  if (entry.evolvesFrom !== undefined) {
+    const parent = BY_ID.get(entry.evolvesFrom);
+    if (parent) {
+      // The parent's own gate, plus the threshold into this stage.
+      level = Math.max(minLevelFor(parent), parent.evolveLevel ?? 1);
+    }
+  }
+  minLevelCache.set(entry.id, level);
+  return level;
+}
+
+/** Trainers may only field what a player at that level could also have. */
+const legalAt = (level: number) => (r: RosterEntry): boolean => minLevelFor(r) <= level;
+
+/** Combine filters. */
+const all =
+  (...preds: ((r: RosterEntry) => boolean)[]) =>
+  (r: RosterEntry): boolean =>
+    preds.every((p) => p(r));
+
 // ===========================================================================
 // Tile painting
 // ===========================================================================
@@ -269,7 +309,7 @@ function buildGym(id: string, g: GymSpec, backTo: string, backX: number, backY: 
       id: tid,
       name: i === 0 ? 'Sworn Blade' : 'House Second',
       title: `of House ${g.house}`,
-      team: pick(2, `${tid}`, isType(g.type)).map((r, k) => ({
+      team: pick(2, `${tid}`, all(isType(g.type), legalAt(Math.max(2, g.level - 4)))).map((r, k) => ({
         species: r.id, level: Math.max(2, g.level - 4 + k),
       })),
       aiLevel: 2,
@@ -291,7 +331,7 @@ function buildGym(id: string, g: GymSpec, backTo: string, backX: number, backY: 
     id: leaderId,
     name: g.leader,
     title: `Head of House ${g.house}`,
-    team: pick(g.n <= 2 ? 3 : 4, leaderId, isType(g.type)).map((r, k, arr) => ({
+    team: pick(g.n <= 2 ? 3 : 4, leaderId, all(isType(g.type), legalAt(g.level - 2))).map((r, k, arr) => ({
       species: r.id,
       // The ace is the leader's level; the rest sit just under it.
       level: k === arr.length - 1 ? g.level : g.level - 2,
@@ -367,7 +407,7 @@ function buildRoute(
       id: tid,
       name: i === 0 ? 'Fenwalker' : 'Houseless Sword',
       title: 'of the road',
-      team: pick(i === 0 ? 1 : 2, tid, (r) => r.stage !== 'apex').map((r, k) => ({
+      team: pick(i === 0 ? 1 : 2, tid, all((r) => r.stage !== 'apex', legalAt(lvl))).map((r, k) => ({
         species: r.id, level: Math.max(2, lvl + k),
       })),
       aiLevel: 1,
@@ -392,7 +432,7 @@ function buildRoute(
 
   // Encounters scale with the route number and skew toward the local flavour.
   const stagePref = n <= 3 ? 'pup' : n <= 6 ? 'adult' : 'adult';
-  const slots = pick(6, `enc_${id}`, isStage(stagePref)).map((r, i) => ({
+  const slots = pick(6, `enc_${id}`, all(isStage(stagePref), legalAt(levels[1]))).map((r, i) => ({
     species: r.id,
     min: levels[0],
     max: levels[1],
@@ -484,7 +524,7 @@ for (const e of ELITE) {
     id,
     name: e.name,
     title: 'of the Cross-Fen',
-    team: pick(5, id, isType(e.type)).map((r, k, arr) => ({
+    team: pick(5, id, all(isType(e.type), legalAt(e.level))).map((r, k, arr) => ({
       species: r.id, level: k === arr.length - 1 ? e.level + 2 : e.level,
     })),
     aiLevel: 3,
@@ -514,7 +554,7 @@ trainers.push({
   name: 'Cass',
   title: 'who took the crown first',
   team: [
-    ...pick(5, 'champion', (r) => r.stage === 'apex').map((r) => ({ species: r.id, level: 60 })),
+    ...pick(5, 'champion', all((r) => r.stage === 'apex', legalAt(60))).map((r) => ({ species: r.id, level: 60 })),
     // The rival's ace is always the starter that counters yours.
     { species: 'baloo_apex', level: 62 },
   ],
