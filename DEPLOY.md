@@ -25,7 +25,15 @@ on every push.
 You have to do this part — it is a repository setting and cannot be done from
 code.
 
-> **First, the one catch.** This repository is **private**, and GitHub Pages on a
+> **This step cannot be automated — it was tried.** Setting `enablement: true` on
+> `actions/configure-pages` is supposed to switch Pages on via the API and remove
+> the manual click. On this repository it fails with *"Create Pages site failed:
+> Resource not accessible by integration"* — the workflow token is not allowed to
+> create the Pages site. The workflow is therefore left at the default, where the
+> failure message is the actionable one. Somebody has to do step 1 below by hand,
+> once.
+>
+> **And the other catch.** This repository is **private**, and GitHub Pages on a
 > private repository requires a paid plan (Pro, Team or Enterprise). On a free
 > account the Pages option will be greyed out or the deploy will fail with a
 > permissions error. Two ways past it:

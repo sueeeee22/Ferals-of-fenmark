@@ -107,6 +107,14 @@ The game is a static site: no server, no database, no login, **77KB gzipped**.
 - **One-time setup, and only a human can do it:** Settings → Pages → Source:
   **GitHub Actions**. Until that is switched on the link 404s. After it, every
   push redeploys. Full instructions and troubleshooting live in `DEPLOY.md`.
+  Do NOT spend time trying to automate this - `enablement: true` on
+  `actions/configure-pages` was tried and fails with "Create Pages site failed:
+  Resource not accessible by integration". The workflow token cannot create the
+  site. Also note the repo is PRIVATE, and Pages on a private repo needs a paid
+  plan; making it public is the free way out.
+- **CI status:** the build and the full `gauntlet:ship` verification pass green on
+  a clean runner (run 2 and run 3). The only failing step is `configure-pages`,
+  which is the human step above, not a build problem.
 - `npm run ship` builds and then *proves the build is publishable* — it serves
   the real `dist/` over HTTP from the `/Ferals-of-fenmark/` subpath, drives it in
   a real browser, and checks every request 200s, the loop runs, the canvas draws

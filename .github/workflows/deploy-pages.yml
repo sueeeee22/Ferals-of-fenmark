@@ -66,14 +66,14 @@ jobs:
           BASE_PATH: /${{ github.event.repository.name }}/
         run: npm run ship
 
-      # `enablement: true` asks GitHub to switch Pages on itself rather than
-      # requiring somebody to click through Settings first. It works when the
-      # account's plan allows Pages for this repository; on a free plan with a
-      # PRIVATE repository it cannot, and the job fails here with "Get Pages
-      # site failed". That is a plan limit, not a build problem - see DEPLOY.md.
+      # Left at the default (enablement: false) deliberately. `enablement: true`
+      # was tried and does NOT work here - the workflow token cannot create a
+      # Pages site ("Create Pages site failed: Resource not accessible by
+      # integration"), and all it achieved was replacing an actionable error
+      # with a confusing one. With the default, the failure reads "verify that
+      # the repository has Pages enabled and configured to build using GitHub
+      # Actions", which is exactly the thing a human has to go and do once.
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
