@@ -25,6 +25,20 @@ on every push.
 You have to do this part — it is a repository setting and cannot be done from
 code.
 
+> **First, the one catch.** This repository is **private**, and GitHub Pages on a
+> private repository requires a paid plan (Pro, Team or Enterprise). On a free
+> account the Pages option will be greyed out or the deploy will fail with a
+> permissions error. Two ways past it:
+>
+> - **Make the repository public** — free, works immediately. Everything becomes
+>   readable: the code, the dialogue, the design docs. For a game you want people
+>   to play, that is usually fine, but it is your call and it is not reversible in
+>   the sense that anything already fetched stays fetched.
+> - **GitHub Pro** — a few dollars a month, keeps the repository private, Pages
+>   works as described below.
+>
+> Nothing else about the setup changes either way.
+
 1. Go to **Settings → Pages** in this repository:
    <https://github.com/sueeeee22/Ferals-of-fenmark/settings/pages>
 2. Under **Source**, choose **GitHub Actions**.
@@ -157,6 +171,14 @@ custom domain.
 
 **The link 404s.** Pages is not switched on yet, or the first deploy has not
 run. Settings → Pages → Source: GitHub Actions, then Actions → Run workflow.
+
+**The deploy job fails with a permissions or "Pages not enabled" error, and the
+build job was green.** That is the private-repository plan limit at the top of
+this page, not a problem with the build.
+
+**The deploy job fails on a missing browser.** `gauntlet:ship` drives the built
+site in a real Chromium, so CI installs one (`npx playwright install --with-deps
+chromium`). If you copy this workflow somewhere else, take that step with it.
 
 **The page loads but is blank, and the console shows 404s for `/assets/...`.**
 The build ran with the wrong base path. CI sets `BASE_PATH` from the repository
