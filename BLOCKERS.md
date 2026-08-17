@@ -77,6 +77,37 @@ enforces that no type becomes dead weight or a sweeper.
 
 ---
 
+## 5. Playthrough: no starter finished the game
+
+**Status: FIXED.** All three starters reach the Champion — 8 badges, 9 save/reload
+round trips, a full party of four, on four different seeds (12 of 12 runs).
+
+Four separate causes, none of them balance:
+
+1. **Creatures carried unusable movesets.** The moveset builder took the most
+   recent four moves learned, so `plato_apex` at level 75 walked into the Elite
+   Four with ONE damaging move that was 0x into Crown. `selectMoveset()` now
+   picks for STAB and type coverage first. Plato vs Elite 4: 7% -> 56.5%.
+2. **`pathTo` treated warp tiles as walkable floor.** Leaving gym 3 drops you
+   directly below the gym door, so the route north ran back through that door
+   and teleported the bot straight back inside, forever.
+3. **The bot could not catch anything, and hid it by grinding.** The party-size
+   goal kept the level grind running, so a bot that never caught a creature just
+   levelled instead — Baloo hit 81 by gym 2 with a party of one, Plato finished
+   at 100/100/100. A gauntlet that passes at level 100 is not testing difficulty.
+4. **Softening always killed the target.** The bot softens a wild before throwing
+   a snare, but once it out-levels a route its weakest move one-shots everything,
+   so it never once got to throw. Fixed by measuring it (`softenKos`) rather than
+   predicting it, plus a per-battle snare cap so one stubborn creature cannot eat
+   the whole bag.
+
+**The lesson worth keeping:** a bot that can grind its way past a problem will
+CONCEAL that problem behind a passing result. Both of the last two bugs were
+invisible while the bot was allowed to over-level. Party levels near the cap are
+a failure signal even when the gauntlet prints PASS.
+
+---
+
 ## 3. Concurrent agents clobbering shared files
 
 **Status:** process issue, worth knowing about.

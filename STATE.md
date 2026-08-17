@@ -27,9 +27,9 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
 |---|----------|--------|-------|
 | 1 | `gauntlet:types` | **PASS** | strict tsc, eslint, zero `any`, core purity invariants |
 | 2 | `gauntlet:schema` | **PASS** | 153 species, 96 moves, 0 orphan moves, starter spread 0.0% |
-| 3 | `gauntlet:sim` | **FAIL — 38** | was 89+; all structural failures fixed |
-| 4 | `gauntlet:curve` | **FAIL — 15** | was 24; gym 1 and the Champion now pass |
-| 5 | `gauntlet:playthrough` | **FAIL — 3 of 3** | Plato 8 badges, Baloo 7, Winter 3; none finish |
+| 3 | `gauntlet:sim` | **FAIL — 27** | was 89+, then 38; all structural failures fixed |
+| 4 | `gauntlet:curve` | **FAIL — 8** | was 24, then 15 |
+| 5 | `gauntlet:playthrough` | **PASS** | all three starters reach the Champion, on 4 seeds |
 | 6 | `gauntlet:visual` | not written | but `scripts/shots.ts` EXISTS: 17/18 checkpoints |
 | 7 | `gauntlet:tone` | **PASS** | 96 keys, 325 boxes, 1 warning |
 | 8 | `gauntlet:ship` | not written | needs `DEPLOY.md` + `npm run ship` too |
@@ -39,7 +39,20 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
 - **0/10000** battles hit the turn cap — was 1
 - max `resolveTurn` time under the 5ms ceiling
 - starter triangle correct and decisive: Winter > Plato > Baloo > Winter
-- remaining 38 failures: 17 move, 15 species, 2 starter, 3 type — see `BLOCKERS.md`
+- remaining 27 failures are balance, not structure — see `BLOCKERS.md`
+
+`gauntlet:playthrough`, current run (~4 min for all three):
+
+| starter | result | badges | saves | party levels |
+|---------|--------|--------|-------|--------------|
+| `winter_pup` | CHAMPION | 8 | 9 | 77/78/79/79 |
+| `baloo_pup`  | CHAMPION | 8 | 9 | 77/79/79/79 |
+| `plato_pup`  | CHAMPION | 8 | 9 | 76/78/80/80 |
+
+Re-checked on three further seeds via `PT_SEED=alpha npm run gauntlet:playthrough`
+(and `beta`, `gamma`): **12 of 12 runs reach the Champion**, finishing at levels
+66-83 with a full party of four every time. The default seed is fixed so the gate
+is reproducible; `PT_SEED` exists so a pass can be distinguished from a lucky run.
 
 ---
 
@@ -65,11 +78,10 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
   hand-authored tile patterns, animated water and tall grass), `src/render/draw.ts`,
   `src/game/content.ts`, and a real `src/main.ts` with a 60fps fixed-timestep loop,
   keyboard and touch input. `npm run build` succeeds. Screenshots in `screenshots/`.
-- **A full playthrough HAS been completed once.** Before the difficulty rebalance,
-  `baloo_pup` played from a new save to the Champion on real button presses - 8 badges,
-  9 save/reload round trips, party at ~level 80. The rebalance traded that away: all
-  three starters now get FURTHER on average (Plato 8 badges, Baloo 7, Winter 3) but
-  none finishes. Whatever is stopping them is in the endgame, not the gyms.
+- **All three starters complete the game**, on real button presses through the real
+  reducer, from a new save to the Hall of Fame - 8 badges and 9 save/reload round
+  trips each. Verified on four seeds. This is the gauntlet the brief called the
+  definition of finished for gameplay, and it is green.
 - **Sprite forge rebuilt with per-family drawing routines** - eight visibly different
   body plans. See `BLOCKERS.md` item 4 (now FIXED) for what is still weaker than Gen 1.
 - **Battle screen matches Gen 1's layout**, verified by looking at screenshots: real
@@ -89,23 +101,19 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
 
 ## Next steps, in order
 
-1. **No starter finishes the run.** Plato reaches 8 badges and Baloo 7, so the GYMS are
-   no longer the problem - the endgame is. Run `PT_ONLY=plato_pup PT_TRACE=1 npx tsx
-   scripts/gauntlet/playthrough.ts` and watch what happens after gym 8: the Cross-Fen
-   road is gated on `beat_gym8`, the four Elite chambers are gated on each other, and
-   there is no healer between them. Suspect the gate flags or the no-healing run first.
-   NOTE: Baloo DID complete the whole game before the difficulty rebalance, so this is a
-   regression with a known-good reference point - `git log` for "FIRST COMPLETE
-   PLAYTHROUGH" and diff the trainer tables.
-2. **Write `gauntlet:visual`.** `scripts/shots.ts` already captures and writes
+1. **Write `gauntlet:visual`.** `scripts/shots.ts` already captures and writes
    `screenshots/index.json`; what is missing is the grader: assert every checkpoint
    present, no blank/near-blank frames, and every pixel in a `gb` shot on the 4-colour
    DMG palette (off-palette means the renderer smoothed or fractionally scaled).
-3. **Fix the 15 `gauntlet:curve` failures.** Most are now the OPPOSITE problem - gyms
-   beatable while 20 levels under, because the guaranteed type counters make an
+   This is the largest remaining hole - it is the only gauntlet with no assertions
+   at all, so nothing currently stops a rendering regression.
+2. **Write `gauntlet:ship` + `DEPLOY.md` + `npm run ship`.** Firebase config and rules
+   already exist and are good; the deploy script and docs do not. Do not attempt to
+   log in to Firebase - the brief forbids it. Write the config and the instructions.
+3. **Fix the 8 `gauntlet:curve` failures.** Most are the OPPOSITE of too hard - gyms
+   beatable while well under level, because the guaranteed type counters make an
    underlevelled team viable. Elite Four #2 and #4 are the remaining "too hard" ones.
-4. **Write `gauntlet:ship` + `DEPLOY.md` + `npm run ship`.** Firebase config and rules
-   already exist and are good; the deploy script and docs do not.
+4. **Audio.** Nothing exists. The brief asks for chiptune via WebAudio.
 5. Overworld player/NPC sprites: authored pixel art instead of procedural humanoids.
 6. `BLOCKERS.md` items 1 and 2 (status moves, starter parity).
 
@@ -124,6 +132,21 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
   generator in `scripts/gen/` and re-run.
 - The reducer is pure and `resolveTurn` **mutates the state it is given**. Build a fresh
   state per battle and fresh `Feral` objects, or HP and status leak between battles.
+- **A playthrough bot that can out-grind a problem will hide it.** Two separate bugs
+  were masked this way. The bot could not catch anything, so it padded the party gate
+  with levels and arrived at gym 1 twenty levels over and finished at 100/100/100 -
+  which meant the gauntlet was proving the game is beatable at level 100, i.e. nothing.
+  If party levels come back near the cap, treat it as a FAILURE even when it says PASS.
+- **Do not soften a wild you are going to one-shot.** The bot picks its weakest move
+  to bring a catch target low, but once it out-levels a route even that move kills in
+  one hit, so a snare never left the bag. It now COUNTS how often softening ended the
+  battle (`softenKos`) and flips to throwing on turn one - measured, not predicted from
+  the damage formula, so it stays right if the formula changes.
+- **Cap snares per battle.** Throwing until the bag is empty spends twenty snares on
+  one stubborn creature; four throws at five creatures is strictly better, because
+  losing the battle re-rolls the encounter.
+- `PT_SEED=alpha` re-rolls the playthrough seed. The default is fixed so the gate is
+  reproducible - use `PT_SEED` to check a pass is not one lucky run.
 - `PT_TRACE=1` narrates a playthrough run. `settle()` carries a soft-lock detector that
   throws a LOCATED error after 40 no-progress iterations - that is how the Struggle
   soft-lock was found. Trust it; a "frame budget exhausted" failure means the detector

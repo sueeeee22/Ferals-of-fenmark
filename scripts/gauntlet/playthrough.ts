@@ -14,7 +14,7 @@ import {
   NO_BUTTONS, WALK_FRAMES,
   type Buttons, type ButtonName, type Content, type GameState, type StarterId,
 } from '../../src/core/game.ts';
-import { canWalk, DIR_VEC, propsOf, tileAt, type Dir, type GameMap } from '../../src/core/world.ts';
+import { canWalk, DIR_VEC, propsOf, tileAt, warpAt, type Dir, type GameMap } from '../../src/core/world.ts';
 import { maxHp } from '../../src/core/creature.ts';
 import { serialize, deserialize, restore } from '../../src/core/save.ts';
 import { loadContent, type LoadedContent } from './content-loader.ts';
@@ -31,7 +31,7 @@ const fail = (msg: string): void => {
 // The bot
 // ---------------------------------------------------------------------------
 
-const MAX_FRAMES = 120_000_000;
+const MAX_FRAMES = 60_000_000;
 
 /** PT_TRACE=1 narrates the run. Failures are otherwise very hard to localise. */
 const TRACE = process.env['PT_TRACE'] === '1';
@@ -50,6 +50,15 @@ class Bot {
   battlesLost = 0;
   caught = 0;
   saves = 0;
+  /**
+   * How many times softening has killed the thing we were trying to catch.
+   * Once an over-levelled bot's WEAKEST move one-shots every wild it meets,
+   * softening is not a tactic, it is a guaranteed miss - so after two of these
+   * the bot stops softening and throws on turn one, exactly like a human player
+   * who has out-grown the route. This is measured rather than predicted from
+   * the damage formula on purpose: it stays correct if the formula changes.
+   */
+  private softenKos = 0;
   private readonly content: Content;
 
   constructor(content: Content, seed: string) {
@@ -64,7 +73,7 @@ class Bot {
   }
 
   /** Press and release, the way a player's thumb actually works. */
-  press(button: ButtonName, holdFrames = 2): void {
+  press(button: ButtonName, holdFrames = 1): void {
     const b: Buttons = { ...NO_BUTTONS, [button]: true };
     for (let i = 0; i < holdFrames; i++) this.tick(b);
     this.tick(NO_BUTTONS);
@@ -146,6 +155,15 @@ class Bot {
   fightBattle(limit = 4000): void {
     let n = 0;
     let softenTurns = 0;
+    let snareThrown = false;
+    let snaresThrown = 0;
+    /**
+     * A stubborn wild will eat the whole bag if you let it. Throw a few, then
+     * go back to fighting so the battle ENDS and the next encounter rolls a
+     * fresh, possibly easier target - twenty throws at one creature is strictly
+     * worse than four throws at five creatures.
+     */
+    const MAX_SNARES_PER_BATTLE = 4;
     while (this.scene.kind === 'battle' && n++ < limit) {
       const s = this.scene;
       if (s.kind !== 'battle') break;
@@ -169,6 +187,7 @@ class Bot {
         if (
           s.battle.kind === 'wild' &&
           this.state.player.party.length < 4 &&
+          snaresThrown < MAX_SNARES_PER_BATTLE &&
           this.snareIndex() >= 0
         ) {
           const foe = s.battle.enemy.party[s.battle.enemy.active];
@@ -178,7 +197,7 @@ class Bot {
             // bot's normal policy picks maximum damage, which one-shot every
             // wild creature it met, so it never once got to throw a snare -
             // it reached gym 1 with a lone starter every single run.
-            if (foe.hp / foeMax > 0.45 && softenTurns < 6) {
+            if (this.softenKos < 2 && foe.hp / foeMax > 0.45 && softenTurns < 6) {
               softenTurns++;
               const weak = this.weakestMoveIndex();
               if (weak >= 0) {
@@ -190,7 +209,7 @@ class Bot {
                 continue;
               }
             }
-            if (foe.hp / foeMax <= 0.45) {
+            if (this.softenKos >= 2 || foe.hp / foeMax <= 0.45 || softenTurns >= 3) {
               const idx = this.snareIndex();
               while (s.cursor !== 1) this.press('right');
               this.press('a');
@@ -198,6 +217,8 @@ class Bot {
               while (s.bagCursor !== idx && guard++ < 24) this.press('down');
               this.press('a');
               this.caught++;
+              snareThrown = true;
+              snaresThrown++;
               continue;
             }
           }
@@ -235,6 +256,11 @@ class Bot {
 
       this.press('b');
     }
+
+    // We meant to soften and catch, and the battle is over without a snare ever
+    // leaving the bag: the "weak" move killed it. Record that, so the policy
+    // above flips to throwing on turn one.
+    if (softenTurns > 0 && !snareThrown) this.softenKos++;
 
     if (this.scene.kind === 'dialogue') this.clearDialogue();
   }
@@ -342,6 +368,12 @@ class Bot {
           const [dx, dy] = DIR_VEC[dir];
           const nx = x + dx;
           const ny = y + dy;
+          // A warp tile is a one-way trip, not floor. Routing THROUGH one
+          // teleports the bot somewhere the rest of the path does not apply to.
+          // This is what trapped it in gym 3 forever: leaving the gym drops you
+          // directly below the gym door, and the path north to the route ran
+          // back up through that same door, straight back inside.
+          if (!(nx === tx && ny === ty) && warpAt(map, nx, ny) !== null) continue;
           if (seen.has(key(nx, ny))) continue;
           seen.add(key(nx, ny));
           prev.set(key(nx, ny), { x, y, dir });
@@ -584,12 +616,29 @@ class Bot {
     const start = this.frames;
     const lead = (): number =>
       this.state.player.party.reduce((best, f) => Math.max(best, f.level), 0);
+    /*
+     * Level and party size are SEPARATE goals, and the level one must be able to
+     * finish. Gating `done` on both meant a bot that could not catch anything
+     * kept grinding levels while it waited: Baloo reached level 81 by gym 2,
+     * still carrying one creature, target 26. Levelling is cubic, so that also
+     * made the run take an hour.
+     *
+     * So: grind to the level target, then allow a small fixed extra budget to
+     * try to fill the party, then move on whatever happened.
+     *
+     * Keep the grace SMALL. Every frame spent here is a frame spent winning
+     * battles, so a long grace is just a level overshoot with extra steps: at
+     * 60k frames Plato arrived at gym 1 twenty levels over, and finished the
+     * game at 100/100/100, which made this gauntlet prove nothing about the
+     * difficulty curve. Catching is snare-limited, not time-limited.
+     */
+    const CATCH_GRACE = 9000;
+    let levelMetAt = -1;
     const done = (): boolean => {
       if (lead() < target) return false;
-      // Past the halfway mark, stop insisting on a party size. A run where
-      // nothing catchable shows up must still make progress.
-      if (this.frames - start > budget / 2) return true;
-      return this.state.player.party.length >= minParty;
+      if (levelMetAt < 0) levelMetAt = this.frames;
+      if (this.state.player.party.length >= minParty) return true;
+      return this.frames - levelMetAt > CATCH_GRACE;
     };
     if (done()) return;
 
@@ -609,6 +658,12 @@ class Bot {
         this.healUp();
         continue;
       }
+
+      // Shops are not modelled, so the harness is the shop. Without this the
+      // bot was snare-limited rather than time-limited: one stack per gym, four
+      // throws a battle, and it simply ran dry and walked into the next gym
+      // alone. A player with money would have restocked.
+      if (this.state.player.party.length < minParty) this.restockSnares();
 
       const spot = this.findGrassTile();
       trace(
@@ -739,7 +794,11 @@ interface RunResult {
 
 function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
   const t0 = performance.now();
-  const bot = new Bot(loaded.content, `run-${starter}`);
+  // Fixed seed by default so the gate is reproducible. PT_SEED re-rolls it, so
+  // "it passes" can be checked against more than one lucky run - a gauntlet that
+  // only passes on one seed is not a gate, it is a coincidence.
+  const seed = process.env['PT_SEED'];
+  const bot = new Bot(loaded.content, `run-${starter}${seed === undefined ? '' : `-${seed}`}`);
   const gyms = loaded.gymOrder;
   const elite = loaded.eliteOrder;
 
@@ -806,7 +865,11 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
         // beaten would go away and train rather than walking straight back in.
         const lead = bot.state.player.party.reduce((b, f) => Math.max(b, f.level), targetLevel);
         bot.restockSnares();
-        bot.grindTo(Math.max(targetLevel + 2, lead + 3), 600000, Math.min(4, attempt + 2));
+        bot.grindTo(
+          Math.min(targetLevel + 12, Math.max(targetLevel + 2, lead + 3)),
+          600000,
+          Math.min(4, attempt + 2),
+        );
         bot.healUp();
         if (!bot.travelTo(spec.gymMap)) return bail(`could not re-enter ${spec.gymMap}`);
       }
