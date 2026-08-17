@@ -13,7 +13,7 @@
  */
 
 import type { Content, GameState, BattleScene, MenuScene } from '../core/game.ts';
-import { STARTERS, WALK_FRAMES } from '../core/game.ts';
+import { STARTERS, WALK_FRAMES, starterChoices } from '../core/game.ts';
 import { activeOf } from '../core/battle.ts';
 import type { BattleState, Side } from '../core/battle.ts';
 import { tileAt, visibleNpcs, type GameMap, type Dir } from '../core/world.ts';
@@ -282,6 +282,50 @@ const PLAYER_ANCHOR = { cx: 34, baseline: 92, scale: 0.92 };
 /** Nicknames are capped at 10 in game, so this only ever guards bad data. */
 function creatureLabel(f: Feral): string {
   return f.nickname.length > 11 ? `${f.nickname.slice(0, 10)}.` : f.nickname;
+}
+
+/**
+ * The starter picker. Three creatures on plinths, the selected one raised and
+ * named, with its typing and a line of its personality underneath.
+ */
+function drawStarterPick(
+  ctx: CanvasRenderingContext2D,
+  content: Content,
+  scene: { readonly kind: 'starterPick'; cursor: number },
+): void {
+  ctx.fillStyle = gb.shadeColor(0);
+  ctx.fillRect(0, 0, gb.LOGICAL_W, gb.LOGICAL_H);
+  gb.drawText(ctx, 20, 6, 'PICK ONE. CAREFULLY.', 3);
+
+  const ids = starterChoices();
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    if (id === undefined) continue;
+    const cx = 30 + i * 50;
+    const selected = i === scene.cursor;
+    const baseline = selected ? 74 : 78;
+    const scale = selected ? 0.72 : 0.56;
+
+    fillEllipse(ctx, cx, baseline, selected ? 18 : 14, 4, 1);
+    gb.drawSprite(
+      ctx, creaturePixels(content, id),
+      cx - (SPRITE_SIZE * scale) / 2, baseline - SPRITE_SIZE * scale, scale, false,
+    );
+    if (selected) gb.drawText(ctx, cx - 4, baseline + 4, gb.CURSOR_GLYPH, 3);
+  }
+
+  const chosen = ids[scene.cursor] ?? ids[0];
+  if (chosen !== undefined) {
+    const sp = content.dex.species(chosen);
+    gb.drawBox(ctx, 4, 88, 152, 48);
+    gb.drawText(ctx, 10, 94, sp.name, 3);
+    gb.drawText(ctx, 10, 104, sp.types.join('/'), 3);
+    const rows = gb.wrapText(sp.dexEntry, 17);
+    for (let i = 0; i < 2; i++) {
+      const row = rows[i];
+      if (row !== undefined) gb.drawText(ctx, 10, 114 + i * 10, row, 3);
+    }
+  }
 }
 
 function drawSideInfo(
@@ -575,6 +619,9 @@ export function draw(
   starterCursor = 0,
 ): void {
   switch (state.scene.kind) {
+    case 'starterPick':
+      drawStarterPick(ctx, content, state.scene);
+      break;
     case 'title':
       drawTitle(ctx, content, state);
       return;

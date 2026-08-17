@@ -56,12 +56,23 @@ async function tap(page: Page, btn: Btn, times = 1): Promise<void> {
   }
 }
 
-async function hold(page: Page, btn: Btn, ms: number): Promise<void> {
+/**
+ * Walk exactly ONE tile.
+ *
+ * A long hold does not step once - the reducer commits a move on the frame it
+ * reads the button and then animates for WALK_FRAMES, so a 260ms hold walks
+ * three tiles. Greedy navigation then overshoots its target and oscillates
+ * around it forever, which is why the driver never got out of the first room.
+ * Hold just long enough to turn and commit, then release and let the animation
+ * finish with no key down.
+ */
+async function stepTile(page: Page, btn: Btn): Promise<void> {
   await page.keyboard.down(KEY[btn]);
-  await page.waitForTimeout(ms);
+  await page.waitForTimeout(70);
   await page.keyboard.up(KEY[btn]);
-  await page.waitForTimeout(80);
+  await page.waitForTimeout(190);
 }
+
 
 interface Peek {
   readonly scene: string;
@@ -95,7 +106,7 @@ async function sceneKind(page: Page): Promise<string> {
  * driver, not a pathfinder. It watches for the map changing under it (a warp)
  * and stops, because the target coordinates belonged to the old map.
  */
-async function goToward(page: Page, tx: number, ty: number, maxSteps = 40): Promise<boolean> {
+async function goToward(page: Page, tx: number, ty: number, maxSteps = 60): Promise<boolean> {
   const startMap = (await peek(page)).map;
   let stuck = 0;
   for (let i = 0; i < maxSteps; i++) {
@@ -108,13 +119,13 @@ async function goToward(page: Page, tx: number, ty: number, maxSteps = 40): Prom
     const dy = ty - p.y;
     const dir: Btn =
       Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
-    await hold(page, dir, 260);
+    await stepTile(page, dir);
 
     const after = await peek(page);
     if (after.x === p.x && after.y === p.y && after.map === p.map) {
       // Blocked on the preferred axis; try the other one before giving up.
       const alt: Btn = Math.abs(dx) >= Math.abs(dy) ? (dy > 0 ? 'down' : 'up') : dx > 0 ? 'right' : 'left';
-      await hold(page, alt, 260);
+      await stepTile(page, alt);
       const alt2 = await peek(page);
       if (alt2.x === p.x && alt2.y === p.y && alt2.map === p.map && ++stuck > 4) return false;
     } else {
@@ -254,7 +265,7 @@ async function main(): Promise<void> {
 
     let inBattle = (await sceneKind(page)) === 'battle';
     for (let i = 0; i < 60 && !inBattle; i++) {
-      await hold(page, i % 2 === 0 ? 'left' : 'right', 300);
+      await stepTile(page, i % 2 === 0 ? 'left' : 'right');
       if ((await sceneKind(page)) === 'battle') inBattle = true;
     }
 

@@ -167,6 +167,7 @@ export interface MenuScene {
 
 export type Scene =
   | { readonly kind: 'title'; cursor: number }
+  | { readonly kind: 'starterPick'; cursor: number }
   | { readonly kind: 'overworld'; walk: WalkState }
   | DialogueScene
   | BattleScene
@@ -367,6 +368,7 @@ export function step(content: Content, state: GameState, buttons: Buttons): Game
 
   switch (state.scene.kind) {
     case 'title': stepTitle(content, state, buttons); break;
+    case 'starterPick': stepStarterPick(content, state, state.scene, buttons); break;
     case 'overworld': stepOverworld(content, state, state.scene, buttons, rng); break;
     case 'dialogue': stepDialogue(content, state, state.scene, buttons, rng); break;
     case 'battle': stepBattle(content, state, state.scene, buttons, rng); break;
@@ -647,11 +649,36 @@ function runPending(content: Content, state: GameState, action: PendingAction, r
       enterOverworld(state);
       return;
     case 'starterPick':
-      // The pick itself is a menu in the UI; the bot and the shell both call
-      // chooseStarter() directly, which is the single source of truth.
-      enterOverworld(state);
+      if (p.starter === '') state.scene = { kind: 'starterPick', cursor: 0 };
+      else enterOverworld(state);
       return;
   }
+}
+
+/**
+ * Choosing a starter.
+ *
+ * This scene did not exist: `runPending` for 'starterPick' dropped straight into
+ * the overworld, so a browser player began the game with an EMPTY PARTY and no
+ * way to ever get one. The headless bot never caught it because it calls
+ * chooseStarter() directly, which is exactly the kind of hole a test-only path
+ * hides. Found by driving the real build with real key presses.
+ */
+function stepStarterPick(
+  content: Content,
+  state: GameState,
+  scene: { kind: 'starterPick'; cursor: number },
+  b: Buttons,
+): void {
+  if (pressed(state, b, 'right')) scene.cursor = (scene.cursor + 1) % STARTERS.length;
+  if (pressed(state, b, 'left')) scene.cursor = (scene.cursor + STARTERS.length - 1) % STARTERS.length;
+  if (!pressed(state, b, 'a')) return;
+  const pick = STARTERS[scene.cursor] ?? STARTERS[0];
+  chooseStarter(content, state, pick);
+  sayRaw(state, [
+    `${content.dex.species(pick).name} it is.`,
+    'Cass takes the one that beats yours. Of course Cass does.',
+  ]);
 }
 
 /** Called by the starter-selection UI (and by the playthrough bot). */
@@ -665,6 +692,11 @@ export function chooseStarter(content: Content, state: GameState, starter: Start
   setFlag(p, 'has_starter');
   state.rngState = rng.state;
   enterOverworld(state);
+}
+
+/** The three starters, for the picker UI. */
+export function starterChoices(): readonly StarterId[] {
+  return STARTERS;
 }
 
 // --- Battle ----------------------------------------------------------------
