@@ -88,7 +88,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 10
       },
       {
-        "species": "terrier_pup",
+        "species": "stoat_pup",
         "level": 12
       }
     ],
@@ -157,11 +157,11 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "title": "of House Calloway",
     "team": [
       {
-        "species": "platypus",
+        "species": "moose_pup",
         "level": 14
       },
       {
-        "species": "moose_pup",
+        "species": "seaeagle_pup",
         "level": 15
       }
     ],
@@ -180,11 +180,11 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 16
       },
       {
-        "species": "platypus",
+        "species": "retriever_pup",
         "level": 16
       },
       {
-        "species": "retriever_pup",
+        "species": "seaotter_adult",
         "level": 18
       }
     ],
@@ -234,11 +234,11 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "title": "of House Ashgrove",
     "team": [
       {
-        "species": "fennec_adult",
+        "species": "sunbear_pup",
         "level": 20
       },
       {
-        "species": "meerkat",
+        "species": "tortoise_pup",
         "level": 21
       }
     ],
@@ -284,7 +284,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 22
       },
       {
-        "species": "adder_adult",
+        "species": "fennec_adult",
         "level": 24
       }
     ],
@@ -384,7 +384,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 27
       },
       {
-        "species": "porcupine_pup",
+        "species": "collie_adult",
         "level": 29
       }
     ],
@@ -484,7 +484,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 32
       },
       {
-        "species": "harpy_pup",
+        "species": "owl_adult",
         "level": 34
       }
     ],
@@ -580,11 +580,11 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 37
       },
       {
-        "species": "blackcat_apex",
+        "species": "raccoon",
         "level": 37
       },
       {
-        "species": "owl_apex",
+        "species": "redfox_adult",
         "level": 39
       }
     ],
@@ -684,7 +684,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 42
       },
       {
-        "species": "arcticfox_apex",
+        "species": "arcticfox_pup",
         "level": 44
       }
     ],
@@ -784,7 +784,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 47
       },
       {
-        "species": "beaver_apex",
+        "species": "moose_adult",
         "level": 49
       }
     ],
@@ -850,7 +850,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 52
       },
       {
-        "species": "snowleopard_apex",
+        "species": "seaotter_adult",
         "level": 54
       }
     ],
@@ -881,7 +881,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 54
       },
       {
-        "species": "honeybadger_pup",
+        "species": "falcon_pup",
         "level": 56
       }
     ],
@@ -912,7 +912,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 56
       },
       {
-        "species": "hedgehog_adult",
+        "species": "corgi_adult",
         "level": 58
       }
     ],
@@ -943,7 +943,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 58
       },
       {
-        "species": "harpy_pup",
+        "species": "harpy_apex",
         "level": 60
       }
     ],
@@ -958,23 +958,23 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "title": "who took the crown first",
     "team": [
       {
-        "species": "tiger_apex",
+        "species": "porcupine_adult",
         "level": 60
       },
       {
-        "species": "harpy_apex",
+        "species": "seaeagle_adult",
         "level": 60
       },
       {
-        "species": "owl_apex",
+        "species": "squirrel_adult",
         "level": 60
       },
       {
-        "species": "badger_apex",
+        "species": "porcupine_apex",
         "level": 60
       },
       {
-        "species": "polarbear_apex",
+        "species": "redfox_apex",
         "level": 60
       },
       {

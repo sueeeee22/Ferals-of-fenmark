@@ -31,7 +31,7 @@ const fail = (msg: string): void => {
 // The bot
 // ---------------------------------------------------------------------------
 
-const MAX_FRAMES = 40_000_000;
+const MAX_FRAMES = 120_000_000;
 
 /** PT_TRACE=1 narrates the run. Failures are otherwise very hard to localise. */
 const TRACE = process.env['PT_TRACE'] === '1';
@@ -370,8 +370,16 @@ class Bot {
    * release immediately, then coast out the animation with no buttons held.
    */
   private stepOneTile(dir: Dir): boolean {
+    // Let any in-flight tile transition finish FIRST. The reducer ignores input
+    // while walk.progress > 0, so calling this mid-animation burned the six
+    // wait-frames on someone else's step, saw no position change, and reported
+    // "blocked". goTo then counted three of those as stuck and gave up - which
+    // is why the bot sat inside gym 5 unable to walk out of a clear corridor.
+    for (let i = 0; i < WALK_FRAMES + 4 && this.midStep; i++) this.tick(NO_BUTTONS);
+
     const startX = this.state.player.x;
     const startY = this.state.player.y;
+    const startMap = this.state.player.mapId;
     const held: Buttons = { ...NO_BUTTONS, [dir]: true };
 
     // Turning in place costs a frame, so give it a few before giving up.
@@ -386,18 +394,24 @@ class Bot {
     for (let i = 0; i < WALK_FRAMES + 4 && this.midStep; i++) this.tick(NO_BUTTONS);
 
     if (this.state.scene.kind !== 'overworld') return false;
+    // A warp counts as movement even though the coordinates may coincide.
+    if (this.state.player.mapId !== startMap) return true;
     return this.state.player.x !== startX || this.state.player.y !== startY;
   }
 
   /** Walk a path, handling anything that interrupts (battles, trainers, signs). */
   walkPath(path: readonly Dir[]): void {
+    const startMap = this.state.player.mapId;
     for (const dir of path) {
       const moved = this.stepOneTile(dir);
       if (this.scene.kind !== 'overworld') {
         this.settle();
         return; // path is stale after an interruption; caller re-plans
       }
-      // Blocked, or we warped onto a different map. Either way, re-plan.
+      // A warp invalidates every remaining direction: they were computed for the
+      // old map's grid. Walking them anyway can march straight back through the
+      // warp and ping-pong forever.
+      if (this.state.player.mapId !== startMap) return;
       if (!moved) return;
     }
   }
@@ -452,13 +466,21 @@ class Bot {
       if (this.state.scene.kind === 'hallOfFame') return true;
 
       const route = this.warpRoute(this.state.player.mapId, targetMap);
-      if (!route) return false;
+      if (!route) {
+        trace(`travelTo(${targetMap}): NO ROUTE from ${this.state.player.mapId}`);
+        return false;
+      }
       const before = this.state.player.mapId;
       // A lost battle blacks out and relocates the player to a lodge mid-journey.
       // That is a re-plan, not a failure - goTo returning false just means the
       // path it had is stale, so loop and route again from wherever we now are.
       if (!this.goTo(route.x, route.y)) {
         if (this.state.player.mapId !== before) continue;
+        trace(
+          `travelTo(${targetMap}): goTo(${route.x},${route.y}) FAILED on ${before} ` +
+            `from ${this.state.player.x},${this.state.player.y} ` +
+            `path=${this.pathTo(route.x, route.y) === null ? 'null' : 'exists'}`,
+        );
         return false;
       }
       // Stepping onto a warp tile triggers it; if we are still here, nudge.
@@ -556,7 +578,7 @@ class Bot {
    * its whole frame budget without a single encounter and then walked into a gym
    * underlevelled.
    */
-  grindTo(target: number, budget = 150000, minParty = 1): void {
+  grindTo(target: number, budget = 600000, minParty = 1): void {
     // Exp requirement is cubic in level, so grinding budget must grow with it.
     budget = Math.round(budget * (1 + target / 20));
     const start = this.frames;
@@ -572,7 +594,11 @@ class Bot {
     if (done()) return;
 
     const grassMap = this.findEncounterMap();
-    if (grassMap !== null && grassMap !== this.state.player.mapId) this.travelTo(grassMap);
+    trace(`grindTo(${target}) from ${this.state.player.mapId}: encounterMap=${grassMap ?? 'NONE'}`);
+    if (grassMap !== null && grassMap !== this.state.player.mapId) {
+      const ok = this.travelTo(grassMap);
+      trace(`  travelTo(${grassMap}) -> ${ok} (now ${this.state.player.mapId})`);
+    }
 
     while (this.frames - start < budget && !done()) {
       if (this.state.scene.kind !== 'overworld') this.settle();
@@ -585,6 +611,11 @@ class Bot {
       }
 
       const spot = this.findGrassTile();
+      trace(
+        `grind: map=${this.state.player.mapId} pos=${this.state.player.x},${this.state.player.y} ` +
+          `lead=${lead()}/${target} party=${this.state.player.party.length} ` +
+          `grass=${spot === null ? 'NONE' : `${spot[0]},${spot[1]}`} frames=${this.frames - start}`,
+      );
       if (spot === null) {
         // Nothing to grind on here; try to relocate once, else give up quietly
         // rather than burning the budget standing still.
@@ -743,7 +774,7 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
       // Arrive with a party at or slightly above the leader's level, the way a
       // player who walked the route and caught things along the way would.
       bot.restockSnares();
-      bot.grindTo(Math.max(5, targetLevel + 2), 150000, Math.min(4, i + 2));
+      bot.grindTo(Math.max(5, targetLevel + 2), 600000, Math.min(4, i + 2));
       bot.healUp();
 
       if (!bot.travelTo(spec.town)) return bail(`could not reach ${spec.town} (gym ${i + 1})`);
@@ -775,7 +806,7 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
         // beaten would go away and train rather than walking straight back in.
         const lead = bot.state.player.party.reduce((b, f) => Math.max(b, f.level), targetLevel);
         bot.restockSnares();
-        bot.grindTo(Math.max(targetLevel + 2, lead + 3), 150000, Math.min(4, attempt + 2));
+        bot.grindTo(Math.max(targetLevel + 2, lead + 3), 600000, Math.min(4, attempt + 2));
         bot.healUp();
         if (!bot.travelTo(spec.gymMap)) return bail(`could not re-enter ${spec.gymMap}`);
       }
@@ -810,7 +841,7 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
         if (reachedHallOfFame(bot)) break;
         const lead = bot.state.player.party.reduce((b, f) => Math.max(b, f.level), 58);
         bot.restockSnares();
-        bot.grindTo(Math.min(80, Math.max(60, lead + 3)), 150000, 4);
+        bot.grindTo(Math.min(80, Math.max(60, lead + 3)), 600000, 4);
         bot.healUp();
         if (!bot.travelTo(mapId)) return bail(`could not re-enter ${mapId}`);
       }
@@ -848,7 +879,9 @@ if (!loaded) {
 TYPE_CACHE = (a, d) => loaded.effectiveness(a, d);
 
 const results: RunResult[] = [];
+const only = process.env['PT_ONLY'];
 for (const starter of STARTERS) {
+  if (only !== undefined && only !== '' && starter !== only) continue;
   process.stdout.write(`  ${starter.padEnd(12)} ... `);
   const r = playthrough(loaded, starter);
   results.push(r);

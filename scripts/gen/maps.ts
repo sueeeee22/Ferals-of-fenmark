@@ -17,7 +17,7 @@
 import { writeFileSync } from 'node:fs';
 import { ROSTER, type RosterEntry } from './roster.ts';
 import { Tile } from '../../src/core/world.ts';
-import type { FeralType } from '../../src/core/types.ts';
+import { effectivenessAgainst, type FeralType } from '../../src/core/types.ts';
 
 // ===========================================================================
 // The spine of the game
@@ -121,6 +121,22 @@ function minLevelFor(entry: RosterEntry): number {
 
 /** Trainers may only field what a player at that level could also have. */
 const legalAt = (level: number) => (r: RosterEntry): boolean => minLevelFor(r) <= level;
+
+/**
+ * Cap the evolution TIER a trainer may field, separately from legality.
+ *
+ * Legality alone is not enough. A level-44 leader can legally field apex forms,
+ * but a real player arriving at gym 7 is carrying a mix - a couple of fully
+ * evolved creatures and several mid-tier ones caught along the way. gauntlet:curve
+ * measured the gap: gyms 1 and 7 and the Champion sat at 0-15% win rate because
+ * every enemy was top-tier while the player's team was not. Gen 1 does this too:
+ * Brock has two basic Pokemon, not two fully evolved ones.
+ */
+function stageCapAt(level: number): (r: RosterEntry) => boolean {
+  if (level < 22) return (r) => r.stage === 'pup';
+  if (level < 40) return (r) => r.stage !== 'apex';
+  return () => true;
+}
 
 /** Combine filters. */
 const all =
@@ -309,7 +325,7 @@ function buildGym(id: string, g: GymSpec, backTo: string, backX: number, backY: 
       id: tid,
       name: i === 0 ? 'Sworn Blade' : 'House Second',
       title: `of House ${g.house}`,
-      team: pick(2, `${tid}`, all(isType(g.type), legalAt(Math.max(2, g.level - 4)))).map((r, k) => ({
+      team: pick(2, `${tid}`, all(isType(g.type), legalAt(Math.max(2, g.level - 4)), stageCapAt(Math.max(2, g.level - 4)))).map((r, k) => ({
         species: r.id, level: Math.max(2, g.level - 4 + k),
       })),
       aiLevel: 2,
@@ -331,11 +347,19 @@ function buildGym(id: string, g: GymSpec, backTo: string, backX: number, backY: 
     id: leaderId,
     name: g.leader,
     title: `Head of House ${g.house}`,
-    team: pick(g.n <= 2 ? 3 : 4, leaderId, all(isType(g.type), legalAt(g.level - 2))).map((r, k, arr) => ({
-      species: r.id,
-      // The ace is the leader's level; the rest sit just under it.
-      level: k === arr.length - 1 ? g.level : g.level - 2,
-    })),
+    team: [
+      // The supporting cast is capped a tier below what the level would allow.
+      ...pick(
+        g.n <= 2 ? 2 : 3,
+        leaderId,
+        all(isType(g.type), legalAt(g.level - 2), stageCapAt(g.level - 2)),
+      ).map((r) => ({ species: r.id, level: g.level - 2 })),
+      // The ace is the fight. It may be a full tier up, and it is the only one.
+      ...pick(1, `${leaderId}_ace`, all(isType(g.type), legalAt(g.level))).map((r) => ({
+        species: r.id,
+        level: g.level,
+      })),
+    ],
     aiLevel: 3,
     prize: 1200 + g.n * 500,
     badge: g.badge,
@@ -430,13 +454,38 @@ function buildRoute(
     });
   }
 
-  // Encounters scale with the route number and skew toward the local flavour.
-  const stagePref = n <= 3 ? 'pup' : n <= 6 ? 'adult' : 'adult';
-  const slots = pick(6, `enc_${id}`, all(isStage(stagePref), legalAt(levels[1]))).map((r, i) => ({
+  /*
+   * Encounters scale with the route number and skew toward local flavour - but
+   * the route MUST also offer an answer to the gym it leads to.
+   *
+   * Without this, route 1 was almost entirely Fang creatures feeding into a Fang
+   * gym, so the team a player naturally builds walking there was exactly the team
+   * that gym resists. gauntlet:curve measured 8-16% win rates; swapping two of the
+   * three team members for off-type ones took the same fight to 89%. Gen 1 always
+   * puts a counter within reach before a badge, and so do we: two guaranteed slots
+   * go to species that hit the coming gym's type for super-effective damage.
+   */
+  const stagePref = n <= 3 ? 'pup' : 'adult';
+  const base = all(isStage(stagePref), legalAt(levels[1]));
+
+  const nextGym = GYMS[n - 1];
+  const counters = nextGym
+    ? pick(2, `counter_${id}`, all(base, (r) =>
+        r.types.some((t) => effectivenessAgainst(t, nextGym.type) > 1),
+      ))
+    : [];
+
+  const filler = pick(6, `enc_${id}`, base).filter(
+    (r) => !counters.some((c) => c.id === r.id),
+  );
+
+  const chosen = [...counters, ...filler].slice(0, 6);
+  const slots = chosen.map((r, i) => ({
     species: r.id,
     min: levels[0],
     max: levels[1],
-    weight: [30, 25, 18, 12, 9, 6][i] ?? 5,
+    // Counters lead the table so they are the likeliest thing a player meets.
+    weight: [28, 24, 18, 13, 10, 7][i] ?? 5,
   }));
   m.encounters = { rate: 0.11, slots };
   return m;
@@ -524,9 +573,16 @@ for (const e of ELITE) {
     id,
     name: e.name,
     title: 'of the Cross-Fen',
-    team: pick(5, id, all(isType(e.type), legalAt(e.level))).map((r, k, arr) => ({
-      species: r.id, level: k === arr.length - 1 ? e.level + 2 : e.level,
-    })),
+    team: [
+      ...pick(4, id, all(isType(e.type), legalAt(e.level), stageCapAt(e.level - 6))).map((r) => ({
+        species: r.id,
+        level: e.level,
+      })),
+      ...pick(1, `${id}_ace`, all(isType(e.type), legalAt(e.level))).map((r) => ({
+        species: r.id,
+        level: e.level + 2,
+      })),
+    ],
     aiLevel: 3,
     prize: 6000 + e.n * 1000,
     introKey: `elite_${e.n}`,
@@ -554,7 +610,8 @@ trainers.push({
   name: 'Cass',
   title: 'who took the crown first',
   team: [
-    ...pick(5, 'champion', all((r) => r.stage === 'apex', legalAt(60))).map((r) => ({ species: r.id, level: 60 })),
+    ...pick(3, 'champion', all((r) => r.stage === 'adult', legalAt(60))).map((r) => ({ species: r.id, level: 60 })),
+    ...pick(2, 'champion_apex', all((r) => r.stage === 'apex', legalAt(60))).map((r) => ({ species: r.id, level: 60 })),
     // The rival's ace is always the starter that counters yours.
     { species: 'baloo_apex', level: 62 },
   ],
