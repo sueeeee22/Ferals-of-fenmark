@@ -180,6 +180,97 @@ const STARTER_TUNING: Readonly<Record<string, Partial<ForgeParams>>> = {
   plato_apex: { feature: 'tufts', bulk: 0.6, legs: 0.52, muzzle: 0.3, head: 0.6, ears: 'tuft', earSize: 0.74, tail: 'plume', ruff: 0.8, pattern: 'tabby', coat: 1, majesty: 0.9 },
 };
 
+
+/**
+ * Hand-tuned animals.
+ *
+ * Everything not listed here is generated from its family skeleton plus a seed,
+ * which is fine for a route encounter and NOT fine for an animal a player looks
+ * at for twenty hours. These are the ones that get deliberate proportions: the
+ * starters, the gym leaders' teams, the legendaries, and every animal the brief
+ * named by hand.
+ *
+ * Keyed by evolution LINE, not species, because a corgi pup and a corgi apex are
+ * the same animal - stage still drives mass and majesty on top of these. One
+ * entry therefore tunes three sprites.
+ *
+ * The numbers are chosen from the real animal: a corgi is a normal dog on
+ * two-inch legs with enormous ears, a sea otter is a fat torpedo with no legs to
+ * speak of, a fennec is mostly ear. Where a value is left out the family default
+ * stands.
+ */
+const LINE_TUNING: Readonly<Record<string, Partial<ForgeParams>>> = {
+  // --- dogs -----------------------------------------------------------------
+  corgi:      { feature: 'none', bulk: 0.62, legs: 0.02, muzzle: 0.42, head: 0.6, ears: 'prick', earSize: 0.95, tail: 'stub', ruff: 0.3, pattern: 'saddle', coat: 1 },
+  shepherd:   { feature: 'none', bulk: 0.62, legs: 0.62, muzzle: 0.82, head: 0.46, ears: 'prick', earSize: 0.8, tail: 'brush', ruff: 0.5, pattern: 'cape', coat: 2 },
+  collie:     { feature: 'none', bulk: 0.44, legs: 0.6, muzzle: 0.8, head: 0.46, ears: 'drop', earSize: 0.6, tail: 'plume', ruff: 0.7, pattern: 'cape', coat: 2 },
+  mastiff:    { feature: 'none', bulk: 0.95, legs: 0.42, muzzle: 0.3, head: 0.62, ears: 'drop', earSize: 0.5, tail: 'whip', ruff: 0.2, pattern: 'solid', coat: 1 },
+  wolf:       { feature: 'mane', bulk: 0.72, legs: 0.74, muzzle: 0.85, head: 0.44, ears: 'prick', earSize: 0.62, tail: 'brush', ruff: 0.72, pattern: 'saddle', coat: 2 },
+  arcticfox:  { feature: 'none', bulk: 0.42, legs: 0.32, muzzle: 0.34, head: 0.62, ears: 'round', earSize: 0.5, tail: 'plume', ruff: 0.9, pattern: 'solid', coat: 1 },
+  fennec:     { feature: 'none', bulk: 0.16, legs: 0.38, muzzle: 0.4, head: 0.66, ears: 'prick', earSize: 1, tail: 'plume', ruff: 0.3, pattern: 'counter', coat: 1 },
+  redfox:     { feature: 'none', bulk: 0.38, legs: 0.5, muzzle: 0.8, head: 0.54, ears: 'prick', earSize: 0.78, tail: 'plume', ruff: 0.5, pattern: 'counter', coat: 2 },
+  husky_sled: { feature: 'mane', bulk: 0.78, legs: 0.56, muzzle: 0.66, head: 0.5, ears: 'prick', earSize: 0.6, tail: 'curl', ruff: 0.85, pattern: 'cape', coat: 2 },
+  terrier:    { feature: 'none', bulk: 0.24, legs: 0.34, muzzle: 0.5, head: 0.66, ears: 'drop', earSize: 0.52, tail: 'stub', ruff: 0.15, pattern: 'patch', coat: 1 },
+  retriever:  { feature: 'none', bulk: 0.6, legs: 0.56, muzzle: 0.7, head: 0.5, ears: 'drop', earSize: 0.6, tail: 'plume', ruff: 0.55, pattern: 'solid', coat: 1 },
+  pug:        { feature: 'none', bulk: 0.5, legs: 0.14, muzzle: 0.02, head: 0.82, ears: 'drop', earSize: 0.42, tail: 'curl', ruff: 0.1, pattern: 'mask', coat: 1 },
+
+  // --- cats -----------------------------------------------------------------
+  mainecoon:  { feature: 'tufts', bulk: 0.8, legs: 0.4, muzzle: 0.3, head: 0.56, ears: 'tuft', earSize: 0.85, tail: 'plume', ruff: 0.95, pattern: 'tabby', coat: 2 },
+  lynx:       { feature: 'tufts', bulk: 0.6, legs: 0.66, muzzle: 0.22, head: 0.56, ears: 'tuft', earSize: 0.9, tail: 'stub', ruff: 0.7, pattern: 'spot', coat: 1 },
+  blackcat:   { feature: 'none', bulk: 0.34, legs: 0.44, muzzle: 0.2, head: 0.62, ears: 'prick', earSize: 0.68, tail: 'whip', ruff: 0.1, pattern: 'solid', coat: 2 },
+  caracal:    { feature: 'tufts', bulk: 0.46, legs: 0.7, muzzle: 0.22, head: 0.54, ears: 'tuft', earSize: 1, tail: 'whip', ruff: 0.2, pattern: 'solid', coat: 1 },
+  lion:       { bulk: 0.88, legs: 0.6, muzzle: 0.34, head: 0.52, ears: 'round', earSize: 0.5, tail: 'brush', ruff: 1, feature: 'mane', pattern: 'solid', coat: 1 },
+  tiger:      { feature: 'none', bulk: 0.9, legs: 0.56, muzzle: 0.32, head: 0.52, ears: 'round', earSize: 0.55, tail: 'whip', ruff: 0.3, pattern: 'tabby', coat: 1 },
+  housecat:   { feature: 'none', bulk: 0.32, legs: 0.44, muzzle: 0.2, head: 0.64, ears: 'prick', earSize: 0.7, tail: 'whip', ruff: 0.12, pattern: 'patch', coat: 1 },
+
+  // --- bears ----------------------------------------------------------------
+  kodiak:     { bulk: 1, legs: 0.24, muzzle: 0.6, head: 0.4, ears: 'round', earSize: 0.34, tail: 'stub', ruff: 0.35, feature: 'humpback', pattern: 'solid', coat: 2 },
+  polarbear:  { bulk: 0.94, legs: 0.34, muzzle: 0.7, head: 0.36, ears: 'round', earSize: 0.3, tail: 'stub', ruff: 0.2, feature: 'none', pattern: 'solid', coat: 1 },
+  blackbear:  { bulk: 0.78, legs: 0.26, muzzle: 0.52, head: 0.44, ears: 'round', earSize: 0.46, tail: 'stub', ruff: 0.2, feature: 'none', pattern: 'solid', coat: 2 },
+  sunbear:    { bulk: 0.56, legs: 0.22, muzzle: 0.44, head: 0.5, ears: 'round', earSize: 0.42, tail: 'stub', ruff: 0.15, feature: 'none', pattern: 'mask', coat: 2 },
+
+  // --- mustelids ------------------------------------------------------------
+  seaotter:   { feature: 'none', bulk: 0.82, legs: 0.05, muzzle: 0.22, head: 0.58, ears: 'round', earSize: 0.24, tail: 'brush', ruff: 0.4, pattern: 'counter', coat: 2 },
+  riverotter: { feature: 'none', bulk: 0.5, legs: 0.14, muzzle: 0.3, head: 0.54, ears: 'round', earSize: 0.26, tail: 'whip', ruff: 0.25, pattern: 'counter', coat: 2 },
+  wolverine:  { bulk: 0.86, legs: 0.26, muzzle: 0.45, head: 0.48, ears: 'round', earSize: 0.34, tail: 'brush', ruff: 0.6, feature: 'humpback', pattern: 'saddle', coat: 2 },
+  badger:     { feature: 'none', bulk: 0.7, legs: 0.12, muzzle: 0.55, head: 0.5, ears: 'round', earSize: 0.28, tail: 'stub', ruff: 0.2, pattern: 'cape', coat: 2 },
+  skunk:      { feature: 'none', bulk: 0.44, legs: 0.18, muzzle: 0.42, head: 0.54, ears: 'round', earSize: 0.3, tail: 'plume', ruff: 0.3, pattern: 'blaze', coat: 2 },
+  stoat:      { feature: 'none', bulk: 0.16, legs: 0.16, muzzle: 0.36, head: 0.56, ears: 'round', earSize: 0.3, tail: 'whip', ruff: 0.1, pattern: 'counter', coat: 1 },
+  marten:     { feature: 'none', bulk: 0.3, legs: 0.24, muzzle: 0.42, head: 0.54, ears: 'prick', earSize: 0.42, tail: 'brush', ruff: 0.3, pattern: 'counter', coat: 2 },
+  raccoon:    { feature: 'none', bulk: 0.52, legs: 0.28, muzzle: 0.44, head: 0.58, ears: 'round', earSize: 0.5, tail: 'brush', ruff: 0.3, pattern: 'mask', coat: 1 },
+
+  // --- rodents --------------------------------------------------------------
+  porcupine:  { bulk: 0.66, legs: 0.16, muzzle: 0.3, head: 0.5, ears: 'round', earSize: 0.26, tail: 'stub', ruff: 0.2, feature: 'quills', pattern: 'solid', coat: 2 },
+  hedgehog:   { bulk: 0.44, legs: 0.1, muzzle: 0.42, head: 0.56, ears: 'round', earSize: 0.24, tail: 'stub', ruff: 0.1, feature: 'quills', pattern: 'counter', coat: 2 },
+  beaver:     { feature: 'none', bulk: 0.72, legs: 0.14, muzzle: 0.32, head: 0.5, ears: 'round', earSize: 0.24, tail: 'fan', ruff: 0.2, pattern: 'solid', coat: 2 },
+  capybara:   { feature: 'none', bulk: 0.8, legs: 0.3, muzzle: 0.4, head: 0.44, ears: 'round', earSize: 0.28, tail: 'stub', ruff: 0.15, pattern: 'solid', coat: 1 },
+  squirrel:   { feature: 'none', bulk: 0.22, legs: 0.2, muzzle: 0.26, head: 0.66, ears: 'tuft', earSize: 0.5, tail: 'plume', ruff: 0.2, pattern: 'counter', coat: 1 },
+  meerkat:    { feature: 'none', bulk: 0.24, legs: 0.4, muzzle: 0.4, head: 0.6, ears: 'round', earSize: 0.34, tail: 'whip', ruff: 0.2, pattern: 'counter', coat: 1 },
+
+  // --- ungulates ------------------------------------------------------------
+  moose:      { bulk: 0.9, legs: 0.95, muzzle: 0.85, head: 0.4, ears: 'drop', earSize: 0.5, tail: 'stub', ruff: 0.4, feature: 'antlers', pattern: 'solid', coat: 2 },
+  stag:       { bulk: 0.6, legs: 0.88, muzzle: 0.62, head: 0.42, ears: 'drop', earSize: 0.5, tail: 'stub', ruff: 0.3, feature: 'antlers', pattern: 'spot', coat: 1 },
+  muskox:     { bulk: 1, legs: 0.36, muzzle: 0.44, head: 0.44, ears: 'round', earSize: 0.28, tail: 'stub', ruff: 1, feature: 'horns', pattern: 'solid', coat: 2 },
+
+  // --- birds ----------------------------------------------------------------
+  harpy:      { bulk: 0.72, legs: 0.6, muzzle: 0.8, head: 0.5, ears: 'none', earSize: 0, tail: 'fan', ruff: 0.8, feature: 'crest', pattern: 'counter', coat: 2 },
+  seaeagle:   { bulk: 0.66, legs: 0.5, muzzle: 0.85, head: 0.46, ears: 'none', earSize: 0, tail: 'fan', ruff: 0.5, feature: 'none', pattern: 'counter', coat: 2 },
+  raven:      { bulk: 0.4, legs: 0.42, muzzle: 0.7, head: 0.5, ears: 'none', earSize: 0, tail: 'fan', ruff: 0.3, feature: 'none', pattern: 'solid', coat: 2 },
+  owl:        { bulk: 0.54, legs: 0.3, muzzle: 0.3, head: 0.8, ears: 'tuft', earSize: 0.55, tail: 'fan', ruff: 0.6, feature: 'none', pattern: 'spot', coat: 1 },
+  falcon:     { bulk: 0.38, legs: 0.44, muzzle: 0.62, head: 0.5, ears: 'none', earSize: 0, tail: 'fan', ruff: 0.25, feature: 'none', pattern: 'counter', coat: 2 },
+  goose:      { bulk: 0.6, legs: 0.44, muzzle: 0.6, head: 0.42, ears: 'none', earSize: 0, tail: 'fan', ruff: 0.7, feature: 'none', pattern: 'counter', coat: 1 },
+
+  // --- reptiles -------------------------------------------------------------
+  tortoise:   { bulk: 0.9, legs: 0.14, muzzle: 0.32, head: 0.42, ears: 'none', earSize: 0, tail: 'stub', ruff: 0.1, feature: 'shell', pattern: 'solid', coat: 2 },
+  komodo:     { bulk: 0.66, legs: 0.2, muzzle: 0.75, head: 0.4, ears: 'none', earSize: 0, tail: 'whip', ruff: 0.1, feature: 'none', pattern: 'spot', coat: 2 },
+  adder:      { bulk: 0.24, legs: 0.02, muzzle: 0.6, head: 0.48, ears: 'none', earSize: 0, tail: 'whip', ruff: 0, feature: 'none', pattern: 'tabby', coat: 1 },
+};
+
+/** Strip the stage suffix: `corgi_apex` -> `corgi`. */
+function lineOf(id: string): string {
+  return id.replace(/_(pup|adult|apex)$/, '');
+}
+
 /** Derive parameters for a species from its family, stage and seed. */
 /**
  * Which features are plausible on which family. A deer may have antlers, a
@@ -241,8 +332,11 @@ export function paramsFor(
     majesty,
   };
 
+  // Line tuning first (the animal), then the per-species starter tuning, which
+  // is the most specific and therefore wins.
+  const line = LINE_TUNING[lineOf(id)];
   const tuned = STARTER_TUNING[id];
-  return tuned ? { ...params, ...tuned, family } : params;
+  return { ...params, ...(line ?? {}), ...(tuned ?? {}), family };
 }
 
 // ---------------------------------------------------------------------------
@@ -2114,6 +2208,38 @@ function shade(
         if (part === Part.Head) {
           const under = (y - g.headCy) / Math.max(1, g.headR);
           if (under > 0.5) paintPart(x, y, 2);
+        }
+      }
+    }
+
+    // A carapace is filled in the same shade as the animal under it, so without
+    // this a tortoise is just a lizard with a lumpy back. Darken the dome and
+    // score it, and it reads as something being carried.
+    if (params.feature === 'shell') {
+      let minY = S, maxY = 0, minX = S, maxX = 0;
+      for (let y = 0; y < S; y++) {
+        for (let x = 0; x < S; x++) {
+          if (partAt(x, y) !== Part.Extra) continue;
+          // Opposite shade to the body, so the dome separates from the animal
+          // instead of merging into one dark lump.
+          paintPart(x, y, params.coat === 1 ? 2 : 1);
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+        }
+      }
+      // Scutes: a ridge line along the crown and two ribs down the flank.
+      if (maxY > minY) {
+        const midY = Math.round(minY + (maxY - minY) * 0.32);
+        for (let x = minX; x <= maxX; x++) {
+          if (partAt(x, midY) === Part.Extra) paintPart(x, midY, params.coat === 1 ? 1 : 2);
+        }
+        for (const t of [0.36, 0.64]) {
+          const rx = Math.round(minX + (maxX - minX) * t);
+          for (let y = minY; y <= maxY; y++) {
+            if (partAt(rx, y) === Part.Extra) paintPart(rx, y, params.coat === 1 ? 1 : 2);
+          }
         }
       }
     }
