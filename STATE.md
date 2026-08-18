@@ -162,6 +162,15 @@ The game is a static site: no server, no database, no login, **77KB gzipped**.
   generator in `scripts/gen/` and re-run.
 - The reducer is pure and `resolveTurn` **mutates the state it is given**. Build a fresh
   state per battle and fresh `Feral` objects, or HP and status leak between battles.
+- **Battle text needs a reading beat; animation beats do not.** Every battle event
+  used to dwell 6 ticks - 100ms - so a whole turn of messages was over before you
+  could look at it, and the opponent's attacks were literally unreadable. Only
+  `text` events carry words (nothing else touches `lastText`), so those hold for
+  50 ticks and the rest stay at 6. A/B still skips instantly, which is also why
+  the playthrough bot is unaffected: it presses A and never waits.
+- **The healer was always usable whenever, like a Gen 1 centre.** Nothing gated it
+  on fainting - it just never confirmed it had done anything, so there was no
+  feedback and no reason to believe it worked. It now says so.
 - **WALK_FRAMES is the tap threshold, not just an animation length.** A step only
   auto-repeats while the direction is still held when the tile completes, so the
   tile duration decides whether a human tap means one tile or two. At 8 ticks

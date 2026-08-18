@@ -14,7 +14,7 @@
 
 import type { Content, GameState, BattleScene, MenuScene } from '../core/game.ts';
 import { paginate, pageLength } from '../core/text.ts';
-import { STARTERS, WALK_FRAMES, starterChoices } from '../core/game.ts';
+import { STARTERS, WALK_FRAMES, starterChoices, BATTLE_INTRO_FRAMES } from '../core/game.ts';
 import { activeOf } from '../core/battle.ts';
 import type { BattleState, Side } from '../core/battle.ts';
 import { Tile, tileAt, visibleNpcs, type GameMap, type Dir } from '../core/world.ts';
@@ -321,6 +321,58 @@ function drawDialogue(ctx: CanvasRenderingContext2D, content: Content, state: Ga
   gb.drawTextBox(ctx, rows, Math.min(scene.chars, Math.max(0, revealed)), showPrompt);
 }
 
+/**
+ * The pre-battle transition.
+ *
+ * Gen 1 freezes the overworld, flashes the screen, then closes it off before
+ * the battle appears. The point is not decoration: it tells you a battle has
+ * started and gives your eyes somewhere to land, instead of the world being
+ * replaced between one frame and the next.
+ *
+ * Three beats over BATTLE_INTRO_FRAMES:
+ *   1. two hard flashes to white, then to black
+ *   2. horizontal blinds closing from both edges toward the middle
+ *   3. a fully black hold, from which the battle screen appears
+ */
+function drawBattleIntro(
+  ctx: CanvasRenderingContext2D,
+  content: Content,
+  state: GameState,
+  intro: number,
+): void {
+  // `intro` counts DOWN, so invert it into elapsed progress.
+  const elapsed = BATTLE_INTRO_FRAMES - intro;
+  const t = elapsed / BATTLE_INTRO_FRAMES;
+
+  drawWorldBackground(ctx, content, state, null);
+
+  // Beat 1 - flashes. Alternating full-screen fills read as a jolt at 60fps.
+  if (t < 0.30) {
+    const phase = Math.floor(elapsed / 5) % 2;
+    ctx.fillStyle = shadeColor(phase === 0 ? 0 : 3);
+    ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+    return;
+  }
+
+  // Beat 3 - hold black.
+  if (t > 0.82) {
+    ctx.fillStyle = shadeColor(3);
+    ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+    return;
+  }
+
+  // Beat 2 - blinds. Each band grows from its own top edge, so the world is
+  // swallowed in stripes rather than wiped in one direction.
+  const k = (t - 0.30) / (0.82 - 0.30);
+  const BANDS = 8;
+  const bandH = LOGICAL_H / BANDS;
+  ctx.fillStyle = shadeColor(3);
+  for (let i = 0; i < BANDS; i++) {
+    const h = Math.ceil(bandH * Math.min(1, k * 1.15));
+    ctx.fillRect(0, Math.round(i * bandH), LOGICAL_W, h);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Battle — the most important screen
 // ---------------------------------------------------------------------------
@@ -548,6 +600,10 @@ function drawBagOverlay(
 }
 
 function drawBattle(ctx: CanvasRenderingContext2D, content: Content, state: GameState): void {
+  if (state.scene.kind === 'battle' && state.scene.intro > 0) {
+    drawBattleIntro(ctx, content, state, state.scene.intro);
+    return;
+  }
   if (state.scene.kind !== 'battle') return;
   const scene = state.scene;
   const battle: BattleState = scene.battle;

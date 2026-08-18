@@ -171,6 +171,12 @@ export interface BattleScene {
   queue: BattleEvent[];
   /** Frames the current event has been displayed. */
   ticks: number;
+  /**
+   * Counts down while the pre-battle transition plays. Input is ignored and no
+   * events drain until it reaches zero, exactly like Gen 1's wipe - the battle
+   * should never start under a player who is still mid-step.
+   */
+  intro: number;
   /** 0 = fight, 1 = bag, 2 = party, 3 = run. */
   cursor: number;
   /** Which submenu is open. */
@@ -540,13 +546,22 @@ function stepOverworld(
 function interactWithNpc(content: Content, state: GameState, npc: NpcDef): void {
   const p = state.player;
   switch (npc.kind) {
-    case 'healer':
+    case 'healer': {
+      // Usable whenever, exactly like a Gen 1 centre - not only after a blackout.
+      // It always healed on contact, but it never SAID so, so there was no way
+      // to tell it had worked and no reason to walk in with a hurt party.
+      const hurt = p.party.some((f) => f.hp < maxHp(content.dex.species(f.species), f) || f.status !== null);
       healParty(content, p);
       p.respawnMap = p.mapId;
       p.respawnX = p.x;
       p.respawnY = p.y;
-      say(state, content, npc.dialogue);
+      const lines = [...content.dialogue(npc.dialogue)];
+      lines.push(hurt
+        ? 'Your lot are fed, patched and asleep by the fire. Good as new.'
+        : 'Nothing wrong with any of them. They sleep here anyway.');
+      sayRaw(state, lines);
       return;
+    }
     case 'item': {
       const flag = npc.flag ?? `item_${npc.id}`;
       if (hasFlag(p, flag)) {
@@ -625,6 +640,7 @@ function makeBattleScene(
     battle,
     queue: [],
     ticks: 0,
+    intro: BATTLE_INTRO_FRAMES,
     cursor: 0,
     sub: 'main',
     moveCursor: 0,
@@ -763,7 +779,26 @@ export function starterChoices(): readonly StarterId[] {
 // --- Battle ----------------------------------------------------------------
 
 /** Frames each battle event is held on screen before the next is shown. */
+/**
+ * How long a battle event stays on screen before the next one.
+ *
+ * This was a flat 6 ticks - ONE HUNDRED MILLISECONDS - for everything, which is
+ * why the opponent's attacks and their dialogue went past unread: a whole turn
+ * of messages was over in less time than it takes to look at the screen.
+ *
+ * Only `text` events carry words (nothing else touches `lastText`), so they get
+ * a real reading beat and the animation beats stay snappy. A/B still skips
+ * ahead instantly for anyone re-reading a fight they have already seen.
+ */
 const EVENT_FRAMES = 6;
+const TEXT_EVENT_FRAMES = 50;
+
+/** Length of the pre-battle wipe. Gen 1's is a touch under a second. */
+export const BATTLE_INTRO_FRAMES = 52;
+
+function dwellFor(ev: BattleEvent | undefined): number {
+  return ev !== undefined && ev.t === 'text' ? TEXT_EVENT_FRAMES : EVENT_FRAMES;
+}
 
 /**
  * Push battle events, splitting any message too long for the text box into one
@@ -795,11 +830,17 @@ function stepBattle(
   b: Buttons,
   rng: Rng,
 ): void {
+  // The transition owns the screen until it finishes.
+  if (scene.intro > 0) {
+    scene.intro--;
+    return;
+  }
+
   // Drain queued events first; the player cannot act mid-animation.
   if (scene.queue.length > 0) {
     scene.ticks++;
     const fast = pressed(state, b, 'a') || pressed(state, b, 'b');
-    if (scene.ticks < EVENT_FRAMES && !fast) return;
+    if (scene.ticks < dwellFor(scene.queue[0]) && !fast) return;
     scene.ticks = 0;
     const ev = scene.queue.shift();
     if (ev && ev.t === 'text') state.lastText = ev.text;
