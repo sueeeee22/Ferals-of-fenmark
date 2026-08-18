@@ -613,12 +613,40 @@ type LayoutFn = (p: ForgeParams, s: number) => Geom;
  * at anchor + k*scale, so violations scale linearly and one correction lands it;
  * the loop is belt and braces for the compound cases (antlers on a tall ungulate).
  */
+/** Height of a shell dome. Kept in one place so `fit` and `drawFeature` agree. */
+function shellRy(g: { bodyRy: number; bodyRx: number }): number {
+  // Scaled from the body's LENGTH, because the reptile skeleton is long and
+  // shallow: a dome sized from its height came out the same shape as the animal
+  // and read as "slightly taller lizard" rather than "tortoise".
+  return Math.max(g.bodyRy * 2.2, g.bodyRx * 0.85);
+}
+
+/**
+ * How high a feature reaches, in absolute y. `fit` only ever measured the
+ * ANIMAL, so anything drawn above it - a shell dome, a lion's ruff - was sized
+ * to a frame it did not fit in and simply clipped away at the top edge. A
+ * tortoise therefore had no shell and a lion had no mane, in both cases while
+ * the code that drew them was working perfectly.
+ */
+function featureTop(p: ForgeParams, g: Geom): number {
+  switch (p.feature) {
+    case 'shell': {
+      const ry = shellRy(g);
+      return g.bodyCy - ry * 0.45 - ry;
+    }
+    case 'mane':
+      return g.headCy - g.headR * 1.3 - (1.6 * g.scale + g.headR * 0.22);
+    default:
+      return g.top;
+  }
+}
+
 function fit(layout: LayoutFn, p: ForgeParams, s0: number): Geom {
   let s = s0;
   let g = layout(p, s);
   for (let i = 0; i < 3; i++) {
     let r = 1;
-    const topD = GROUND - g.top;
+    const topD = GROUND - Math.min(g.top, featureTop(p, g));
     if (topD > GROUND - TOP_MARGIN) r = Math.min(r, (GROUND - TOP_MARGIN) / topD);
     const leftD = CXA - g.left;
     if (leftD > CXA - SIDE_MARGIN) r = Math.min(r, (CXA - SIDE_MARGIN) / leftD);
@@ -977,13 +1005,18 @@ function drawUrsid(px: Pixels, p: ForgeParams, g: Geom, fill: number, rnd: () =>
 
 function layoutMustelid(p: ForgeParams, s: number): Geom {
   const legLen = (0.5 + p.legs * 3.5) * s;
-  const half = (13 + p.bulk * 4) * s;
-  const ry = (3.1 + p.bulk * 1.8) * s;
+  // Bulk now buys DEPTH rather than length. The old numbers gave every mustelid
+  // a 3.5:1 body whatever its bulk, which is a lizard's proportions - a sea
+  // otter came out looking like a newt. A stoat is genuinely that long; a sea
+  // otter is a barrel, and the difference has to live in the ratio.
+  const half = (10.5 + p.bulk * 3.5) * s;
+  const ry = (2.8 + p.bulk * 3.6) * s;
   const cx = CXA + 1 * s;
   const cy = GROUND - legLen - ry * 0.95;
-  const hr = (3.2 + p.head * 2.1) * s;
+  const hr = (3.2 + p.head * 2.4) * s;
   const hx = cx - half - hr * 0.15;
-  const hy = cy - ry * 0.5;
+  // Head carried a little above the spine, not inline with it.
+  const hy = cy - ry * 0.72;
   const muz = (0.8 + p.muzzle * 2) * s;
   const snout = hx - hr * 0.75 - muz;
   const tailLen = (7 + p.bulk * 6) * s;
@@ -1760,12 +1793,15 @@ function drawFeature(px: Pixels, p: ForgeParams, g: Geom, fill: number): void {
     case 'mane': {
       // A ring of mass hugging the skull. Hugging matters: a halo of blobs at
       // arm's length erases the head outline instead of framing it.
-      const n = 11;
+      // The ring has to CLEAR the skull to be seen at all. At 1.18x the head
+      // radius with small blobs it sat inside the outline and a lion gained
+      // seven pixels and no mane.
+      const n = 14;
       for (let i = 0; i < n; i++) {
-        const a = Math.PI * 0.2 + (i / (n - 1)) * Math.PI * 1.25;
-        const rr = hr * 1.18;
-        ellipse(px, hx + Math.cos(a) * rr + hr * 0.2, hy + Math.sin(a) * rr,
-          1.5 * s + hr * 0.16, 1.5 * s + hr * 0.16, fill);
+        const a = Math.PI * 0.08 + (i / (n - 1)) * Math.PI * 1.5;
+        const rr = hr * 1.3;
+        const blob = 1.6 * s + hr * 0.22;
+        ellipse(px, hx + Math.cos(a) * rr + hr * 0.12, hy + Math.sin(a) * rr, blob, blob, fill);
       }
       return;
     }
@@ -1813,10 +1849,13 @@ function drawFeature(px: Pixels, p: ForgeParams, g: Geom, fill: number): void {
     }
 
     case 'shell': {
-      // A dome sitting over the barrel, wider and taller than the body itself,
-      // which is what makes the animal read as carrying something.
-      ellipse(px, g.bodyCx, g.bodyCy - g.bodyRy * 0.35,
-        g.bodyRx * 1.05, g.bodyRy * 1.25, fill);
+      // A dome over the barrel. Its HEIGHT is taken from the body's width, not
+      // its height: a tortoise is drawn on the reptile skeleton, which is long
+      // and flat, so a dome scaled from body height sat entirely inside the
+      // outline and the animal was just a lizard with an opinion.
+      const domeRy = shellRy(g);
+      // Narrower than the body so the head and legs still show either side.
+      ellipse(px, g.bodyCx, g.bodyCy - domeRy * 0.45, g.bodyRx * 0.9, domeRy, fill);
       return;
     }
 
@@ -1874,7 +1913,8 @@ function featureHeadroom(f: SpriteFeature): number {
     case 'horns': return 0.92;
     case 'quills': return 0.92;
     case 'tufts': return 0.93;
-    case 'shell': return 0.9;
+    case 'mane': return 1;
+    case 'shell': return 1;
     default: return 1;
   }
 }
@@ -1917,6 +1957,40 @@ function markFeet(g: Geom): void {
   }
 }
 
+/**
+ * The mane, drawn AFTER shading in the contrasting shade.
+ *
+ * Drawn before shading it was filled in the same value as the skull it wraps,
+ * so the outline traced only the outside of both and a lion simply had a bigger
+ * head. Painting it here means it is a visibly separate mass, which is the only
+ * thing that makes a mane read at this size.
+ */
+function drawManeOver(px: Pixels, p: ForgeParams, g: Geom): void {
+  if (p.feature !== 'mane') return;
+  const s = g.scale;
+  const hr = g.headR;
+  const ruff = p.coat === 1 ? 2 : 1;
+  const n = 16;
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI * 0.05 + (i / (n - 1)) * Math.PI * 1.55;
+    const rr = hr * 1.28;
+    const blob = 1.7 * s + hr * 0.24;
+    const cx = g.headCx + Math.cos(a) * rr + hr * 0.1;
+    const cy = g.headCy + Math.sin(a) * rr;
+    for (let y = Math.round(cy - blob); y <= Math.round(cy + blob); y++) {
+      for (let x = Math.round(cx - blob); x <= Math.round(cx + blob); x++) {
+        const dx = (x - cx) / blob;
+        const dy = (y - cy) / blob;
+        if (dx * dx + dy * dy > 1) continue;
+        // Only over the animal, never over the outline or the background.
+        const cur = get(px, x, y);
+        if (cur === 0 || cur === 3) continue;
+        put(px, x, y, ruff);
+      }
+    }
+  }
+}
+
 export function forgeSprite(params: ForgeParams, seed: number, view: SpriteView = 'front'): Pixels {
   const px = new Uint8Array(S * S);
   const rnd = mulberry(seed ^ 0x5bf03635);
@@ -1954,6 +2028,7 @@ export function forgeSprite(params: ForgeParams, seed: number, view: SpriteView 
   outline(px);
   shade(px, params, g, rnd, 'front');
   partBuf = null;
+  drawManeOver(px, params, g);
   art.detail?.(px, params, g);
   drawFace(px, params, g);
   return px;
@@ -2212,6 +2287,9 @@ function shade(
       }
     }
 
+    // A mane is filled in the same shade as the skull it surrounds, so the
+    // outline only traces the outside of both and a lion just gains a bigger
+    // head. Shading it apart is the whole trick.
     // A carapace is filled in the same shade as the animal under it, so without
     // this a tortoise is just a lizard with a lumpy back. Darken the dome and
     // score it, and it reads as something being carried.
