@@ -353,9 +353,22 @@ function getPx(g: Uint8Array, x: number, y: number): number {
   return g[y * TS + x] ?? 0;
 }
 
+/**
+ * Fill a rectangle, in either coordinate order.
+ *
+ * Normalising is not defensive tidying, it is the whole point: the right-facing
+ * actor is drawn by mirroring every x through `flip(x) = TS-1-x`, which REVERSES
+ * each pair, so every call arrived as x0 > x1. The old loop started above its
+ * limit and ran zero times, so facing right drew an empty sprite and the player
+ * vanished the moment she walked east.
+ */
 function fillRectG(g: Uint8Array, x0: number, y0: number, x1: number, y1: number, v: number): void {
-  for (let y = Math.max(0, y0); y <= Math.min(TS - 1, y1); y++) {
-    for (let x = Math.max(0, x0); x <= Math.min(TS - 1, x1); x++) setPx(g, x, y, v);
+  const left = Math.max(0, Math.min(x0, x1));
+  const right = Math.min(TS - 1, Math.max(x0, x1));
+  const top = Math.max(0, Math.min(y0, y1));
+  const bottom = Math.min(TS - 1, Math.max(y0, y1));
+  for (let y = top; y <= bottom; y++) {
+    for (let x = left; x <= right; x++) setPx(g, x, y, v);
   }
 }
 

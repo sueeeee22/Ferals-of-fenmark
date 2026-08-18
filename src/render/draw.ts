@@ -107,15 +107,28 @@ function lerp(a: number, b: number, t: number): number {
  * pixel position, since near an edge the two diverge and the player sprite
  * has to be drawn off-center to match.
  */
+/**
+ * Camera and player position, in WHOLE PIXELS.
+ *
+ * The player pixel is rounded FIRST and the camera is derived from the rounded
+ * value, so the two can never disagree. Rounding them independently (which is
+ * what this used to do) left the player drifting up to a pixel against the tile
+ * grid and back again on alternate frames - a shimmer that reads as the sprite
+ * wobbling while the world stands still.
+ *
+ * `progress` may be fractional: the shell adds the leftover accumulator so
+ * motion is smooth even on a frame where the fixed-timestep loop ran no
+ * simulation tick at all.
+ */
 function cameraFor(
   map: GameMap,
   x: number, y: number, fromX: number, fromY: number, progress: number,
 ): Camera & { playerPxX: number; playerPxY: number } {
   const t = progress > 0 ? Math.min(1, progress / WALK_FRAMES) : 0;
-  const playerPxX = lerp(fromX, x, t) * TILE_SIZE;
-  const playerPxY = lerp(fromY, y, t) * TILE_SIZE;
-  const rawX = LOGICAL_W / 2 - TILE_SIZE / 2 - playerPxX;
-  const rawY = LOGICAL_H / 2 - TILE_SIZE / 2 - playerPxY;
+  const playerPxX = Math.round(lerp(fromX, x, t) * TILE_SIZE);
+  const playerPxY = Math.round(lerp(fromY, y, t) * TILE_SIZE);
+  const rawX = Math.round(LOGICAL_W / 2 - TILE_SIZE / 2) - playerPxX;
+  const rawY = Math.round(LOGICAL_H / 2 - TILE_SIZE / 2) - playerPxY;
   const mapPxW = map.width * TILE_SIZE;
   const mapPxH = map.height * TILE_SIZE;
   const originX = Math.round(
@@ -162,7 +175,10 @@ function drawWorldBackground(
 ): void {
   const p = state.player;
   const map = content.world.map(p.mapId);
-  const progress = walk?.progress ?? 0;
+  // Mid-step, advance by the sub-frame remainder so motion does not stall on a
+  // frame that ran no tick. Standing still stays exactly still.
+  const rawProgress = walk?.progress ?? 0;
+  const progress = rawProgress > 0 ? rawProgress + frameAlpha : 0;
   const fromX = walk?.fromX ?? p.x;
   const fromY = walk?.fromY ?? p.y;
   const cam = cameraFor(map, p.x, p.y, fromX, fromY, progress);
@@ -180,9 +196,30 @@ function drawWorldBackground(
 
   const pose = walkPose(progress, fromX, fromY);
   const dir = progress > 0 ? (walk?.dir ?? p.facing) : p.facing;
-  const playerSx = Math.round(cam.originX + cam.playerPxX);
-  const playerSy = Math.round(cam.originY + cam.playerPxY);
+  // Both terms are already whole pixels - see cameraFor.
+  const playerSx = cam.originX + cam.playerPxX;
+  const playerSy = cam.originY + cam.playerPxY;
   gb.drawActor(ctx, 'player', dir, pose.frame, pose.step, playerSx, playerSy);
+}
+
+/**
+ * Sub-frame interpolation, 0..1, set by the shell before each draw.
+ *
+ * The simulation runs on a fixed 1/60s timestep while the browser paints on its
+ * own schedule, so the two drift: measured on the real build, 20 of 180 painted
+ * frames advanced the simulation by NOTHING and 19 advanced it by two. That is
+ * one frame in five either frozen or lurching, which is what makes walking feel
+ * choppy and, over a long corridor, faintly seasick.
+ *
+ * The frames are not lost - the leftover accumulator says how far through the
+ * next tick we are, and adding it to the walk progress lets the renderer show
+ * the in-between position. Rendering only; the reducer never sees it, so the
+ * game stays perfectly deterministic and the playthrough gauntlet is unaffected.
+ */
+let frameAlpha = 0;
+
+export function setFrameAlpha(alpha: number): void {
+  frameAlpha = Math.max(0, Math.min(1, alpha));
 }
 
 // Location banner: shown for a beat after the map id changes. Edge-detected

@@ -6,7 +6,7 @@
  */
 import './style.css';
 import { createScreen } from './render/gb.ts';
-import { draw } from './render/draw.ts';
+import { draw, setFrameAlpha } from './render/draw.ts';
 import { content, usingPlaceholder } from './game/content.ts';
 import {
   newGame, step, chooseStarter, STARTERS,
@@ -263,6 +263,10 @@ function frame(now: number): void {
   }
   if (ticks === MAX_CATCHUP_TICKS) accumulator = 0;
 
+  // How far into the NEXT simulation tick this painted frame sits. Without it a
+  // frame that ran no tick redraws the previous position and the walk visibly
+  // stutters; the display refresh and the fixed timestep never line up exactly.
+  setFrameAlpha(accumulator / STEP_MS);
   draw(screen.ctx, content, state, starterCursor);
   screen.present();
 }
