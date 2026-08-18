@@ -836,11 +836,12 @@ function battleMessage(scene: BattleScene, ev: BattleEvent): string | null {
     case 'text':
       return ev.text;
     case 'move': {
-      const side = ev.side === 'player' ? scene.battle.player : scene.battle.enemy;
-      const actor = activeOf(side);
+      // `ev.actor` was captured when the move was used. Reading the active
+      // creature here instead read the state AFTER the whole turn resolved, so
+      // a creature that fainted or switched got someone else's name.
       const who = ev.side === 'player'
-        ? actor.nickname
-        : `${scene.battle.kind === 'wild' ? 'The wild' : 'Their'} ${actor.nickname}`;
+        ? ev.actor
+        : `${scene.battle.kind === 'wild' ? 'The wild' : 'Their'} ${ev.actor}`;
       return `${who} used ${ev.name}.`;
     }
     case 'miss':
@@ -858,10 +859,16 @@ function battleMessage(scene: BattleScene, ev: BattleEvent): string | null {
       // engine stays reproducible and gauntlet:playthrough is unaffected.
       const seed = ev.amount * 31 + ev.hpAfter * 7 + (ev.critical ? 3 : 0);
       const line = pool[seed % pool.length] ?? '';
-      if (ev.critical) return `${line} And it found the seam.`;
-      if (ev.effectiveness > 1) return `${line} It was never going to hold that.`;
-      if (ev.effectiveness < 1) return `${line} Built to take it, though.`;
-      return line;
+      // Tags are short and only appended when the whole thing still fits one
+      // box; otherwise the tag gets its own press, which beats a sentence
+      // snapping in half.
+      const tag = ev.critical ? 'Found the seam.'
+        : ev.effectiveness > 1 ? 'It could not hold that.'
+        : ev.effectiveness < 1 ? 'Built to take it.'
+        : '';
+      // If the pair does not fit one box the drain pages it, so the tag simply
+      // gets its own press rather than a sentence snapping in half.
+      return tag === '' ? line : `${line} ${tag}`;
     }
     default:
       return null;
@@ -901,7 +908,15 @@ function stepBattle(
     const ev = scene.queue.shift();
     const msg = ev === undefined ? null : battleMessage(scene, ev);
     if (msg !== null) {
-      state.lastText = msg;
+      // The battle box shows two rows. Messages are composed here, AFTER the
+      // enqueue-time pagination, so a long one was simply cut off mid-sentence.
+      // Split it and push the remainder back to the front of the queue, which
+      // keeps everything in order and gives each page its own press.
+      const pages = paginate(msg);
+      state.lastText = (pages[0] ?? []).join(' ');
+      for (let i = pages.length - 1; i >= 1; i--) {
+        scene.queue.unshift({ t: 'text', text: (pages[i] ?? []).join(' ') });
+      }
       scene.awaitingAck = true;
       return;
     }

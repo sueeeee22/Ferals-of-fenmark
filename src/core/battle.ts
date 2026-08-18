@@ -91,7 +91,15 @@ export type BattleAction =
 
 export type BattleEvent =
   | { readonly t: 'text'; readonly text: string }
-  | { readonly t: 'move'; readonly side: 'player' | 'enemy'; readonly move: string; readonly name: string }
+  | {
+      readonly t: 'move';
+      readonly side: 'player' | 'enemy';
+      readonly move: string;
+      /** The move's name. */
+      readonly name: string;
+      /** Who used it, captured NOW - the active creature may change before this is shown. */
+      readonly actor: string;
+    }
   | {
       readonly t: 'damage';
       readonly side: 'player' | 'enemy';
@@ -353,7 +361,7 @@ function executeMove(
   // gauntlet:sim caught (one battle in ten thousand hit the 300-turn cap).
   const anyPp = user.moves.some((m) => m.pp > 0);
   if (!anyPp) {
-    events.push({ t: 'move', side: who, move: 'struggle', name: 'Struggle' });
+    events.push({ t: 'move', side: who, move: 'struggle', name: 'Struggle', actor: user.nickname });
     const uSp = dex.species(user.species);
     const tSp = dex.species(target.species);
     const res = computeDamage({
@@ -391,7 +399,7 @@ function executeMove(
   }
   slotRef.pp--;
 
-  events.push({ t: 'move', side: who, move: move.id, name: move.name });
+  events.push({ t: 'move', side: who, move: move.id, name: move.name, actor: user.nickname });
 
   // --- Accuracy ------------------------------------------------------------
   if (!move.effect?.alwaysHits && move.accuracy <= 100) {
@@ -463,8 +471,10 @@ function executeMove(
     }
 
     if (hits > 1) events.push({ t: 'text', text: `Hit ${hits} times.` });
-    const msg = effectivenessMessage(mult);
-    if (msg) events.push({ t: 'text', text: msg });
+    // No separate effectiveness line. The damage event already narrates the hit
+    // by how much health it took, with effectiveness as a tag on the end -
+    // pushing this as well meant every good hit said "It's brutally effective."
+    // on top of whatever the damage line had already said.
 
     // Recoil and drain
     const eff = move.effect;
