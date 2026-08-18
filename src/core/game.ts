@@ -219,8 +219,11 @@ export function newGame(seed: number | string): GameState {
     lastText: '',
     player: {
       name: 'Tabitha',
+      // Standing on the door's column. The exit is at (4,8); starting at x=3
+      // meant the very first thing a new player does - walk down and out - hit
+      // the wall beside the door instead.
       mapId: 'fenmark_house',
-      x: 3,
+      x: 4,
       y: 4,
       facing: 'down',
       party: [],
@@ -410,11 +413,32 @@ function stepOverworld(
   const walk = scene.walk;
 
   // --- Mid-step: finish the tile transition -------------------------------
+  //
+  // Arrival is handled ON the last frame of the step, and if nothing interrupts
+  // (no warp, trainer or encounter) this falls THROUGH to the input handling
+  // below so a held direction starts the next step in the same tick.
+  //
+  // Two separate defects lived here, both firing once per tile - about six
+  // times a second while walking, which is what "the frame rate isn't right"
+  // was describing. Smoothing the character WITHIN a step left both untouched.
+  //
+  //  1. `fromX/fromY` were not re-anchored on arrival, so the one frame drawn
+  //     with progress 0 interpolated to t=0 and put the player a WHOLE TILE
+  //     BACKWARDS before the next step snapped her forward again.
+  //  2. That frame was dead anyway: the tick only noticed the step had ended,
+  //     and input was not read until the tick after. Falling through spends it.
   if (walk.progress > 0) {
     walk.progress++;
     if (walk.progress <= WALK_FRAMES) return;
 
     walk.progress = 0;
+    // Re-anchor the interpolation to where we actually ARE. `fromX/fromY` still
+    // held the tile we left, and a render with progress 0 lerps to t=0 - which
+    // drew the player a WHOLE TILE BACKWARDS for one frame at the end of every
+    // single step. That backward snap, once per tile, is the screen "glitching"
+    // while walking; it is far more visible than a dropped frame.
+    walk.fromX = p.x;
+    walk.fromY = p.y;
     p.steps++;
     if (p.repelSteps > 0) p.repelSteps--;
 
@@ -447,7 +471,8 @@ function stepOverworld(
       beginWildBattle(content, state, enc.species, enc.level, rng);
       return;
     }
-    return;
+    // Nothing interrupted the step. Fall through to the movement handling below
+    // so walking is continuous instead of stopping dead on every tile boundary.
   }
 
   // --- Standing: menu, interaction, movement ------------------------------

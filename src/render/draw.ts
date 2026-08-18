@@ -17,7 +17,7 @@ import { paginate, pageLength } from '../core/text.ts';
 import { STARTERS, WALK_FRAMES, starterChoices } from '../core/game.ts';
 import { activeOf } from '../core/battle.ts';
 import type { BattleState, Side } from '../core/battle.ts';
-import { tileAt, visibleNpcs, type GameMap, type Dir } from '../core/world.ts';
+import { Tile, tileAt, visibleNpcs, type GameMap, type Dir } from '../core/world.ts';
 import { maxHp } from '../core/creature.ts';
 import type { Feral, Species, StatusName } from '../core/creature.ts';
 import { spriteFor, SPRITE_SIZE, type Pixels, type SpriteView } from './forge.ts';
@@ -151,7 +151,11 @@ function drawTiles(ctx: CanvasRenderingContext2D, map: GameMap, cam: Camera, fra
   for (let ty = startTy; ty <= endTy; ty++) {
     for (let tx = startTx; tx <= endTx; tx++) {
       const id = tileAt(map, tx, ty);
-      gb.drawTile(ctx, id, animFrame, cam.originX + tx * TILE_SIZE, cam.originY + ty * TILE_SIZE);
+      // A house tile with another house directly above it is WALL; the top
+      // course of the building carries the roof. Without this every tile drew
+      // its own little roof and a frontage became texture instead of a wall.
+      const variant = id === Tile.House && tileAt(map, tx, ty - 1) === Tile.House ? 1 : 0;
+      gb.drawTile(ctx, id, animFrame, cam.originX + tx * TILE_SIZE, cam.originY + ty * TILE_SIZE, variant);
     }
   }
 }

@@ -479,24 +479,50 @@ function tileRock(): Uint8Array {
   return g;
 }
 
-function tileHouse(): Uint8Array {
+/**
+ * A house tile, drawn as either the ROOF course or a plain WALL.
+ *
+ * It used to draw a whole miniature house - roof, wall and two windows - into
+ * every tile. Tiled across a five-wide frontage that produced a zigzag of tiny
+ * roofs with no wall anywhere, so a building read as abstract texture and a
+ * door had nothing to sit in. That is why finding a doorway felt arbitrary:
+ * there was no facade to line up against, only pattern.
+ *
+ * Now the top course of a building carries the roof and everything below it is
+ * flat wall, so a block of house tiles reads as ONE building and a door is
+ * obviously a hole in its front.
+ */
+function tileHouse(wallOnly: boolean): Uint8Array {
   const g = blankGrid(1);
-  fillRectG(g, 0, 8, TS - 1, TS - 1, 1);
-  for (let y = 0; y < 8; y++) {
-    fillRectG(g, y, y, TS - 1 - y, y, 3);
+  if (wallOnly) {
+    // Flat wall with a single window. No tile-edge detailing: a seam on every
+    // boundary would rebuild exactly the grid we are trying to get rid of.
+    fillRectG(g, 4, 4, 11, 10, 3);
+    fillRectG(g, 5, 5, 10, 9, 2);
+    fillRectG(g, 7, 5, 8, 9, 3);
+    return g;
   }
-  fillRectG(g, 3, 9, 6, 12, 2);
-  fillRectG(g, 9, 9, 12, 12, 2);
+  // Roof course: dark ridge, roof body, then the eave line where wall begins.
+  fillRectG(g, 0, 0, TS - 1, 1, 3);
+  fillRectG(g, 0, 2, TS - 1, 6, 2);
+  fillRectG(g, 0, 7, TS - 1, 7, 3);
   return g;
 }
 
+/**
+ * A doorway set into a wall.
+ *
+ * The background is WALL shade, not blank, so the door reads as an opening in
+ * the building rather than a floating panel with a bright halo around it - the
+ * halo was doing a lot of the "where exactly is this door" confusion.
+ */
 function tileDoor(): Uint8Array {
-  const g = blankGrid(0);
-  fillRectG(g, 3, 2, 12, 15, 1);
-  fillRectG(g, 3, 2, 12, 2, 3);
-  fillRectG(g, 5, 4, 10, 15, 3);
-  fillRectG(g, 6, 5, 9, 15, 2);
-  setPx(g, 9, 10, 3);
+  const g = blankGrid(1);
+  fillRectG(g, 3, 1, 12, 15, 3);
+  fillRectG(g, 4, 2, 11, 15, 2);
+  fillRectG(g, 5, 3, 10, 15, 3);
+  setPx(g, 9, 9, 2);
+  setPx(g, 9, 10, 2);
   return g;
 }
 
@@ -648,7 +674,7 @@ const TILE_GENERATORS: Readonly<Record<number, () => readonly Uint8Array[]>> = {
   [Tile.Wall]: () => [tileWall()],
   [Tile.Tree]: () => [tileTree()],
   [Tile.Rock]: () => [tileRock()],
-  [Tile.House]: () => [tileHouse()],
+  [Tile.House]: () => [tileHouse(true)],
   [Tile.Door]: () => [tileDoor()],
   [Tile.Sign]: () => [tileSign()],
   [Tile.Counter]: () => [tileCounter()],
@@ -687,17 +713,25 @@ function tileToCanvas(pattern: Uint8Array): HTMLCanvasElement {
 const tileCanvasCache = new Map<string, HTMLCanvasElement>();
 
 /** Draws one 16x16 tile at its animation frame (frame is taken mod the tile's frame count). */
+/**
+ * `variant` lets a tile know something about its neighbours. Only the house uses
+ * it so far: variant 1 means "there is another house tile directly above", i.e.
+ * this is wall rather than the roof course.
+ */
 export function drawTile(
   ctx: CanvasRenderingContext2D,
   tileId: number,
   frame: number,
   x: number,
   y: number,
+  variant = 0,
 ): void {
-  const frames = TILE_ART[tileId] ?? TILE_ART[Tile.Void];
+  const frames = tileId === Tile.House
+    ? [tileHouse(variant === 1)]
+    : (TILE_ART[tileId] ?? TILE_ART[Tile.Void]);
   if (!frames || frames.length === 0) return;
   const idx = ((frame % frames.length) + frames.length) % frames.length;
-  const key = `${tileId}:${idx}`;
+  const key = `${tileId}:${idx}:${variant}`;
   let canvas = tileCanvasCache.get(key);
   if (!canvas) {
     const pattern = frames[idx];
