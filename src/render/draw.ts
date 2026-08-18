@@ -636,13 +636,15 @@ function drawBattle(ctx: CanvasRenderingContext2D, content: Content, state: Game
   );
   drawSideInfo(ctx, PLAYER_BOX, player, true, playerSp);
 
-  const draining = scene.queue.length > 0 || battle.outcome !== 'ongoing';
+  const draining = scene.queue.length > 0 || scene.awaitingAck || battle.outcome !== 'ongoing';
   if (draining) {
-    // Battle messages auto-advance through a queue, so there is nobody to press
-    // A for a second page. Keep them inside one box instead of dropping the
-    // overflow: gauntlet:tone enforces the length that makes this fit.
+    // Messages are split into box-sized events at enqueue (see pushEvents), so
+    // two rows always holds one whole message. The blinking prompt appears only
+    // while the game is actually waiting on the player, so it means "press to
+    // continue" rather than decorating a box that is about to vanish anyway.
     const rows = gb.wrapText(state.lastText, 18).slice(0, 2);
-    gb.drawTextBox(ctx, rows, 999, false);
+    const prompt = scene.awaitingAck && Math.floor(state.frame / 20) % 2 === 0;
+    gb.drawTextBox(ctx, rows, 999, prompt);
     return;
   }
 

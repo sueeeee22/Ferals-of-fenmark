@@ -172,6 +172,14 @@ export interface BattleScene {
   /** Frames the current event has been displayed. */
   ticks: number;
   /**
+   * A message is on screen and the game is waiting for the player to dismiss it.
+   *
+   * Battle text used to advance on a timer, which meant guessing a reading speed
+   * that suited everybody and suited nobody - too fast to read, then too slow to
+   * grind through. Gen 1 does not guess: the box waits. So does this.
+   */
+  awaitingAck: boolean;
+  /**
    * Counts down while the pre-battle transition plays. Input is ignored and no
    * events drain until it reaches zero, exactly like Gen 1's wipe - the battle
    * should never start under a player who is still mid-step.
@@ -640,6 +648,7 @@ function makeBattleScene(
     battle,
     queue: [],
     ticks: 0,
+    awaitingAck: false,
     intro: BATTLE_INTRO_FRAMES,
     cursor: 0,
     sub: 'main',
@@ -780,25 +789,13 @@ export function starterChoices(): readonly StarterId[] {
 
 /** Frames each battle event is held on screen before the next is shown. */
 /**
- * How long a battle event stays on screen before the next one.
- *
- * This was a flat 6 ticks - ONE HUNDRED MILLISECONDS - for everything, which is
- * why the opponent's attacks and their dialogue went past unread: a whole turn
- * of messages was over in less time than it takes to look at the screen.
- *
- * Only `text` events carry words (nothing else touches `lastText`), so they get
- * a real reading beat and the animation beats stay snappy. A/B still skips
- * ahead instantly for anyone re-reading a fight they have already seen.
+ * How long a non-text battle beat (damage, hp drain, a faint) holds before the
+ * next one. Text is NOT on a timer - see `awaitingAck`.
  */
 const EVENT_FRAMES = 6;
-const TEXT_EVENT_FRAMES = 50;
 
 /** Length of the pre-battle wipe. Gen 1's is a touch under a second. */
 export const BATTLE_INTRO_FRAMES = 52;
-
-function dwellFor(ev: BattleEvent | undefined): number {
-  return ev !== undefined && ev.t === 'text' ? TEXT_EVENT_FRAMES : EVENT_FRAMES;
-}
 
 /**
  * Push battle events, splitting any message too long for the text box into one
@@ -823,6 +820,44 @@ function pushEvents(scene: BattleScene, events: readonly BattleEvent[]): void {
   }
 }
 
+/**
+ * The words for a battle beat, or null if it is a pure animation.
+ *
+ * Only `text` events used to reach the screen. A move, a miss, a faint and the
+ * effectiveness of a hit were all structured events that nothing ever turned
+ * into a sentence - so "Winter used Frost Fang" was never shown at ALL, and the
+ * box just held whatever stale line was there while the HP bar drained. That is
+ * what "it skips past the attacks of the opponent" really was: not too fast,
+ * never written.
+ */
+function battleMessage(scene: BattleScene, ev: BattleEvent): string | null {
+  switch (ev.t) {
+    case 'text':
+      return ev.text;
+    case 'move': {
+      const side = ev.side === 'player' ? scene.battle.player : scene.battle.enemy;
+      const actor = activeOf(side);
+      const who = ev.side === 'player'
+        ? actor.nickname
+        : `${scene.battle.kind === 'wild' ? 'The wild' : 'Their'} ${actor.nickname}`;
+      return `${who} used ${ev.name}.`;
+    }
+    case 'miss':
+      return 'It misses by a street.';
+    case 'faint':
+      return `${ev.name} is down.`;
+    case 'damage':
+      // Neutral, non-critical hits say nothing - the bar draining is the message.
+      if (ev.effectiveness === 0) return 'It does nothing at all.';
+      if (ev.critical) return 'That one landed properly.';
+      if (ev.effectiveness > 1) return 'It goes in deep.';
+      if (ev.effectiveness < 1) return 'It barely tells.';
+      return null;
+    default:
+      return null;
+  }
+}
+
 function stepBattle(
   content: Content,
   state: GameState,
@@ -836,14 +871,30 @@ function stepBattle(
     return;
   }
 
-  // Drain queued events first; the player cannot act mid-animation.
+  // A message holds the screen until the player presses A or B. Read at your
+  // own pace; mash through a fight you have seen before.
+  if (scene.awaitingAck) {
+    if (!pressed(state, b, 'a') && !pressed(state, b, 'b')) return;
+    scene.awaitingAck = false;
+    scene.ticks = 0;
+    // The acknowledged message may have been the last thing in the turn.
+    if (scene.queue.length === 0) afterEvents(content, state, scene, rng);
+    return;
+  }
+
+  // Drain queued events; the player cannot act mid-animation. Only the beats
+  // WITHOUT words are on a timer.
   if (scene.queue.length > 0) {
     scene.ticks++;
-    const fast = pressed(state, b, 'a') || pressed(state, b, 'b');
-    if (scene.ticks < dwellFor(scene.queue[0]) && !fast) return;
+    if (scene.ticks < EVENT_FRAMES) return;
     scene.ticks = 0;
     const ev = scene.queue.shift();
-    if (ev && ev.t === 'text') state.lastText = ev.text;
+    const msg = ev === undefined ? null : battleMessage(scene, ev);
+    if (msg !== null) {
+      state.lastText = msg;
+      scene.awaitingAck = true;
+      return;
+    }
     if (scene.queue.length === 0) afterEvents(content, state, scene, rng);
     return;
   }
