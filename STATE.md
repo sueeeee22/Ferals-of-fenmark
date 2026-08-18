@@ -162,6 +162,26 @@ The game is a static site: no server, no database, no login, **77KB gzipped**.
   generator in `scripts/gen/` and re-run.
 - The reducer is pure and `resolveTurn` **mutates the state it is given**. Build a fresh
   state per battle and fresh `Feral` objects, or HP and status leak between battles.
+- **WALK_FRAMES is the tap threshold, not just an animation length.** A step only
+  auto-repeats while the direction is still held when the tile completes, so the
+  tile duration decides whether a human tap means one tile or two. At 8 ticks
+  (133ms) it sat in the middle of a real tap (120-180ms) and the same press gave
+  one tile or two at random - lining up on a doorway was a coin flip. 16 ticks
+  is 267ms, which is also Gen 1's real speed, and 16 divides a 16px tile so every
+  tick moves exactly ONE pixel. Do not "speed walking up" without re-measuring
+  taps: `/tmp` scratch aside, the check is holds of 60-220ms all yielding 1 tile.
+- **Movement smoothness has three separate causes; fixing one hides the others.**
+  In order of discovery: (1) the fixed timestep and the browser paint schedule
+  drift, so a painted frame can run 0 or 2 simulation ticks - fixed by
+  interpolating with the leftover accumulator (`setFrameAlpha`); (2) on the frame
+  a step completed, `walk.fromX/fromY` still pointed at the tile just left, so
+  the renderer drew the player a WHOLE TILE BACKWARDS for one frame, once per
+  tile; (3) 2px per tick is visibly coarser than 1px. Measure per-tick rendered
+  offset in Node before believing any of it is fixed - the browser is too noisy.
+- **`__fenmark` publishes `px`, `py` and `ticks`** (drawn pixel position and how
+  many simulation ticks that painted frame consumed) precisely so smoothness can
+  be measured from outside. Tile coordinates change once per tile and cannot show
+  a stutter.
 - **The base path is how you ship a blank page.** GitHub Pages serves a project site
   from `/Ferals-of-fenmark/`, so any asset URL starting with `/` resolves to the domain
   root and 404s. `BASE_PATH` drives `vite.config.ts`; CI sets it from the repo name.

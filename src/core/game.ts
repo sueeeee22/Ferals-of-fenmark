@@ -46,7 +46,24 @@ export const NO_BUTTONS: Buttons = {
 export type ButtonName = keyof Buttons;
 
 /** Frames a tile step takes. Gen 1 walked at roughly this pace. */
-export const WALK_FRAMES = 8;
+/**
+ * Ticks to cross one tile. 16px over 16 ticks = exactly ONE PIXEL per tick.
+ *
+ * Two reasons for 16 rather than 8:
+ *
+ *  - Control. A step only auto-repeats while the direction is still held when
+ *    the tile completes, so the tile duration IS the tap threshold. At 8 ticks
+ *    that threshold was 133ms, right in the middle of the 120-180ms a human tap
+ *    actually lasts - so the same press produced one tile or two at random, and
+ *    lining up on a doorway became a coin flip. At 16 ticks the threshold is
+ *    267ms and a tap reliably means one tile.
+ *  - Smoothness. 16 divides 16, so every tick moves exactly one pixel. At 8 the
+ *    sprite jumped two pixels a tick, which is twice as coarse and reads as
+ *    faint judder even when the pacing is perfect.
+ *
+ * This is also Gen 1's real walking speed. We had been going twice as fast.
+ */
+export const WALK_FRAMES = 16;
 
 // ---------------------------------------------------------------------------
 // Content injection — core never imports src/data

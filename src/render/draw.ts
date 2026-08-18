@@ -203,6 +203,8 @@ function drawWorldBackground(
   // Both terms are already whole pixels - see cameraFor.
   const playerSx = cam.originX + cam.playerPxX;
   const playerSy = cam.originY + cam.playerPxY;
+  lastDrawnX = playerSx;
+  lastDrawnY = playerSy;
   gb.drawActor(ctx, 'player', dir, pose.frame, pose.step, playerSx, playerSy);
 }
 
@@ -224,6 +226,21 @@ let frameAlpha = 0;
 
 export function setFrameAlpha(alpha: number): void {
   frameAlpha = Math.max(0, Math.min(1, alpha));
+}
+
+/**
+ * Where the player was last actually DRAWN, in logical pixels.
+ *
+ * Read-only diagnostic, published on the observation hook. The tile coordinate
+ * alone cannot show a stutter - it only changes once per tile - so measuring
+ * smoothness from outside the game needs the interpolated position the renderer
+ * really used.
+ */
+let lastDrawnX = 0;
+let lastDrawnY = 0;
+
+export function drawnPlayerPos(): { x: number; y: number } {
+  return { x: lastDrawnX, y: lastDrawnY };
 }
 
 // Location banner: shown for a beat after the map id changes. Edge-detected

@@ -6,7 +6,7 @@
  */
 import './style.css';
 import { createScreen } from './render/gb.ts';
-import { draw, setFrameAlpha } from './render/draw.ts';
+import { draw, setFrameAlpha, drawnPlayerPos } from './render/draw.ts';
 import { content, usingPlaceholder } from './game/content.ts';
 import {
   newGame, step, chooseStarter, STARTERS,
@@ -268,6 +268,17 @@ function frame(now: number): void {
   // stutters; the display refresh and the fixed timestep never line up exactly.
   setFrameAlpha(accumulator / STEP_MS);
   draw(screen.ctx, content, state, starterCursor);
+
+  // Publish what was actually drawn, and how many simulation ticks this painted
+  // frame consumed. Both are read-only diagnostics for measuring smoothness
+  // from outside; nothing in the game reads them.
+  const hook = (window as unknown as { __fenmark?: Record<string, unknown> }).__fenmark;
+  if (hook) {
+    const p = drawnPlayerPos();
+    hook['px'] = p.x;
+    hook['py'] = p.y;
+    hook['ticks'] = ticks;
+  }
   screen.present();
 }
 
