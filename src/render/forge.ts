@@ -89,7 +89,9 @@ export type CoatPattern =
   | 'spot'      // scattered rosettes
   | 'patch'     // large irregular blocks
   | 'counter'   // dark top, light underside
-  | 'saddle';   // dark blanket across the back
+  | 'saddle'    // dark blanket across the back
+  | 'cape'      // heavy dark hood and cape, pale face and underside
+  | 'blaze';    // pale animal, dark only along the spine and the ears
 
 export interface ForgeParams {
   readonly family: Family;
@@ -163,14 +165,14 @@ const FAMILY_TAILS: Readonly<Record<Family, readonly TailShape[]>> = {
  */
 const STARTER_TUNING: Readonly<Record<string, Partial<ForgeParams>>> = {
   // Winter — black-and-white Siberian Husky. Aloof, dramatic, screams.
-  winter_pup: { feature: 'none', bulk: 0.34, legs: 0.4, muzzle: 0.5, head: 0.66, ears: 'prick', earSize: 0.72, tail: 'curl', ruff: 0.5, pattern: 'mask', coat: 1, majesty: 0 },
-  winter_adult: { feature: 'none', bulk: 0.54, legs: 0.6, muzzle: 0.72, head: 0.5, ears: 'prick', earSize: 0.66, tail: 'curl', ruff: 0.66, pattern: 'mask', coat: 1, majesty: 0.2 },
-  winter_apex: { feature: 'mane', bulk: 0.74, legs: 0.72, muzzle: 0.78, head: 0.52, ears: 'prick', earSize: 0.8, tail: 'plume', ruff: 1, pattern: 'mask', coat: 1, majesty: 0.95 },
+  winter_pup: { feature: 'none', bulk: 0.34, legs: 0.4, muzzle: 0.5, head: 0.66, ears: 'prick', earSize: 0.72, tail: 'curl', ruff: 0.5, pattern: 'cape', coat: 1, majesty: 0 },
+  winter_adult: { feature: 'none', bulk: 0.54, legs: 0.6, muzzle: 0.72, head: 0.5, ears: 'prick', earSize: 0.66, tail: 'curl', ruff: 0.66, pattern: 'cape', coat: 1, majesty: 0.2 },
+  winter_apex: { feature: 'mane', bulk: 0.74, legs: 0.72, muzzle: 0.78, head: 0.52, ears: 'prick', earSize: 0.8, tail: 'plume', ruff: 1, pattern: 'cape', coat: 1, majesty: 0.95 },
 
   // Baloo — orange-and-white Siberian Husky. Enthusiastic idiot.
-  baloo_pup: { feature: 'none', bulk: 0.4, legs: 0.42, muzzle: 0.52, head: 0.64, ears: 'prick', earSize: 0.62, tail: 'curl', ruff: 0.45, pattern: 'mask', coat: 1, majesty: 0 },
-  baloo_adult: { feature: 'mane', bulk: 0.62, legs: 0.58, muzzle: 0.7, head: 0.5, ears: 'prick', earSize: 0.6, tail: 'plume', ruff: 0.7, pattern: 'mask', coat: 1, majesty: 0.25 },
-  baloo_apex: { feature: 'mane', bulk: 0.92, legs: 0.64, muzzle: 0.74, head: 0.56, ears: 'prick', earSize: 0.7, tail: 'plume', ruff: 1, pattern: 'mask', coat: 1, majesty: 1 },
+  baloo_pup: { feature: 'none', bulk: 0.46, legs: 0.34, muzzle: 0.58, head: 0.7, ears: 'drop', earSize: 0.58, tail: 'plume', ruff: 0.3, pattern: 'blaze', coat: 1, majesty: 0 },
+  baloo_adult: { feature: 'humpback', bulk: 0.74, legs: 0.48, muzzle: 0.78, head: 0.56, ears: 'drop', earSize: 0.56, tail: 'plume', ruff: 0.4, pattern: 'blaze', coat: 1, majesty: 0.25 },
+  baloo_apex: { feature: 'humpback', bulk: 1, legs: 0.54, muzzle: 0.82, head: 0.6, ears: 'drop', earSize: 0.64, tail: 'plume', ruff: 0.55, pattern: 'blaze', coat: 1, majesty: 1 },
 
   // Plato — grey-and-white tabby. Contemptuous. Will not fetch.
   plato_pup: { feature: 'none', bulk: 0.3, legs: 0.3, muzzle: 0.2, head: 0.7, ears: 'prick', earSize: 0.66, tail: 'whip', ruff: 0.12, pattern: 'tabby', coat: 1, majesty: 0 },
@@ -255,9 +257,57 @@ const CXA = S / 2;
 const TOP_MARGIN = 3;
 const SIDE_MARGIN = 3;
 
+/**
+ * Which body part each pixel belongs to.
+ *
+ * Coat patterns used to be painted by raw screen position, so a saddle or a
+ * stripe would slice straight through a leg or a tail and leave the banding
+ * that made these read as striped tubes rather than animals. Knowing the part
+ * means a marking can sit on the torso, socks can sit on the feet, and the
+ * underside can catch light the way a real animal does.
+ *
+ * Recorded during the FILL pass only: `put` stamps whatever part is currently
+ * being drawn, and the recorder is switched off before outlining and shading.
+ */
+export const Part = {
+  None: 0,
+  Body: 1,
+  Head: 2,
+  Muzzle: 3,
+  Leg: 4,
+  Foot: 5,
+  Tail: 6,
+  Ear: 7,
+  Extra: 8,
+} as const;
+export type Part = (typeof Part)[keyof typeof Part];
+
+let partBuf: Uint8Array | null = null;
+let curPart: number = Part.Body;
+
+/** Run `fn` with every filled pixel tagged as `part`. */
+function asPart<T>(part: number, fn: () => T): T {
+  const prev = curPart;
+  curPart = part;
+  try {
+    return fn();
+  } finally {
+    curPart = prev;
+  }
+}
+
+function partAt(x: number, y: number): number {
+  if (partBuf === null) return Part.None;
+  if (x < 0 || y < 0 || x >= S || y >= S) return Part.None;
+  return partBuf[y * S + x] ?? Part.None;
+}
+
 function put(px: Pixels, x: number, y: number, v: number): void {
   if (x < 0 || y < 0 || x >= S || y >= S) return;
   px[y * S + x] = v;
+  if (partBuf !== null && v !== 0 && x >= 0 && y >= 0 && x < S && y < S) {
+    partBuf[y * S + x] = curPart;
+  }
 }
 
 function get(px: Pixels, x: number, y: number): number {
@@ -422,18 +472,22 @@ function seg(
 }
 
 function drawLimbs(px: Pixels, segs: readonly Seg[], v: number): void {
+  asPart(Part.Leg, () => {
   for (const l of segs) {
     taper(px, l.x0, l.y0, l.x1, l.y1, l.r0, l.r1, v);
     if (l.foot > 0) ellipse(px, l.x1, l.y1, l.foot, Math.max(1, l.r1 * 0.95), v);
   }
+  });
 }
 
 /** Re-ink the far limbs a shade back, so the near pair reads in front of them. */
 function inkLimbs(px: Pixels, segs: readonly Seg[], v: number): void {
+  asPart(Part.Leg, () => {
   for (const l of segs) {
     inkTaper(px, l.x0, l.y0, l.x1, l.y1, l.r0, l.r1, v);
     if (l.foot > 0) ellipse2(px, l.x1, l.y1, l.foot, Math.max(1, l.r1 * 0.95), v);
   }
+  });
 }
 
 /**
@@ -508,6 +562,7 @@ function drawEars(
   hx: number, hy: number, hr: number, s: number, fill: number,
   spread = 0.62, lift = 0.66,
 ): void {
+  asPart(Part.Ear, () => {
   if (p.ears === 'none') return;
   const size = (2.5 + p.earSize * 6.5) * s * (p.majesty > 0.6 ? 1.25 : 1);
   const w = Math.max(1.6, size * 0.45);
@@ -533,6 +588,7 @@ function drawEars(
         break;
     }
   }
+  });
 }
 
 /** Tail, for the families whose tail hangs off the back of a horizontal body. */
@@ -540,6 +596,7 @@ function drawTail(
   px: Pixels, p: ForgeParams,
   x: number, y: number, len: number, s: number, fill: number,
 ): void {
+  asPart(Part.Tail, () => {
   switch (p.tail) {
     case 'curl':
       // Over the back — the husky/spitz signature.
@@ -564,6 +621,7 @@ function drawTail(
       }
       break;
   }
+  });
 }
 
 /**
@@ -573,6 +631,7 @@ function drawTail(
 function drawMane(
   px: Pixels, p: ForgeParams, hx: number, hy: number, hr: number, s: number, fill: number,
 ): void {
+  asPart(Part.Extra, () => {
   if (p.ruff <= 0.45) return;
   const points = 9;
   for (let i = 0; i < points; i++) {
@@ -581,12 +640,14 @@ function drawMane(
     const r = (1.1 + p.ruff * 1.5) * s;
     ellipse(px, hx + Math.cos(a) * rr + hr * 0.28, hy + Math.sin(a) * rr, r, r, fill);
   }
+  });
 }
 
 /** Dorsal spines along the back — an apex flourish that does not eat the head. */
 function drawSpines(
   px: Pixels, p: ForgeParams, g: Geom, fill: number, count = 5, from = -0.72, to = 0.78,
 ): void {
+  asPart(Part.Extra, () => {
   const s = g.scale;
   for (let i = 0; i < count; i++) {
     const t = i / (count - 1);
@@ -595,6 +656,7 @@ function drawSpines(
     const h = (4.5 - t * 2.4) * p.majesty * s;
     triangle(px, sx - 1.7 * s, backY + 1, sx + 1.7 * s, backY + 1, sx - 0.6 * s, backY - h, fill);
   }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1723,6 +1785,44 @@ function featureHeadroom(f: SpriteFeature): number {
   }
 }
 
+
+/**
+ * The head is drawn by each family with plain body fills, so rather than tag
+ * every call site we claim it back afterwards: anything still marked Body that
+ * sits inside the skull becomes Head, and the snout in front of it becomes
+ * Muzzle. Legs, ears and tails are already tagged and are left alone.
+ */
+function deriveHeadParts(g: Geom): void {
+  if (partBuf === null) return;
+  const hr = g.headR;
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      if (partAt(x, y) !== Part.Body) continue;
+      const d = ((x - g.headCx) / (hr * 1.15)) ** 2 + ((y - g.headCy) / (hr * 1.1)) ** 2;
+      if (d <= 1) partBuf[y * S + x] = Part.Head;
+      else if (g.hasNose) {
+        const dm = ((x - g.noseX) / (hr * 0.8)) ** 2 + ((y - g.noseY) / (hr * 0.6)) ** 2;
+        if (dm <= 1) partBuf[y * S + x] = Part.Muzzle;
+      }
+    }
+  }
+}
+
+/**
+ * The bottom of each leg becomes Foot, so socks and paws can be shaded. A pale
+ * foot under a dark leg is most of what makes a four-legged silhouette readable
+ * at this size - without it the legs merge into one dark mass.
+ */
+function markFeet(g: Geom): void {
+  if (partBuf === null) return;
+  const footTop = GROUND - Math.max(3, Math.round(g.legLen * 0.28));
+  for (let y = footTop; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      if (partAt(x, y) === Part.Leg) partBuf[y * S + x] = Part.Foot;
+    }
+  }
+}
+
 export function forgeSprite(params: ForgeParams, seed: number, view: SpriteView = 'front'): Pixels {
   const px = new Uint8Array(S * S);
   const rnd = mulberry(seed ^ 0x5bf03635);
@@ -1735,9 +1835,14 @@ export function forgeSprite(params: ForgeParams, seed: number, view: SpriteView 
 
   if (view === 'back') {
     const g = fit(layoutBack, params, base);
+    partBuf = new Uint8Array(S * S);
+    curPart = Part.Body;
     drawBack(px, params, g, fill);
+    deriveHeadParts(g);
+    markFeet(g);
     outline(px);
     shade(px, params, g, rnd, 'back');
+    partBuf = null;
     detailBack(px, params, g);
     return px;
   }
@@ -1746,10 +1851,15 @@ export function forgeSprite(params: ForgeParams, seed: number, view: SpriteView 
   // Features that grow upward eat into the top margin, so the body is fitted a
   // little smaller when one is present rather than letting antlers clip.
   const g = fit(art.layout, params, base * featureHeadroom(params.feature));
+  partBuf = new Uint8Array(S * S);
+  curPart = Part.Body;
   art.draw(px, params, g, fill, rnd);
-  drawFeature(px, params, g, fill);
+  asPart(Part.Extra, () => { drawFeature(px, params, g, fill); });
+  deriveHeadParts(g);
+  markFeet(g);
   outline(px);
   shade(px, params, g, rnd, 'front');
+  partBuf = null;
   art.detail?.(px, params, g);
   drawFace(px, params, g);
   return px;
@@ -1829,6 +1939,46 @@ function shade(
       }
       break;
     }
+    case 'cape': {
+      // A black-and-white husky: dark hood over the skull, dark cape over the
+      // shoulders and back, and a hard edge down to a pale face, chest and
+      // belly. The contrast is the point - this is the dog you should be able
+      // to name from across the room.
+      flat(light);
+      for (let y = 0; y < S; y++) {
+        for (let x = 0; x < S; x++) {
+          if (get(px, x, y) === 0) continue;
+          const part = partAt(x, y);
+          if (part === Part.Leg || part === Part.Foot) continue;
+          const overSkull =
+            ((x - hx) / (hr * 1.05)) ** 2 + ((y - hy + hr * 0.35) / (hr * 0.95)) ** 2 <= 1;
+          const overBack = part === Part.Body && (y - by) / Math.max(1, bry) < 0.15;
+          if (overSkull || overBack) paint(x, y, dark);
+        }
+      }
+      if (view === 'front') {
+        // Pale mask down the face and over the muzzle - the husky read.
+        ellipse2(px, hx - hr * 0.42, hy + hr * 0.3, hr * 0.66, hr * 0.5, light);
+      }
+      break;
+    }
+    case 'blaze': {
+      // An orange-and-white husky, which on four greys means PALE with just a
+      // dark spine line and dark ears. Deliberately the inverse of 'cape' so
+      // the two are never mistaken for one another.
+      flat(light);
+      for (let y = 0; y < S; y++) {
+        for (let x = 0; x < S; x++) {
+          if (get(px, x, y) === 0) continue;
+          if (partAt(x, y) !== Part.Body) continue;
+          const spine = (y - by) / Math.max(1, bry);
+          if (spine < -0.45) paint(x, y, dark);
+        }
+      }
+      // A dark cap between the ears only, not the whole skull.
+      ellipse2(px, hx, hy - hr * 0.55, hr * 0.72, hr * 0.34, dark);
+      break;
+    }
     case 'tabby': {
       flat(light);
       // Vertical bands across the barrel, plus a banded tail.
@@ -1836,7 +1986,14 @@ function shade(
         const sx = bx + i * (brx * 0.29);
         for (let y = Math.floor(by - bry * 1.3); y < by + bry * 1.15; y++) {
           const w = 1 + (i % 2 === 0 ? 1 : 0);
-          for (let d = 0; d < w; d++) paint(Math.round(sx + d), y, dark);
+          for (let d = 0; d < w; d++) {
+            const px0 = Math.round(sx + d);
+            // Bands belong on the barrel, not down the legs - a striped leg is
+            // what made the cat read as a striped tube instead of a cat.
+            const part = partAt(px0, y);
+            if (part === Part.Leg || part === Part.Foot) continue;
+            paint(px0, y, dark);
+          }
         }
       }
       ellipse2(px, hx, hy - hr * 0.45, hr * 0.7, hr * 0.3, dark);
@@ -1916,6 +2073,59 @@ function shade(
       if (depth > threshold && cur === 1) paint(x, y, 2);
     }
   }
+
+  // --- Region-aware finishing ------------------------------------------------
+  //
+  // The pattern pass above paints markings. This fixes WHERE they landed and
+  // adds the form shading, using literal palette values rather than the
+  // base/marking pair - those swap meaning depending on the coat, which is how
+  // the first attempt ended up shading dark animals backwards.
+  //
+  //   1 = lightest coat   2 = shadow / darker coat   3 = outline, never touched
+  //
+  // The rules are the ones that make a small quadruped readable: markings stay
+  // on the torso, the underside is in shadow, and the feet are pale so you can
+  // count four legs at thumbnail size.
+  if (partBuf !== null) {
+    const base = params.coat === 1 ? 1 : 2;
+    const paintPart = (x: number, y: number, v: number): void => {
+      const cur = get(px, x, y);
+      if (cur === 0 || cur === 3) return;
+      put(px, x, y, v);
+    };
+
+    for (let y = 0; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        const part = partAt(x, y);
+        if (part === Part.None) continue;
+
+        // Legs and tail wear the plain coat. A saddle or a stripe cutting a leg
+        // in half was the single ugliest thing about these sprites.
+        if (part === Part.Leg || part === Part.Tail) paintPart(x, y, base);
+
+        // Ears sit in shadow so they read as separate from the skull.
+        if (part === Part.Ear) paintPart(x, y, 2);
+
+        // Underside of the body and the jaw catch no light.
+        if (part === Part.Body) {
+          const belly = (y - g.bodyCy) / Math.max(1, g.bodyRy);
+          if (belly > 0.45) paintPart(x, y, 2);
+        }
+        if (part === Part.Head) {
+          const under = (y - g.headCy) / Math.max(1, g.headR);
+          if (under > 0.5) paintPart(x, y, 2);
+        }
+      }
+    }
+
+    // Feet last, so nothing overwrites them.
+    for (let y = 0; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        if (partAt(x, y) === Part.Foot) paintPart(x, y, 1);
+      }
+    }
+  }
+
 }
 
 /**

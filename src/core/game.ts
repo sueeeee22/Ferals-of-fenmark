@@ -11,6 +11,7 @@
 
 import { Rng, type RngState } from './rng.ts';
 import { paginate, pageLength } from './text.ts';
+import { HIT_LINES, hitBucket } from '../data/hitlines.ts';
 import type { Feral, Species } from './creature.ts';
 import { computeStat, expForLevel, maxHp, selectMoveset } from './creature.ts';
 import {
@@ -846,13 +847,22 @@ function battleMessage(scene: BattleScene, ev: BattleEvent): string | null {
       return 'It misses by a street.';
     case 'faint':
       return `${ev.name} is down.`;
-    case 'damage':
-      // Neutral, non-critical hits say nothing - the bar draining is the message.
-      if (ev.effectiveness === 0) return 'It does nothing at all.';
-      if (ev.critical) return 'That one landed properly.';
-      if (ev.effectiveness > 1) return 'It goes in deep.';
-      if (ev.effectiveness < 1) return 'It barely tells.';
-      return null;
+    case 'damage': {
+      if (ev.effectiveness === 0) return 'It does nothing at all. Wrong animal entirely.';
+      // The line is chosen by how much health the hit actually TOOK, so a graze
+      // and a near-kill never read the same. Effectiveness rides along as a tag
+      // rather than a second message - one hit, one thing to read.
+      const pool = HIT_LINES[hitBucket(ev.amount, ev.maxHp)] ?? [];
+      if (pool.length === 0) return null;
+      // Deterministic pick: the same hit always narrates the same way, so the
+      // engine stays reproducible and gauntlet:playthrough is unaffected.
+      const seed = ev.amount * 31 + ev.hpAfter * 7 + (ev.critical ? 3 : 0);
+      const line = pool[seed % pool.length] ?? '';
+      if (ev.critical) return `${line} And it found the seam.`;
+      if (ev.effectiveness > 1) return `${line} It was never going to hold that.`;
+      if (ev.effectiveness < 1) return `${line} Built to take it, though.`;
+      return line;
+    }
     default:
       return null;
   }
