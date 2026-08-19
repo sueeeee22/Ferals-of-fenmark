@@ -245,6 +245,20 @@ export interface BattleScene {
   flash: number;
   flashSide: 'player' | 'enemy';
   /**
+   * What the most recently narrated event should SOUND like, as a space-
+   * separated list of effect names, plus a counter so two identical sounds in a
+   * row are still two sounds.
+   *
+   * The audio layer cannot work this out for itself: by the time it sees the
+   * state the event has been consumed, and a hit flash cannot tell a critical
+   * from a graze or a resisted hit from a neutral one. Recording it at the
+   * moment of the drain is the only place the information still exists.
+   * Nothing in the game reads these; they are for the speakers, like `flash` is
+   * for the screen.
+   */
+  sfx: string;
+  sfxSeq: number;
+  /**
    * Counts down while the pre-battle transition plays. Input is ignored and no
    * events drain until it reaches zero, exactly like Gen 1's wipe - the battle
    * should never start under a player who is still mid-step.
@@ -719,6 +733,8 @@ function makeBattleScene(
     snare: null,
     flash: 0,
     flashSide: 'enemy',
+    sfx: '',
+    sfxSeq: 0,
     intro: BATTLE_INTRO_FRAMES,
     cursor: 0,
     sub: 'main',
@@ -950,6 +966,39 @@ function battleMessage(scene: BattleScene, ev: BattleEvent): string | null {
   }
 }
 
+/**
+ * The sound an event asks for. Space-separated because a single hit is often two
+ * sounds - the impact, then the effectiveness tag over the top of it - and
+ * splitting them lets the audio layer stagger the second one.
+ */
+function battleSfx(ev: BattleEvent): string {
+  switch (ev.t) {
+    case 'miss':
+      return 'miss';
+    case 'faint':
+      return 'faint';
+    case 'heal':
+      return 'heal';
+    case 'status':
+      return 'status';
+    case 'stage':
+      return ev.delta > 0 ? 'stat_up' : 'stat_down';
+    case 'levelup':
+      return 'levelup';
+    case 'learn':
+      return 'confirm';
+    case 'damage': {
+      if (ev.effectiveness === 0) return 'immune';
+      const frac = ev.maxHp > 0 ? ev.amount / ev.maxHp : 0;
+      const impact = ev.critical ? 'hit_crit' : frac < 0.08 ? 'hit_weak' : frac < 0.32 ? 'hit' : 'hit_hard';
+      const tag = ev.effectiveness > 1 ? ' super' : ev.effectiveness < 1 ? ' resist' : '';
+      return impact + tag;
+    }
+    default:
+      return '';
+  }
+}
+
 function stepBattle(
   content: Content,
   state: GameState,
@@ -1016,6 +1065,13 @@ function stepBattle(
       if (ev !== undefined && ev.t === 'damage' && ev.amount > 0) {
         scene.flash = FLASH_FRAMES;
         scene.flashSide = ev.side;
+      }
+      if (ev !== undefined) {
+        const sound = battleSfx(ev);
+        if (sound !== '') {
+          scene.sfx = sound;
+          scene.sfxSeq++;
+        }
       }
       // The battle box shows two rows. Messages are composed here, AFTER the
       // enqueue-time pagination, so a long one was simply cut off mid-sentence.

@@ -186,7 +186,8 @@ body {
  * imply the cartridge is doing something it is not.
  * ------------------------------------------------------------------------- */
 
-#saves-button {
+#saves-button,
+#sound-button {
   position: absolute;
   top: 8px;
   right: 8px;
@@ -200,9 +201,19 @@ body {
   border-radius: 5px;
   cursor: pointer;
 }
-#saves-button:hover {
+/* Sits under SAVES rather than beside it: on a 360px phone two buttons in a
+   row push into the screen area, and the screen is the point. */
+#sound-button {
+  top: 36px;
+}
+#saves-button:hover,
+#sound-button:hover {
   background: rgba(38, 48, 32, 0.92);
   color: #eef3e6;
+}
+#sound-button[aria-pressed='false'] {
+  color: #8a9280;
+  border-color: rgba(120, 132, 108, 0.4);
 }
 
 #save-panel {

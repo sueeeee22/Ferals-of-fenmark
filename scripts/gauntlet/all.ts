@@ -28,6 +28,7 @@ const GATES: readonly Gate[] = [
   { n: 6, name: 'visual', script: 'scripts/gauntlet/visual.ts', cost: '~2m, browser' },
   { n: 7, name: 'tone', script: 'scripts/gauntlet/tone.ts', cost: 'fast' },
   { n: 8, name: 'ship', script: 'scripts/gauntlet/ship.ts', cost: '~3m, browser' },
+  { n: 9, name: 'audio', script: 'scripts/gauntlet/audio.ts', cost: '~2m, browser' },
 ];
 
 const ROOT = new URL('../..', import.meta.url).pathname;

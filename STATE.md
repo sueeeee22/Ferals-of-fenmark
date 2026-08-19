@@ -257,3 +257,37 @@ The game is a static site: no server, no database, no login, **77KB gzipped**.
   throw (`BattleScene.snare`) and the hit flinch (`BattleScene.flash`) are counted in
   `stepBattle`; the renderer only reads them. `flash` is decremented BEFORE the early
   returns, or a message waiting on a button press freezes the blink on one frame.
+
+## Sound (`src/audio/`)
+
+- **Nothing is a recording.** Four voices are synthesised on Web Audio — two pulse
+  channels with GB duty cycles, a 32-sample wave channel, an LFSR noise channel — the
+  same way `forge.ts` draws creatures instead of loading them. The entire soundtrack,
+  19 songs and 31 effects, costs about 7KB gzipped. Adding an audio FILE would cost
+  more than the rest of the game.
+- **Songs are text.** One string per bar, one token per sixteenth: `C4` strikes, `.`
+  rests, `~` holds; on a noise part the tokens name drums. `gauntlet:audio` fails on a
+  bar that is not exactly `stepsPerBar` tokens, so a miscounted pattern is caught
+  rather than silently truncated.
+- **The clave is load-bearing.** Son clave spans TWO bars and everything in a salsa
+  arrangement is written against it. The tumbao bass deliberately never plays on beat
+  one — it plays the "and" of 2 and beat 4, and beat 4 belongs to the NEXT bar's chord.
+  Putting the bass on the downbeat turns salsa into a polka instantly.
+- **The music clock is NOT the game loop.** `requestAnimationFrame` jitters and stops
+  in a background tab; music driven from it wobbles. A 25ms timer schedules notes up to
+  180ms ahead directly on the audio clock instead. The game may stutter; the beat cannot.
+- **Audio cannot start before a user gesture.** Every browser enforces it. The context
+  is built in `unlock()` on the first keypress or tap, and a backgrounded tab comes back
+  suspended, so `unlock()` also resumes. Skipping the resume gives a game that goes
+  permanently silent after a phone call.
+- **`BattleScene.sfx`/`sfxSeq` exist because events are gone by the time audio sees the
+  state.** A hit flash cannot tell a critical from a graze. The sound is recorded at the
+  moment of the drain, exactly as `flash` is, and nothing in the game reads it back.
+- **`gauntlet:audio` LISTENS.** It renders every song and effect through an
+  `OfflineAudioContext` and measures the samples — audible, not clipping, has dynamics,
+  has both bass and treble — then loads the real game, presses real keys, and counts the
+  oscillators it creates. Note data that parses perfectly renders total silence if an
+  envelope is wrong or a bus is unconnected, and every data-level check still passes.
+  Its first run found the effects bus 30dB under the music: technically sound, in
+  practice inaudible. This is the pattern `gauntlet:visual` still needs to close for
+  the screen.

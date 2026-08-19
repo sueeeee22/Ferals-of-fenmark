@@ -22,6 +22,7 @@
     "gauntlet:playthrough": "tsx scripts/gauntlet/playthrough.ts",
     "gauntlet:visual": "tsx scripts/gauntlet/visual.ts",
     "gauntlet:tone": "tsx scripts/gauntlet/tone.ts",
+    "gauntlet:audio": "tsx scripts/gauntlet/audio.ts",
     "gauntlet:ship": "tsx scripts/gauntlet/ship.ts",
     "gauntlet": "tsx scripts/gauntlet/all.ts",
     "ship": "tsx scripts/ship.ts"

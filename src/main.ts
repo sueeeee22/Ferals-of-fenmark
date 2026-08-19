@@ -15,6 +15,7 @@ import {
 import { serialize, restore, type SaveFile } from './core/save.ts';
 import { activeSlot, loadSlot, setActiveSlot, slotStore } from './saves.ts';
 import { createSavePanel } from './save-ui.ts';
+import { createAudio } from './audio/index.ts';
 
 if (Object.values(usingPlaceholder).some(Boolean)) {
   console.info('[content] placeholder data in use for:', usingPlaceholder);
@@ -50,6 +51,31 @@ window.addEventListener('orientationchange', () => {
   screen.resize();
   setTimeout(() => screen.resize(), 60);
 });
+
+// ---------------------------------------------------------------------------
+// Sound.
+//
+// Every browser refuses to start audio until the player has interacted with the
+// page, so nothing is created here — `unlock()` builds the audio context on the
+// first real keypress or tap, and does nothing at all until then. A tab that
+// never gets a press stays silent instead of logging an autoplay error.
+// ---------------------------------------------------------------------------
+
+const audio = createAudio(content);
+
+const soundButton = document.querySelector<HTMLButtonElement>('#sound-button');
+
+function paintSoundButton(): void {
+  if (!soundButton) return;
+  soundButton.textContent = audio.enabled ? 'SOUND ON' : 'SOUND OFF';
+  soundButton.setAttribute('aria-pressed', audio.enabled ? 'true' : 'false');
+}
+
+soundButton?.addEventListener('click', () => {
+  audio.setEnabled(!audio.enabled);
+  paintSoundButton();
+});
+paintSoundButton();
 
 // ---------------------------------------------------------------------------
 // Input — keyboard and on-screen touch controls both just add/remove names
@@ -92,6 +118,7 @@ const KEY_MAP: Readonly<Record<string, ButtonName>> = {
 window.addEventListener('keydown', (e) => {
   const btn = KEY_MAP[e.code];
   if (!btn) return;
+  audio.unlock();
   held.add(btn);
   e.preventDefault();
 });
@@ -107,6 +134,7 @@ window.addEventListener('blur', () => held.clear());
 
 function bindTouchButton(el: Element, name: ButtonName): void {
   const press = (e: Event): void => {
+    audio.unlock();
     held.add(name);
     e.preventDefault();
   };
@@ -151,6 +179,7 @@ function advance(buttons: Buttons): void {
       const picked = STARTERS[starterCursor];
       if (picked) chooseStarter(content, state, picked);
     }
+    audio.observe(state);
     pickerPrev = buttons;
     return;
   }
@@ -171,6 +200,11 @@ function advance(buttons: Buttons): void {
     y: state.player.y,
     frame: state.frame,
   };
+  // Sound reads the state the same way the renderer does, once per simulation
+  // tick rather than once per painted frame - an event that lasts a single tick
+  // would otherwise be missed on a slow frame, or played twice on a fast one.
+  audio.observe(state);
+
   if (state.saveRequested) store.write(serialize(state));
   maybeAutosave();
 }
