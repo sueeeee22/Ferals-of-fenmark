@@ -345,11 +345,20 @@ export function catchShakes(input: CatchInput, rng: Rng): number {
 
   if (rate >= 255) return 4;
 
+  // ONE roll decides it, exactly like Gen 1. The wobbles are theatre: the game
+  // has already made up its mind by the time the snare lands.
+  //
+  // This used to require FOUR consecutive successes at rate/256, which makes
+  // the real chance (rate/256)^4. A boar with a catch rate of 190 - a very
+  // catchable animal - came out at 27% AT ONE HIT POINT and 5% at half health,
+  // so twenty snares could reasonably all miss. With a single roll the same
+  // animal is 73% at 1HP, 50% at half, 25% at full, which is the Gen 1 curve.
+  if (rng.int(256) < rate) return 4;
+
+  // Missed. Wobble a number of times proportional to how close it was, purely
+  // so the player can feel the difference between "nearly" and "not a chance".
   let shakes = 0;
-  for (let i = 0; i < 4; i++) {
-    if (rng.int(256) < rate) shakes++;
-    else break;
-  }
+  while (shakes < 3 && rng.int(256) < rate) shakes++;
   return shakes;
 }
 

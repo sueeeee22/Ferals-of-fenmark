@@ -14,7 +14,11 @@
 
 import type { Content, GameState, BattleScene, MenuScene } from '../core/game.ts';
 import { paginate, pageLength } from '../core/text.ts';
-import { STARTERS, WALK_FRAMES, starterChoices, BATTLE_INTRO_FRAMES } from '../core/game.ts';
+import {
+  STARTERS, WALK_FRAMES, starterChoices, BATTLE_INTRO_FRAMES,
+  SNARE_THROW_FRAMES, SNARE_PULL_FRAMES, SNARE_WOBBLE_FRAMES, FLASH_FRAMES,
+  type SnareThrow,
+} from '../core/game.ts';
 import { activeOf } from '../core/battle.ts';
 import type { BattleState, Side } from '../core/battle.ts';
 import { Tile, tileAt, visibleNpcs, type GameMap, type Dir } from '../core/world.ts';
@@ -448,6 +452,9 @@ function drawSideInfo(
   f: Feral,
   showNumbers: boolean,
   sp: Species,
+  /** Health to DRAW. Trails `f.hp` until the events explaining the change have
+   *  been narrated - see BattleScene.shownPlayerHp. */
+  shownHp: number,
 ): void {
   gb.drawBox(ctx, box.x, box.y, box.w, box.h);
 
@@ -460,7 +467,7 @@ function drawSideInfo(
 
   // Second row: HP bar, then the level, then any status tag.
   const barWidth = Math.min(48, box.w - 12);
-  gb.drawHpBar(ctx, box.x + 5, box.y + 14, f.hp, maxHp(sp, f), barWidth);
+  gb.drawHpBar(ctx, box.x + 5, box.y + 14, shownHp, maxHp(sp, f), barWidth);
   const levelText = `Lv${f.level}`;
   let cursorX = box.x + 8 + barWidth;
   if (cursorX + gb.measureText(levelText) <= box.x + box.w - 3) {
@@ -471,7 +478,7 @@ function drawSideInfo(
     gb.drawText(ctx, cursorX, box.y + 12, STATUS_TAG[f.status], 3);
   }
   if (showNumbers) {
-    const text = `${f.hp}/${maxHp(sp, f)}`;
+    const text = `${shownHp}/${maxHp(sp, f)}`;
     gb.drawText(ctx, box.x + box.w - gb.measureText(text) - 5, box.y + 22, text, 3);
   }
 }
@@ -599,6 +606,155 @@ function drawBagOverlay(
   });
 }
 
+/**
+ * The snare itself: a woven hoop with a weighted knot, eight pixels across.
+ * Drawn as rings rather than a sprite so it can be scaled and rotated by the
+ * animation without a second set of pixel art.
+ */
+function drawSnareLoop(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  tilt: number,
+): void {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(tilt);
+  // Body, then the darker binding across the middle, then the outline. Painted
+  // in that order so the binding never eats the silhouette.
+  ctx.fillStyle = shadeColor(1);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r, r, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = shadeColor(2);
+  ctx.fillRect(-r, -Math.max(1, r * 0.28), r * 2, Math.max(1, r * 0.56));
+  ctx.strokeStyle = shadeColor(3);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r, r, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  // The knot, so it reads as thrown rather than as a coin.
+  ctx.fillStyle = shadeColor(3);
+  ctx.fillRect(-1, -1, 2, 2);
+  ctx.restore();
+}
+
+/** A ring of dashes flying outward — used for both the click and the break-out. */
+function drawBurst(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  spread: number,
+  shade: gb.Shade,
+): void {
+  ctx.fillStyle = shadeColor(shade);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    ctx.fillRect(
+      Math.round(cx + Math.cos(a) * spread) - 1,
+      Math.round(cy + Math.sin(a) * spread) - 1,
+      2, 2,
+    );
+  }
+}
+
+/**
+ * The throw, in four beats. The catch was already decided before any of this
+ * ran, so nothing here can change the outcome — it only spends the right amount
+ * of time telling you about it.
+ *
+ *   1. arc      the snare leaves your hands and travels to the animal
+ *   2. pull     the animal folds down into it and the snare drops to the grass
+ *   3. wobble   one rock per shake earned, so a near miss LOOKS like a near miss
+ *   4. settle   a click and a flash, or the snare bursting and the animal back
+ *
+ * Returns true if the enemy sprite has already been drawn (or deliberately
+ * hidden) so the caller skips its own draw.
+ */
+function drawSnareThrow(
+  ctx: CanvasRenderingContext2D,
+  snare: SnareThrow,
+  enemyPixels: Pixels,
+): void {
+  const f = snare.frames;
+  const tx = ENEMY_ANCHOR.cx;
+  const ty = ENEMY_ANCHOR.baseline - SPRITE_SIZE * ENEMY_ANCHOR.scale * 0.5;
+  const groundY = ENEMY_ANCHOR.baseline - 5;
+
+  const drawEnemy = (scale: number, cx: number, baseline: number): void => {
+    if (scale <= 0.02) return;
+    gb.drawSprite(
+      ctx, enemyPixels,
+      cx - (SPRITE_SIZE * scale) / 2,
+      baseline - SPRITE_SIZE * scale,
+      scale, false,
+    );
+  };
+
+  // --- Beat 1: the arc -----------------------------------------------------
+  if (f < SNARE_THROW_FRAMES) {
+    drawEnemy(ENEMY_ANCHOR.scale, ENEMY_ANCHOR.cx, ENEMY_ANCHOR.baseline);
+    const k = f / SNARE_THROW_FRAMES;
+    // Thrown from just off the bottom-left, where the player's hands would be.
+    const sx = 18;
+    const sy = LOGICAL_H - 8;
+    const x = sx + (tx - sx) * k;
+    // A parabola, not a straight line: 34px of lift at the apex.
+    const y = sy + (ty - sy) * k - Math.sin(k * Math.PI) * 34;
+    drawSnareLoop(ctx, x, y, 4, k * Math.PI * 3);
+    return;
+  }
+
+  // --- Beat 2: the pull ----------------------------------------------------
+  const pf = f - SNARE_THROW_FRAMES;
+  if (pf < SNARE_PULL_FRAMES) {
+    const k = pf / SNARE_PULL_FRAMES;
+    // The animal shrinks toward the snare and slides down with it.
+    drawEnemy(ENEMY_ANCHOR.scale * (1 - k), tx, ENEMY_ANCHOR.baseline - (ENEMY_ANCHOR.baseline - groundY) * k);
+    drawSnareLoop(ctx, tx, ty + (groundY - ty) * k, 4 + k * 2, 0);
+    return;
+  }
+
+  // --- Beat 3: the wobbles -------------------------------------------------
+  const wobbles = snare.caught ? 3 : Math.max(0, Math.min(3, snare.shakes));
+  const wf = pf - SNARE_PULL_FRAMES;
+  if (wf < wobbles * SNARE_WOBBLE_FRAMES) {
+    const idx = Math.floor(wf / SNARE_WOBBLE_FRAMES);
+    const k = (wf % SNARE_WOBBLE_FRAMES) / SNARE_WOBBLE_FRAMES;
+    // One full rock per wobble, alternating side so it never looks like a loop.
+    const lean = Math.sin(k * Math.PI) * 0.5 * (idx % 2 === 0 ? 1 : -1);
+    drawSnareLoop(ctx, tx + lean * 6, groundY, 6, lean);
+    return;
+  }
+
+  // --- Beat 4: the answer --------------------------------------------------
+  const sf = wf - wobbles * SNARE_WOBBLE_FRAMES;
+  if (snare.caught) {
+    drawSnareLoop(ctx, tx, groundY, 6, 0);
+    // A single bright flash at the click, then stillness. Gen 1's ding.
+    if (sf < 10) drawBurst(ctx, tx, groundY, 7 + sf, 3);
+    return;
+  }
+  // It got out. The snare bursts and the animal is back where it started,
+  // growing out of the wreckage rather than simply reappearing.
+  const k = Math.min(1, sf / 12);
+  drawBurst(ctx, tx, groundY, 6 + k * 12, 2);
+  drawEnemy(ENEMY_ANCHOR.scale * k, ENEMY_ANCHOR.cx, ENEMY_ANCHOR.baseline);
+}
+
+/**
+ * Whether a side's sprite is painted this frame.
+ *
+ * The struck animal blinks off and on for FLASH_FRAMES, which is exactly how
+ * Gen 1 shows a hit landing. Three frames on, three off: any faster reads as
+ * flicker rather than as being hit.
+ */
+function visibleThroughFlinch(scene: BattleScene, side: 'player' | 'enemy'): boolean {
+  if (scene.flash <= 0 || scene.flashSide !== side) return true;
+  return Math.floor((FLASH_FRAMES - scene.flash) / 3) % 2 === 0;
+}
+
 function drawBattle(ctx: CanvasRenderingContext2D, content: Content, state: GameState): void {
   if (state.scene.kind === 'battle' && state.scene.intro > 0) {
     drawBattleIntro(ctx, content, state, state.scene.intro);
@@ -616,27 +772,37 @@ function drawBattle(ctx: CanvasRenderingContext2D, content: Content, state: Game
   const playerSp = content.dex.species(player.species);
 
   fillEllipse(ctx, ENEMY_ANCHOR.cx, ENEMY_ANCHOR.baseline, 20, 5, 1);
-  gb.drawSprite(
-    ctx, creaturePixels(content, enemy.species),
-    ENEMY_ANCHOR.cx - (SPRITE_SIZE * ENEMY_ANCHOR.scale) / 2,
-    ENEMY_ANCHOR.baseline - SPRITE_SIZE * ENEMY_ANCHOR.scale,
-    ENEMY_ANCHOR.scale, false,
-  );
-  drawSideInfo(ctx, ENEMY_BOX, enemy, false, enemySp);
+  // While a snare is in the air it owns the enemy half of the screen: it draws
+  // the animal itself, because the animal spends most of the animation being
+  // somewhere other than its usual spot.
+  if (scene.snare !== null) {
+    drawSnareThrow(ctx, scene.snare, creaturePixels(content, enemy.species));
+  } else if (visibleThroughFlinch(scene, 'enemy')) {
+    gb.drawSprite(
+      ctx, creaturePixels(content, enemy.species),
+      ENEMY_ANCHOR.cx - (SPRITE_SIZE * ENEMY_ANCHOR.scale) / 2,
+      ENEMY_ANCHOR.baseline - SPRITE_SIZE * ENEMY_ANCHOR.scale,
+      ENEMY_ANCHOR.scale, false,
+    );
+  }
+  drawSideInfo(ctx, ENEMY_BOX, enemy, false, enemySp, scene.shownEnemyHp);
 
   fillEllipse(ctx, PLAYER_ANCHOR.cx, PLAYER_ANCHOR.baseline, 26, 6, 1);
   // A real back view, not the front sprite mirrored. Gen 1 draws your creature
   // from behind; flipping the front sprite leaves it staring at the camera with
   // its face and nose visible, which reads immediately as wrong.
-  gb.drawSprite(
-    ctx, creaturePixels(content, player.species, 'back'),
-    PLAYER_ANCHOR.cx - (SPRITE_SIZE * PLAYER_ANCHOR.scale) / 2,
-    PLAYER_ANCHOR.baseline - SPRITE_SIZE * PLAYER_ANCHOR.scale,
-    PLAYER_ANCHOR.scale, false,
-  );
-  drawSideInfo(ctx, PLAYER_BOX, player, true, playerSp);
+  if (visibleThroughFlinch(scene, 'player')) {
+    gb.drawSprite(
+      ctx, creaturePixels(content, player.species, 'back'),
+      PLAYER_ANCHOR.cx - (SPRITE_SIZE * PLAYER_ANCHOR.scale) / 2,
+      PLAYER_ANCHOR.baseline - SPRITE_SIZE * PLAYER_ANCHOR.scale,
+      PLAYER_ANCHOR.scale, false,
+    );
+  }
+  drawSideInfo(ctx, PLAYER_BOX, player, true, playerSp, scene.shownPlayerHp);
 
-  const draining = scene.queue.length > 0 || scene.awaitingAck || battle.outcome !== 'ongoing';
+  const draining =
+    scene.queue.length > 0 || scene.awaitingAck || scene.snare !== null || battle.outcome !== 'ongoing';
   if (draining) {
     // Messages are split into box-sized events at enqueue (see pushEvents), so
     // two rows always holds one whole message. The blinking prompt appears only

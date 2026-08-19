@@ -173,7 +173,11 @@ class Bot {
       // waiting to be acknowledged, so a cursor loop below would spin forever
       // against a menu that cannot move yet - which is exactly how this
       // soft-locked when battle text stopped auto-advancing.
-      if (s.intro > 0 || s.queue.length > 0 || s.awaitingAck) { this.press('a'); continue; }
+      // The snare throw is on the same footing: input is ignored while it flies.
+      if (s.intro > 0 || s.queue.length > 0 || s.awaitingAck || s.snare !== null) {
+        this.press('a');
+        continue;
+      }
 
       // Replace a fainted creature.
       if (s.sub === 'forceSwitch') {

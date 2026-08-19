@@ -165,6 +165,44 @@ export type PendingAction =
   | { readonly kind: 'setFlag'; readonly flag: string }
   | { readonly kind: 'starterPick' };
 
+/**
+ * A snare in flight. Purely presentational: the catch was decided the moment
+ * the throw resolved (see `catchShakes`), exactly as in Gen 1, and this only
+ * governs how long the game spends showing you the answer.
+ *
+ * Held in the scene rather than the renderer because the reducer has to STOP
+ * for it. A snare that resolved instantly meant the box jumped straight from
+ * "You sling a snare." to "It shook loose." with nothing in between - the most
+ * dramatic moment in the game had no picture at all.
+ */
+export interface SnareThrow {
+  /** Frames elapsed since the throw left the hand. */
+  frames: number;
+  /** Wobbles earned, 0-3. Four means it held. */
+  shakes: number;
+  caught: boolean;
+}
+
+/** How long the struck animal blinks. Long enough to see, short enough to mash past. */
+export const FLASH_FRAMES = 18;
+
+/** The arc, from hand to animal. */
+export const SNARE_THROW_FRAMES = 22;
+/** The animal folding down into the snare. */
+export const SNARE_PULL_FRAMES = 14;
+/** One rock, left or right. */
+export const SNARE_WOBBLE_FRAMES = 22;
+/** The click, or the burst. */
+export const SNARE_SETTLE_FRAMES = 20;
+
+/** Total frames a given throw occupies. A catch always wobbles three times. */
+export function snareLength(t: { shakes: number; caught: boolean }): number {
+  const wobbles = t.caught ? 3 : Math.max(0, Math.min(3, t.shakes));
+  return (
+    SNARE_THROW_FRAMES + SNARE_PULL_FRAMES + wobbles * SNARE_WOBBLE_FRAMES + SNARE_SETTLE_FRAMES
+  );
+}
+
 export interface BattleScene {
   readonly kind: 'battle';
   battle: BattleState;
@@ -180,6 +218,32 @@ export interface BattleScene {
    * grind through. Gen 1 does not guess: the box waits. So does this.
    */
   awaitingAck: boolean;
+  /**
+   * Health as currently DRAWN, which trails the real health until the events
+   * that caused the change have been narrated.
+   *
+   * `scene.battle` is replaced with the end-of-turn state the moment a move is
+   * chosen, so both bars used to empty before a single word appeared - your
+   * animal visibly lost half its health, and only then did the game say who had
+   * hit it. That is what "the text and the attacks are out of order" was: the
+   * words were in the right order all along, the bars were simply ahead of them.
+   */
+  shownPlayerHp: number;
+  shownEnemyHp: number;
+  /** Non-null while a snare is in the air. Nothing else moves until it lands. */
+  snare: SnareThrow | null;
+  /**
+   * Frames left of the struck animal's flinch, and which side is flinching.
+   *
+   * The bars trailing the text fixed the ORDER, but nothing on screen still
+   * moved when a blow landed - the whole fight was two motionless animals and a
+   * box of prose, so "which of these two sentences belongs to which attack" was
+   * left entirely to the words. The victim now blinks on the exact message that
+   * narrates the hit, which is what Gen 1 does and what makes the pairing
+   * readable without reading.
+   */
+  flash: number;
+  flashSide: 'player' | 'enemy';
   /**
    * Counts down while the pre-battle transition plays. Input is ignored and no
    * events drain until it reaches zero, exactly like Gen 1's wipe - the battle
@@ -650,6 +714,11 @@ function makeBattleScene(
     queue: [],
     ticks: 0,
     awaitingAck: false,
+    shownPlayerHp: activeOf(battle.player).hp,
+    shownEnemyHp: activeOf(battle.enemy).hp,
+    snare: null,
+    flash: 0,
+    flashSide: 'enemy',
     intro: BATTLE_INTRO_FRAMES,
     cursor: 0,
     sub: 'main',
@@ -848,21 +917,33 @@ function battleMessage(scene: BattleScene, ev: BattleEvent): string | null {
       return 'It misses by a street.';
     case 'faint':
       return `${ev.name} is down.`;
+    case 'caught':
+      return `${ev.name} is yours now.`;
     case 'damage': {
-      if (ev.effectiveness === 0) return 'It does nothing at all. Wrong animal entirely.';
+      if (ev.effectiveness === 0) return 'Nothing. Wrong animal.';
       // The line is chosen by how much health the hit actually TOOK, so a graze
-      // and a near-kill never read the same. Effectiveness rides along as a tag
-      // rather than a second message - one hit, one thing to read.
+      // and a near-kill never read the same.
       const pool = HIT_LINES[hitBucket(ev.amount, ev.maxHp)] ?? [];
       if (pool.length === 0) return null;
       // Deterministic pick: the same hit always narrates the same way, so the
       // engine stays reproducible and gauntlet:playthrough is unaffected.
       const seed = ev.amount * 31 + ev.hpAfter * 7 + (ev.critical ? 3 : 0);
       const line = pool[seed % pool.length] ?? '';
-      // The effectiveness tag is queued as its OWN message (see the drain), so
-      // both stay inside one box. Appending it here pushed the pair over the
-      // two-row limit and split a sentence across two button presses.
-      return line;
+
+      // ONE BOX PER HIT. A single attack used to cost up to three button
+      // presses - the move, the flavour line, then a separate box for
+      // "It could not hold that." Reading a fight was mostly pressing A.
+      // The tag now rides in the same box whenever the two fit together, which
+      // the hit lines are written short enough to guarantee; if a name or a
+      // long line ever pushes it over, the tag wins, because "Critical." is
+      // information and the flavour is decoration.
+      const tag = ev.critical ? 'Critical.'
+        : ev.effectiveness > 1 ? 'Effective.'
+        : ev.effectiveness < 1 ? 'Resisted.'
+        : '';
+      if (tag === '') return line;
+      const both = `${line} ${tag}`;
+      return paginate(both).length === 1 ? both : tag;
     }
     default:
       return null;
@@ -876,10 +957,26 @@ function stepBattle(
   b: Buttons,
   rng: Rng,
 ): void {
+  // The flinch runs on wall-clock frames, not on the drain, so it has to be
+  // decremented before any of the early returns below can swallow it.
+  if (scene.flash > 0) scene.flash--;
+
   // The transition owns the screen until it finishes.
   if (scene.intro > 0) {
     scene.intro--;
     return;
+  }
+
+  // So does a snare. No input, no drain, no bars moving: the throw is the only
+  // thing happening until it has finished being wrong or right.
+  if (scene.snare !== null) {
+    scene.snare.frames++;
+    if (scene.snare.frames < snareLength(scene.snare)) return;
+    scene.snare = null;
+    if (scene.queue.length === 0) {
+      afterEvents(content, state, scene, rng);
+      return;
+    }
   }
 
   // A message holds the screen until the player presses A or B. Read at your
@@ -900,21 +997,30 @@ function stepBattle(
     if (scene.ticks < EVENT_FRAMES) return;
     scene.ticks = 0;
     const ev = scene.queue.shift();
+    // The bar moves WITH the message that explains it, not before it.
+    if (ev !== undefined && (ev.t === 'damage' || ev.t === 'heal')) {
+      if (ev.side === 'player') scene.shownPlayerHp = ev.hpAfter;
+      else scene.shownEnemyHp = ev.hpAfter;
+    }
+    // `shake` carries no words - it IS the animation. Launching it here rather
+    // than narrating it keeps the wobble count and the picture in step.
+    if (ev !== undefined && ev.t === 'shake') {
+      scene.snare = { frames: 0, shakes: ev.count, caught: ev.count >= 4 };
+      state.lastText = 'You sling a snare.';
+      return;
+    }
     const msg = ev === undefined ? null : battleMessage(scene, ev);
     if (msg !== null) {
+      // The one who got hit is the one who flinches, and only for a real hit -
+      // an immune "Nothing. Wrong animal." should look like nothing happened.
+      if (ev !== undefined && ev.t === 'damage' && ev.amount > 0) {
+        scene.flash = FLASH_FRAMES;
+        scene.flashSide = ev.side;
+      }
       // The battle box shows two rows. Messages are composed here, AFTER the
       // enqueue-time pagination, so a long one was simply cut off mid-sentence.
       // Split it and push the remainder back to the front of the queue, which
       // keeps everything in order and gives each page its own press.
-      // A notable hit gets a short follow-up line of its own rather than a
-      // longer combined one, so no message ever needs two boxes.
-      if (ev !== undefined && ev.t === 'damage') {
-        const tag = ev.critical ? 'Found the seam.'
-          : ev.effectiveness > 1 ? 'It could not hold that.'
-          : ev.effectiveness < 1 ? 'Built to take it.'
-          : '';
-        if (tag !== '') scene.queue.unshift({ t: 'text', text: tag });
-      }
       const pages = paginate(msg);
       state.lastText = (pages[0] ?? []).join(' ');
       for (let i = pages.length - 1; i >= 1; i--) {
@@ -1068,6 +1174,10 @@ function submitAction(
 }
 
 function afterEvents(content: Content, state: GameState, scene: BattleScene, rng: Rng): void {
+  // Everything has been narrated, so the drawn health can catch up to the truth.
+  // This also covers switches, items and faints without special-casing each.
+  scene.shownPlayerHp = activeOf(scene.battle.player).hp;
+  scene.shownEnemyHp = activeOf(scene.battle.enemy).hp;
   if (scene.battle.outcome !== 'ongoing') endBattle(content, state, scene, rng);
 }
 

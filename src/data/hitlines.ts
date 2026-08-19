@@ -1,17 +1,22 @@
 /**
  * What a hit SOUNDS like, chosen by how much health it actually took.
  *
- * TWO HARD RULES, both learned by getting them wrong:
+ * THREE HARD RULES, all learned by getting them wrong:
  *
- *  1. EVERY LINE FITS ONE TEXT BOX - two rows of eighteen characters, so 36 is
- *     the ceiling. Longer lines get paged, and a sentence split across two
- *     button presses reads as the game interrupting itself.
+ *  1. SHORT. 24 characters is the ceiling, not 36. The effectiveness tag
+ *     ("Critical.", "Resisted.") is appended to the line and shown in the SAME
+ *     box, so the pair has to fit two rows of eighteen between them. Every hit
+ *     is therefore one line of narration and one button press, like Gen 1,
+ *     instead of the three presses this used to cost.
  *
  *  2. NO LINE NAMES THE VICTIM, and in particular none of them says "they" or
  *     "them". The line follows "X used Y", so the target is already known - but
  *     when the OPPONENT landed the hit, "they come away smaller" reads as the
  *     opponent being hurt when it was actually your own animal. Every line is
  *     therefore about the BLOW, and works whichever way it is pointing.
+ *
+ *  3. NO LINE REPEATS ACROSS BUCKETS, or a graze and a near-kill can narrate
+ *     identically and the words stop carrying information.
  *
  * Buckets, by fraction of max HP removed:
  *   graze   under 8%    light   8-18%    solid   18-32%
@@ -21,65 +26,65 @@
 export const HIT_LINES: Readonly<Record<string, readonly string[]>> = {
   graze: [
     'Barely tells.',
-    'Annoying. Not much else.',
+    'Annoying. Nothing more.',
     'Mostly for the noise.',
-    'A scratch, and not a deep one.',
+    'A scratch. Shallow.',
     'It lands like a rumour.',
     'Barely a tax.',
-    'Connects. Nothing follows.',
-    'Hardly worth the animation.',
+    'Connects. Then nothing.',
+    'Hardly worth the swing.',
   ],
   light: [
     'That one landed.',
-    'Clean, but not decisive.',
+    'Clean, not decisive.',
     'It stings.',
-    'Enough to be worth doing.',
-    'A real blow, honestly earned.',
+    'Worth the effort.',
+    'A real blow, earned.',
     'Solid contact.',
     'It costs something.',
-    'Not a mercy. Not a problem.',
+    'Not a mercy.',
   ],
   solid: [
-    'That will be felt tomorrow.',
+    'Felt tomorrow, that.',
     'It goes in properly.',
     'Something gives.',
     'A serious dent.',
-    'A genuinely bad moment.',
-    'That was not a warning.',
+    'A genuinely bad time.',
+    'That was no warning.',
     'It lands with intent.',
-    'Worth counting, that one.',
+    'Worth counting.',
   ],
   heavy: [
-    'A third of a health bar, gone.',
-    'That rearranges the fight.',
-    'Bones move that should not.',
-    'The plan is now a new plan.',
+    'A third of a bar, gone.',
+    'That rearranges things.',
+    'Bones move. Wrongly.',
+    'New plan required.',
     'A serious piece, taken.',
-    'Visible, lasting damage.',
+    'Lasting damage.',
     'That ends careers.',
-    'The confidence goes out of it.',
+    'The confidence goes.',
   ],
   brutal: [
-    'Most of a health bar, at once.',
-    'Very nearly the whole argument.',
-    'Almost nothing left to spend.',
-    'It goes straight through.',
-    'Half the fight, in one blow.',
-    'Standing out of habit now.',
-    'Not a hit. A decision.',
-    'Whatever was saved, it is gone.',
+    'Most of a bar, at once.',
+    'Nearly the whole thing.',
+    'Almost nothing left.',
+    'It goes straight in.',
+    'Half a fight, one blow.',
+    'Standing out of habit.',
+    'Not a hit. A verdict.',
+    'The savings are gone.',
   ],
   ruinous: [
-    'There is almost nothing left.',
-    'The fight, in one movement.',
-    'Upright, and that is all.',
+    'Scraps left. Barely.',
+    'The fight, in one go.',
+    'Upright, and that is it.',
     'That empties the tank.',
     'Nobody walks that off.',
     'The rest is paperwork.',
-    'Only the last of it remains.',
+    'Only the last remains.',
     'That one was obscene.',
-    'It takes very nearly everything.',
-    'Finished, and not yet told.',
+    'It takes nearly all.',
+    'Finished, not yet told.',
   ],
 };
 
