@@ -237,3 +237,23 @@ The game is a static site: no server, no database, no login, **77KB gzipped**.
 - `src/main.ts` exposes a READ-ONLY `window.__fenmark` (scene, map, x, y, frame) for
   the screenshot driver. It has no setter, deliberately: a driver that can arrange
   scenes proves nothing about the game.
+- **The catch roll is ONE roll, not four.** `catchShakes` used to require four
+  consecutive successes at `rate/256`, which makes the true odds `(rate/256)^4`: a boar
+  at one hit point came out at 27% and twenty throws could all reasonably miss. Gen 1
+  decides with a single roll and then wobbles as theatre. Anything that reads "the
+  wobbles are the check" is the bug coming back.
+- **The HP bars must trail the narration, not lead it.** `scene.battle` is replaced with
+  the END-OF-TURN state the instant a move is chosen, so drawing `activeOf(...).hp`
+  empties both bars before a single word appears. `BattleScene.shownPlayerHp` /
+  `shownEnemyHp` advance only as `damage`/`heal` events drain, and `afterEvents`
+  resyncs them. Every "the text and the attacks are out of order" report traced here,
+  never to the message order, which was correct all along.
+- **One box per hit.** An attack costs exactly two presses: "X used Y." and one hit
+  line with the effectiveness tag appended. Hit lines are capped at 24 characters
+  precisely so the tag fits the same two rows - see the rules at the top of
+  `src/data/hitlines.ts`. Queueing the tag as its own event puts fights back at six
+  presses per exchange.
+- **Animations that stop the reducer live in the scene, not the renderer.** The snare
+  throw (`BattleScene.snare`) and the hit flinch (`BattleScene.flash`) are counted in
+  `stepBattle`; the renderer only reads them. `flash` is decremented BEFORE the early
+  returns, or a message waiting on a button press freezes the blink on one frame.
