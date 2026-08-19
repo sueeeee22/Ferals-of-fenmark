@@ -39,62 +39,39 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
   "gym1_guard1": {
     "id": "gym1_guard1",
     "name": "Sworn Blade",
-    "title": "of House Vantry",
+    "title": "of House Wren",
     "team": [
       {
-        "species": "shepherd_pup",
+        "species": "goose_pup",
         "level": 8
       },
       {
-        "species": "mastiff_pup",
+        "species": "harpy_pup",
         "level": 9
       }
     ],
-    "aiLevel": 2,
+    "aiLevel": 0,
     "prize": 520,
     "introKey": "npc_gossip_2",
     "defeatKey": "npc_gossip_7"
   },
-  "gym1_guard2": {
-    "id": "gym1_guard2",
-    "name": "House Second",
-    "title": "of House Vantry",
-    "team": [
-      {
-        "species": "adder_pup",
-        "level": 8
-      },
-      {
-        "species": "husky_sled_pup",
-        "level": 9
-      }
-    ],
-    "aiLevel": 2,
-    "prize": 520,
-    "introKey": "npc_gossip_3",
-    "defeatKey": "npc_gossip_8"
-  },
   "gym1": {
     "id": "gym1",
-    "name": "Dara Vantry",
-    "title": "Head of House Vantry",
+    "name": "Corwin Wren",
+    "title": "Head of House Wren",
     "team": [
       {
-        "species": "capybara_pup",
+        "species": "goose_pup",
         "level": 10
       },
       {
-        "species": "wolf_pup",
-        "level": 10
-      },
-      {
-        "species": "stoat_pup",
+        "species": "goose_pup",
         "level": 12
       }
     ],
-    "aiLevel": 3,
+    "aiLevel": 1,
     "prize": 1700,
-    "badge": "fang",
+    "badge": "wing",
     "introKey": "gym1_intro",
     "defeatKey": "gym1_defeat"
   },
@@ -146,29 +123,10 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 15
       }
     ],
-    "aiLevel": 2,
+    "aiLevel": 0,
     "prize": 640,
     "introKey": "npc_gossip_3",
     "defeatKey": "npc_gossip_8"
-  },
-  "gym2_guard2": {
-    "id": "gym2_guard2",
-    "name": "House Second",
-    "title": "of House Calloway",
-    "team": [
-      {
-        "species": "moose_pup",
-        "level": 14
-      },
-      {
-        "species": "seaeagle_pup",
-        "level": 15
-      }
-    ],
-    "aiLevel": 2,
-    "prize": 640,
-    "introKey": "npc_gossip_4",
-    "defeatKey": "npc_gossip_9"
   },
   "gym2": {
     "id": "gym2",
@@ -188,7 +146,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 18
       }
     ],
-    "aiLevel": 3,
+    "aiLevel": 1,
     "prize": 2200,
     "badge": "tide",
     "introKey": "gym2_intro",
@@ -242,7 +200,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 21
       }
     ],
-    "aiLevel": 2,
+    "aiLevel": 1,
     "prize": 760,
     "introKey": "npc_gossip_4",
     "defeatKey": "npc_gossip_9"
@@ -261,7 +219,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 21
       }
     ],
-    "aiLevel": 2,
+    "aiLevel": 1,
     "prize": 760,
     "introKey": "npc_gossip_5",
     "defeatKey": "npc_gossip_10"
@@ -280,15 +238,11 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 22
       },
       {
-        "species": "caracal_pup",
-        "level": 22
-      },
-      {
         "species": "fennec_adult",
         "level": 24
       }
     ],
-    "aiLevel": 3,
+    "aiLevel": 2,
     "prize": 2700,
     "badge": "ember",
     "introKey": "gym3_intro",
@@ -342,7 +296,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 26
       }
     ],
-    "aiLevel": 2,
+    "aiLevel": 1,
     "prize": 880,
     "introKey": "npc_gossip_5",
     "defeatKey": "npc_gossip_10"
@@ -361,7 +315,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 26
       }
     ],
-    "aiLevel": 2,
+    "aiLevel": 1,
     "prize": 880,
     "introKey": "npc_gossip_6",
     "defeatKey": "npc_gossip_11"
@@ -388,7 +342,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
         "level": 29
       }
     ],
-    "aiLevel": 3,
+    "aiLevel": 2,
     "prize": 3200,
     "badge": "thorn",
     "introKey": "gym4_intro",
@@ -431,18 +385,18 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
   "gym5_guard1": {
     "id": "gym5_guard1",
     "name": "Sworn Blade",
-    "title": "of House Wren",
+    "title": "of House Vantry",
     "team": [
       {
-        "species": "harpy_pup",
+        "species": "collie_adult",
         "level": 30
       },
       {
-        "species": "raven_adult",
+        "species": "mastiff_adult",
         "level": 31
       }
     ],
-    "aiLevel": 2,
+    "aiLevel": 1,
     "prize": 1000,
     "introKey": "npc_gossip_6",
     "defeatKey": "npc_gossip_11"
@@ -450,47 +404,47 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
   "gym5_guard2": {
     "id": "gym5_guard2",
     "name": "House Second",
-    "title": "of House Wren",
+    "title": "of House Vantry",
     "team": [
       {
-        "species": "goose_adult",
+        "species": "corgi_pup",
         "level": 30
       },
       {
-        "species": "owl_adult",
+        "species": "rat_pup",
         "level": 31
       }
     ],
-    "aiLevel": 2,
+    "aiLevel": 1,
     "prize": 1000,
     "introKey": "npc_gossip_7",
     "defeatKey": "npc_gossip_12"
   },
   "gym5": {
     "id": "gym5",
-    "name": "Corwin Wren",
-    "title": "Head of House Wren",
+    "name": "Dara Vantry",
+    "title": "Head of House Vantry",
     "team": [
       {
-        "species": "raven_pup",
+        "species": "rat_adult",
         "level": 32
       },
       {
-        "species": "seaeagle_pup",
+        "species": "corgi_adult",
         "level": 32
       },
       {
-        "species": "goose_adult",
+        "species": "stoat_adult",
         "level": 32
       },
       {
-        "species": "owl_adult",
+        "species": "retriever_pup",
         "level": 34
       }
     ],
-    "aiLevel": 3,
+    "aiLevel": 2,
     "prize": 3700,
-    "badge": "wing",
+    "badge": "fang",
     "introKey": "gym5_intro",
     "defeatKey": "gym5_defeat"
   },
@@ -996,5 +950,5 @@ export function getTrainer(id: string): TrainerDef {
 }
 
 export const GYM_ORDER: readonly string[] = ["gym1","gym2","gym3","gym4","gym5","gym6","gym7","gym8"];
-export const BADGE_ORDER: readonly string[] = ["fang","tide","ember","thorn","wing","gloom","frost","maw"];
+export const BADGE_ORDER: readonly string[] = ["wing","tide","ember","thorn","fang","gloom","frost","maw"];
 export const ELITE_ORDER: readonly string[] = ["elite_1","elite_2","elite_3","elite_4","champion"];

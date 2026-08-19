@@ -859,16 +859,10 @@ function battleMessage(scene: BattleScene, ev: BattleEvent): string | null {
       // engine stays reproducible and gauntlet:playthrough is unaffected.
       const seed = ev.amount * 31 + ev.hpAfter * 7 + (ev.critical ? 3 : 0);
       const line = pool[seed % pool.length] ?? '';
-      // Tags are short and only appended when the whole thing still fits one
-      // box; otherwise the tag gets its own press, which beats a sentence
-      // snapping in half.
-      const tag = ev.critical ? 'Found the seam.'
-        : ev.effectiveness > 1 ? 'It could not hold that.'
-        : ev.effectiveness < 1 ? 'Built to take it.'
-        : '';
-      // If the pair does not fit one box the drain pages it, so the tag simply
-      // gets its own press rather than a sentence snapping in half.
-      return tag === '' ? line : `${line} ${tag}`;
+      // The effectiveness tag is queued as its OWN message (see the drain), so
+      // both stay inside one box. Appending it here pushed the pair over the
+      // two-row limit and split a sentence across two button presses.
+      return line;
     }
     default:
       return null;
@@ -912,6 +906,15 @@ function stepBattle(
       // enqueue-time pagination, so a long one was simply cut off mid-sentence.
       // Split it and push the remainder back to the front of the queue, which
       // keeps everything in order and gives each page its own press.
+      // A notable hit gets a short follow-up line of its own rather than a
+      // longer combined one, so no message ever needs two boxes.
+      if (ev !== undefined && ev.t === 'damage') {
+        const tag = ev.critical ? 'Found the seam.'
+          : ev.effectiveness > 1 ? 'It could not hold that.'
+          : ev.effectiveness < 1 ? 'Built to take it.'
+          : '';
+        if (tag !== '') scene.queue.unshift({ t: 'text', text: tag });
+      }
       const pages = paginate(msg);
       state.lastText = (pages[0] ?? []).join(' ');
       for (let i = pages.length - 1; i >= 1; i--) {

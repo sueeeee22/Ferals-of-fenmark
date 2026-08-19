@@ -35,12 +35,35 @@ interface GymSpec {
 }
 
 /** Eight gyms, eight houses, eight types, a monotonic level curve. */
+/**
+ * Gym ladder. The ace levels track Red/Blue closely - Gen 1 runs 14, 21, 24,
+ * 32, 43, 43, 47, 50 - so the LEVELS are not the difficulty problem and were
+ * left alone. Lowering them makes the early game harder, not easier, because
+ * the player is levelled to the gym: both sides drop, and a level-8 animal has
+ * a worse movepool than a level-12 one. What was punishing was the volume of
+ * fighting and the quality of the opposition's play; see the guard ramp and the
+ * AI ramp below.
+ */
+/*
+ * GYM 1 IS WING, and that is the most important number on this page.
+ *
+ * Brock is Rock. Two of Gen 1's three starters - Squirtle and Bulbasaur - hit
+ * Rock for double, so two players in three walk through the first badge and
+ * learn that type matching is the game. Charmander players have a hard time,
+ * and that is the joke.
+ *
+ * Ours was Fang, and TWO OF OUR THREE STARTERS ARE THEMSELVES FANG. Nobody had
+ * an advantage, everybody ground it out, and the opening read as unfair rather
+ * than instructive. Wing is the only type here that both Winter and Baloo hit
+ * hard while punishing none of them - Brock's exact shape, with Plato cast as
+ * Charmander. House Wren simply moves to the front; Kestrelbridge takes Fang.
+ */
 const GYMS: readonly GymSpec[] = [
-  { n: 1, town: 'harrowfen', townName: 'Harrowfen', house: 'Vantry', leader: 'Dara Vantry', type: 'Fang', badge: 'fang', level: 12 },
+  { n: 1, town: 'harrowfen', townName: 'Harrowfen', house: 'Wren', leader: 'Corwin Wren', type: 'Wing', badge: 'wing', level: 12 },
   { n: 2, town: 'saltmere', townName: 'Saltmere', house: 'Calloway', leader: 'Ines Calloway', type: 'Tide', badge: 'tide', level: 18 },
   { n: 3, town: 'ashgrove', townName: 'Ashgrove', house: 'Ashgrove', leader: 'Leonore Ashgrove', type: 'Ember', badge: 'ember', level: 24 },
   { n: 4, town: 'briarhold', townName: 'Briarhold', house: 'Thistle', leader: 'Ottiline Thistle', type: 'Thorn', badge: 'thorn', level: 29 },
-  { n: 5, town: 'kestrelbridge', townName: 'Kestrelbridge', house: 'Wren', leader: 'Corwin Wren', type: 'Wing', badge: 'wing', level: 34 },
+  { n: 5, town: 'kestrelbridge', townName: 'Kestrelbridge', house: 'Vantry', leader: 'Dara Vantry', type: 'Fang', badge: 'fang', level: 34 },
   { n: 6, town: 'blackmourne', townName: 'Blackmourne', house: 'Mourne', leader: 'Sera Mourne', type: 'Gloom', badge: 'gloom', level: 39 },
   { n: 7, town: 'whitlow', townName: 'Whitlow', house: 'Sable', leader: 'Halvard Sable', type: 'Frost', badge: 'frost', level: 44 },
   { n: 8, town: 'brackhall', townName: 'Brackhall', house: 'Brack', leader: 'Ruen Brack', type: 'Maw', badge: 'maw', level: 49 },
@@ -318,8 +341,16 @@ function buildGym(id: string, g: GymSpec, backTo: string, backX: number, backY: 
   set(m, 5, H - 1, Tile.Door);
   m.warps.push({ x: 5, y: H - 1, toMap: backTo, toX: backX, toY: backY });
 
-  // Two guards, facing down the room so the player has to fight through them.
-  for (const [i, gx] of [3, 7].entries()) {
+  // Guards, facing down the room so the player has to fight through them.
+  //
+  // Calibrated against Red/Blue. Brock fields TWO Pokemon and has ONE trainer
+  // in front of him, so a player earns the first badge after four fights. We
+  // were asking for seven - two guards of two, then a leader of three - with no
+  // healing in between, which is why the opening felt punishing. The count now
+  // ramps: the first badge is four fights, same as Gen 1, and the eighth is the
+  // full house.
+  const guardPosts = g.n <= 2 ? [5] : [3, 7];
+  for (const [i, gx] of guardPosts.entries()) {
     const tid = `gym${g.n}_guard${i + 1}`;
     trainers.push({
       id: tid,
@@ -328,7 +359,7 @@ function buildGym(id: string, g: GymSpec, backTo: string, backX: number, backY: 
       team: pick(2, `${tid}`, all(isType(g.type), legalAt(Math.max(2, g.level - 4)), stageCapAt(Math.max(2, g.level - 4)))).map((r, k) => ({
         species: r.id, level: Math.max(2, g.level - 4 + k),
       })),
-      aiLevel: 2,
+      aiLevel: g.n <= 2 ? 0 : g.n <= 5 ? 1 : 2,
       prize: 400 + g.n * 120,
       introKey: `npc_gossip_${((g.n + i) % 12) + 1}`,
       defeatKey: `npc_gossip_${((g.n + i + 5) % 12) + 1}`,
@@ -349,8 +380,10 @@ function buildGym(id: string, g: GymSpec, backTo: string, backX: number, backY: 
     title: `Head of House ${g.house}`,
     team: [
       // The supporting cast is capped a tier below what the level would allow.
+      // Brock has one Pokemon behind his ace, not two. Support ramps with the
+      // badge number so the last gyms are still a wall.
       ...pick(
-        g.n <= 2 ? 2 : 3,
+        g.n <= 1 ? 1 : g.n <= 3 ? 2 : 3,
         leaderId,
         all(isType(g.type), legalAt(g.level - 2), stageCapAt(g.level - 2)),
       ).map((r) => ({ species: r.id, level: g.level - 2 })),
@@ -360,7 +393,11 @@ function buildGym(id: string, g: GymSpec, backTo: string, backX: number, backY: 
         level: g.level,
       })),
     ],
-    aiLevel: 3,
+    // Brock is not a tactician. Gen 1's early leaders spam a damaging move and
+    // the difficulty comes from their levels and typing, not their reads; the
+    // clever AI arrives later. Ours ran the best-available AI from the first
+    // badge, which is a large part of why the opening felt so unfair.
+    aiLevel: g.n <= 2 ? 1 : g.n <= 5 ? 2 : 3,
     prize: 1200 + g.n * 500,
     badge: g.badge,
     introKey: `gym${g.n}_intro`,
