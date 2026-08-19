@@ -25,7 +25,7 @@
  */
 
 import type { Content, GameState } from '../core/game.ts';
-import { snareLength, SNARE_THROW_FRAMES, SNARE_PULL_FRAMES, SNARE_WOBBLE_FRAMES } from '../core/game.ts';
+import { SNARE_THROW_FRAMES, SNARE_PULL_FRAMES, SNARE_WOBBLE_FRAMES } from '../core/game.ts';
 import { Apu } from './apu.ts';
 import { Player, type Song } from './song.ts';
 import { Sfx, type SfxName } from './sfx.ts';
@@ -88,12 +88,21 @@ interface Frame {
   outcome: string;
   badges: number;
   party: number;
+  /**
+   * The party's species ids, joined.
+   *
+   * Evolution does NOT change the party's LENGTH - it rewrites a species in
+   * place - so watching the count for it fired the evolution jingle every time
+   * you caught something instead, on top of the catch jingle. The list is what
+   * actually changes.
+   */
+  species: string;
   hop: boolean;
 }
 
 const BLANK: Frame = {
   scene: '', mapId: '', lastText: '', cursor: -1, sub: '', flash: 0, sfxSeq: 0,
-  snareFrames: -1, snaring: false, outcome: '', badges: 0, party: 0, hop: false,
+  snareFrames: -1, snaring: false, outcome: '', badges: 0, party: 0, species: '', hop: false,
 };
 
 export interface Audio {
@@ -214,6 +223,7 @@ export function createAudio(content: Content): Audio {
       outcome: '',
       badges: state.player.badges.length,
       party: state.player.party.length,
+      species: state.player.party.map((f) => f.species).join(','),
       hop: false,
     };
     if (scene.kind === 'battle') {
@@ -243,11 +253,7 @@ export function createAudio(content: Content): Audio {
   function snareSounds(state: GameState, now: Frame): void {
     if (state.scene.kind !== 'battle') return;
     const snare = state.scene.snare;
-    if (snare === null) {
-      // It ended this frame: whether it held is the last thing we can read.
-      if (prev.snaring) play(prev.outcome === 'caught' ? 'snare_click' : 'snare_break');
-      return;
-    }
+    if (snare === null) return;
     if (!prev.snaring) {
       play('snare_throw');
       return;
@@ -256,11 +262,13 @@ export function createAudio(content: Content): Audio {
     const p = prev.snareFrames;
     const crossed = (mark: number): boolean => p < mark && f >= mark;
 
-    if (crossed(SNARE_THROW_FRAMES + SNARE_PULL_FRAMES)) {
+    // Every mark below is read off the SAME constants the renderer draws with,
+    // so a sound can never drift away from the frame it belongs to.
+    const wobbleStart = SNARE_THROW_FRAMES + SNARE_PULL_FRAMES;
+    if (crossed(wobbleStart)) {
       play('snare_land');
       return;
     }
-    const wobbleStart = SNARE_THROW_FRAMES + SNARE_PULL_FRAMES;
     const wobbles = snare.caught ? 3 : Math.max(0, Math.min(3, snare.shakes));
     for (let i = 0; i < wobbles; i++) {
       if (crossed(wobbleStart + i * SNARE_WOBBLE_FRAMES + 2)) {
@@ -268,9 +276,11 @@ export function createAudio(content: Content): Audio {
         return;
       }
     }
-    // The verdict lands on the last frame of the animation, so the click and
-    // the picture agree. `snareLength` is the reducer's own number, not a copy.
-    if (crossed(snareLength(snare) - 1) && snare.caught) play('snare_click');
+    // The verdict is the START of the settle beat - the frame the renderer
+    // paints the click flash or the burst - not the end of the animation.
+    if (crossed(wobbleStart + wobbles * SNARE_WOBBLE_FRAMES)) {
+      play(snare.caught ? 'snare_click' : 'snare_break');
+    }
   }
 
   function observe(state: GameState): void {
@@ -292,7 +302,10 @@ export function createAudio(content: Content): Audio {
       } else if (now.outcome === 'lost') player.jingle(JINGLE_DEFEAT);
       else if (now.outcome === 'fled') play('flee');
     }
-    if (now.party > prev.party && now.scene !== 'battle') player.jingle(JINGLE_EVOLVE);
+    // Same party size, different species: something changed into something else.
+    if (now.party === prev.party && now.species !== prev.species && prev.species !== '') {
+      player.jingle(JINGLE_EVOLVE);
+    }
     if (now.badges > prev.badges) play('badge');
 
     // --- Effects ----------------------------------------------------------
@@ -310,7 +323,12 @@ export function createAudio(content: Content): Audio {
 
     if (now.cursor !== prev.cursor && prev.cursor >= 0 && now.scene === prev.scene) play('cursor');
     if (now.sub !== prev.sub && now.scene === prev.scene && prev.scene !== '') {
-      play(now.sub === 'main' || now.sub === 'root' ? 'cancel' : 'confirm');
+      const backedOut = now.sub === 'main' || now.sub === 'root';
+      // Choosing a move also returns you to the main menu, so the plain
+      // "sub changed back" test made COMMITTING to an attack sound exactly like
+      // backing out of one. If the turn produced events, you committed.
+      const committed = state.scene.kind === 'battle' && state.scene.queue.length > 0;
+      if (!(backedOut && committed)) play(backedOut ? 'cancel' : 'confirm');
     }
     if (now.scene === 'menu' && prev.scene !== 'menu') play('menu');
     if (now.mapId !== prev.mapId && prev.mapId !== '') play('door');
