@@ -12,7 +12,7 @@
 import { Rng, type RngState } from './rng.ts';
 import { paginate, pageLength } from './text.ts';
 import { HIT_LINES, hitBucket } from '../data/hitlines.ts';
-import type { Feral, Species } from './creature.ts';
+import type { Feral, Species, StatusName } from './creature.ts';
 import { computeStat, expForLevel, maxHp, selectMoveset } from './creature.ts';
 import {
   canWalk, DIR_VEC, isLedgeHop, npcAt, rollEncounter, triggeredTrainer, tileAt,
@@ -21,7 +21,7 @@ import {
 } from './world.ts';
 import {
   activeOf, forceSwitch, hasAlive, resolveTurn, startBattle,
-  type BattleAction, type BattleEvent, type BattleState, type Dex,
+  type BattleAction, type BattleEvent, type BattleState, type Dex, type Side,
 } from './battle.ts';
 
 // ---------------------------------------------------------------------------
@@ -203,6 +203,20 @@ export function snareLength(t: { shakes: number; caught: boolean }): number {
   );
 }
 
+/** One side of a fight as the screen currently shows it. See `BattleScene.shown`. */
+export interface ShownSide {
+  /** Which member of that side's party this is. */
+  index: number;
+  species: string;
+  name: string;
+  level: number;
+  hp: number;
+  maxHp: number;
+  status: StatusName | null;
+  /** It has gone down, and has been told so: its sprite is off the field. */
+  gone: boolean;
+}
+
 export interface BattleScene {
   readonly kind: 'battle';
   battle: BattleState;
@@ -219,17 +233,19 @@ export interface BattleScene {
    */
   awaitingAck: boolean;
   /**
-   * Health as currently DRAWN, which trails the real health until the events
-   * that caused the change have been narrated.
+   * Each side AS DRAWN, which trails the engine until the events that changed
+   * it have been narrated. The renderer draws from this and nothing else.
    *
    * `scene.battle` is replaced with the end-of-turn state the moment a move is
-   * chosen, so both bars used to empty before a single word appeared - your
-   * animal visibly lost half its health, and only then did the game say who had
-   * hit it. That is what "the text and the attacks are out of order" was: the
-   * words were in the right order all along, the bars were simply ahead of them.
+   * chosen, so drawing the truth showed the whole turn's outcome before a word
+   * of it had been told. First it was the bars: your animal visibly lost half
+   * its health and only then did the game say who had hit it. Fixing only the
+   * bars left the rest ahead - the level ticked up the instant you chose the
+   * killing move, and a trainer's NEXT animal was standing on the field while
+   * the text was still describing the blow that felled the last one.
+   * `gauntlet:visual` found both by watching a fight frame by frame.
    */
-  shownPlayerHp: number;
-  shownEnemyHp: number;
+  shown: { player: ShownSide; enemy: ShownSide };
   /** Non-null while a snare is in the air. Nothing else moves until it lands. */
   snare: SnareThrow | null;
   /**
@@ -564,6 +580,11 @@ function stepOverworld(
       p.mapId = warp.toMap;
       p.x = warp.toX;
       p.y = warp.toY;
+      // Re-anchor again, to the far side of the door. Without this `from` is
+      // still a tile on the map she just LEFT, and the renderer drew her there
+      // on the new map - wrong square, camera and all - until her first step.
+      walk.fromX = p.x;
+      walk.fromY = p.y;
       return;
     }
 
@@ -695,8 +716,7 @@ function beginWildBattle(
 ): void {
   const wild = makeFeral(content.dex, speciesId, level, rng, 'wild');
   const battle = startBattle(state.player.party, [wild], { kind: 'wild', aiLevel: 1 });
-  state.scene = makeBattleScene(battle, null, null);
-  state.lastText = `A wild ${wild.nickname} blocks the way.`;
+  state.scene = makeBattleScene(content, state, battle, null, null, `A wild ${wild.nickname} blocks the way.`);
 }
 
 function beginTrainerBattle(
@@ -713,23 +733,52 @@ function beginTrainerBattle(
     trainerId,
     aiLevel: def.aiLevel,
   });
-  state.scene = makeBattleScene(battle, trainerId, npcFlag);
-  state.lastText = `${def.title} ${def.name} wants to fight.`;
+  // "of the road" and "who took the crown first" follow a name; "Head of House
+  // Wren" is an aside to it. Putting the title first read as "of the road
+  // Fenwalker wants to fight", which is not a sentence.
+  const trails = def.title.startsWith('of ') || def.title.startsWith('who ');
+  const who = trails ? `${def.name} ${def.title}` : `${def.name}, ${def.title},`;
+  state.scene = makeBattleScene(content, state, battle, trainerId, npcFlag, `${who} wants to fight.`);
 }
 
+/** A side exactly as the engine has it right now. */
+function showSide(content: Content, side: Side): ShownSide {
+  const f = activeOf(side);
+  return {
+    index: side.active,
+    species: f.species,
+    name: f.nickname,
+    level: f.level,
+    hp: f.hp,
+    maxHp: maxHp(content.dex.species(f.species), f),
+    status: f.status,
+    gone: f.hp <= 0,
+  };
+}
+
+/**
+ * `opening` is the line that announces the fight. It is queued as a real
+ * message, so it is the first thing on screen when the wipe clears and it waits
+ * to be read. It used to be written straight to `lastText`, which nothing
+ * displayed: the only time "A wild Stripeling blocks the way." ever reached the
+ * screen was as a tenth-of-a-second flash AFTER you had chosen your first move.
+ */
 function makeBattleScene(
+  content: Content,
+  state: GameState,
   battle: BattleState,
   trainerId: string | null,
   npcFlag: string | null,
+  opening: string,
 ): BattleScene {
-  return {
+  state.lastText = '';
+  const scene: BattleScene = {
     kind: 'battle',
     battle,
     queue: [],
     ticks: 0,
     awaitingAck: false,
-    shownPlayerHp: activeOf(battle.player).hp,
-    shownEnemyHp: activeOf(battle.enemy).hp,
+    shown: { player: showSide(content, battle.player), enemy: showSide(content, battle.enemy) },
     snare: null,
     flash: 0,
     flashSide: 'enemy',
@@ -744,6 +793,8 @@ function makeBattleScene(
     trainerId,
     npcFlag,
   };
+  pushEvents(scene, [{ t: 'text', text: opening }]);
+  return scene;
 }
 
 // --- Dialogue --------------------------------------------------------------
@@ -935,6 +986,17 @@ function battleMessage(scene: BattleScene, ev: BattleEvent): string | null {
       return `${ev.name} is down.`;
     case 'caught':
       return `${ev.name} is yours now.`;
+    // These three were events nothing ever turned into words. A level was
+    // gained, a move was learned and a trainer's next animal walked on, all in
+    // silence - the numbers on screen simply changed.
+    case 'switch':
+      return ev.side === 'player' ? `${ev.name}. You're up.` : `They send in ${ev.name}.`;
+    case 'levelup':
+      return `${ev.name} makes level ${ev.level}.`;
+    case 'learn':
+      return `${ev.name} picks up ${ev.move}.`;
+    case 'heal':
+      return `${scene.shown[ev.side].name} gets ${ev.amount} back.`;
     case 'damage': {
       if (ev.effectiveness === 0) return 'Nothing. Wrong animal.';
       // The line is chosen by how much health the hit actually TOOK, so a graze
@@ -999,6 +1061,119 @@ function battleSfx(ev: BattleEvent): string {
   }
 }
 
+/**
+ * Move one side's drawn state on by one event. Called at the moment the event
+ * is TOLD, never before - that timing is the whole point of `shown`.
+ */
+function showEvent(scene: BattleScene, ev: BattleEvent): void {
+  switch (ev.t) {
+    case 'damage':
+    case 'heal':
+      scene.shown[ev.side].hp = ev.hpAfter;
+      return;
+    case 'status':
+      scene.shown[ev.side].status = ev.status;
+      return;
+    case 'faint':
+      scene.shown[ev.side].gone = true;
+      return;
+    case 'switch':
+      // A blink still running belongs to the animal that just left. Without
+      // this the newcomer flickered on arrival as though it had been hit.
+      if (scene.flashSide === ev.side) scene.flash = 0;
+      scene.shown[ev.side] = {
+        index: ev.index,
+        species: ev.species,
+        name: ev.name,
+        level: ev.level,
+        hp: ev.hp,
+        maxHp: ev.maxHp,
+        status: ev.status,
+        gone: false,
+      };
+      return;
+    case 'levelup': {
+      // Everyone who fought gains, but only the one on the field is on screen.
+      const mine = scene.shown.player;
+      if (ev.index !== mine.index) return;
+      mine.level = ev.level;
+      mine.hp = ev.hp;
+      mine.maxHp = ev.maxHp;
+      return;
+    }
+    default:
+      return;
+  }
+}
+
+/**
+ * Advance the fight to its next message, or to a snare throw, or to the end of
+ * what there is to tell.
+ *
+ * Events that carry no words (a status landing, experience, the outcome) do not
+ * get a beat of their own: they are applied on the way to the next message, so
+ * whatever they change on screen changes ON the frame its explanation appears.
+ * They used to take a timed beat each, which put a status tag in the box a
+ * tenth of a second before the sentence saying why.
+ */
+function tellNext(content: Content, state: GameState, scene: BattleScene, rng: Rng): void {
+  for (;;) {
+    const ev = scene.queue.shift();
+    if (ev === undefined) {
+      afterEvents(content, state, scene, rng);
+      return;
+    }
+
+    // `shake` carries no words - it IS the animation. Launching it here rather
+    // than narrating it keeps the wobble count and the picture in step.
+    if (ev.t === 'shake') {
+      scene.snare = { frames: 0, shakes: ev.count, caught: ev.count >= 4 };
+      state.lastText = 'You sling a snare.';
+      return;
+    }
+
+    const msg = battleMessage(scene, ev);
+    showEvent(scene, ev);
+    if (msg === null) continue;
+
+    // The one who got hit is the one who flinches, and only for a real hit -
+    // an immune "Nothing. Wrong animal." should look like nothing happened.
+    if (ev.t === 'damage' && ev.amount > 0) {
+      scene.flash = FLASH_FRAMES;
+      scene.flashSide = ev.side;
+    }
+    const sound = battleSfx(ev);
+    if (sound !== '') {
+      scene.sfx = sound;
+      scene.sfxSeq++;
+    }
+    // The battle box shows two rows. Messages are composed here, AFTER the
+    // enqueue-time pagination, so a long one was simply cut off mid-sentence.
+    // Split it and push the remainder back to the front of the queue, which
+    // keeps everything in order and gives each page its own press.
+    const pages = paginate(msg);
+    state.lastText = (pages[0] ?? []).join(' ');
+    for (let i = pages.length - 1; i >= 1; i--) {
+      scene.queue.unshift({ t: 'text', text: (pages[i] ?? []).join(' ') });
+    }
+    scene.awaitingAck = true;
+    return;
+  }
+}
+
+/**
+ * Say no to something, in words, on screen.
+ *
+ * Every refusal - no power left in a move, a snare thrown at a trainer's
+ * animal, a poultice for something already whole - used to be written to
+ * `lastText` while a menu was covering the text box, so the button simply did
+ * nothing and the game's answer was never seen by anyone.
+ */
+function refuse(content: Content, state: GameState, scene: BattleScene, text: string, rng: Rng): void {
+  pushEvents(scene, [{ t: 'text', text }]);
+  tellNext(content, state, scene, rng);
+}
+
 function stepBattle(
   content: Content,
   state: GameState,
@@ -1010,9 +1185,11 @@ function stepBattle(
   // decremented before any of the early returns below can swallow it.
   if (scene.flash > 0) scene.flash--;
 
-  // The transition owns the screen until it finishes.
+  // The transition owns the screen until it finishes, and the opening line is
+  // up on the very frame it clears.
   if (scene.intro > 0) {
     scene.intro--;
+    if (scene.intro === 0) tellNext(content, state, scene, rng);
     return;
   }
 
@@ -1022,10 +1199,8 @@ function stepBattle(
     scene.snare.frames++;
     if (scene.snare.frames < snareLength(scene.snare)) return;
     scene.snare = null;
-    if (scene.queue.length === 0) {
-      afterEvents(content, state, scene, rng);
-      return;
-    }
+    tellNext(content, state, scene, rng);
+    return;
   }
 
   // A message holds the screen until the player presses A or B. Read at your
@@ -1039,53 +1214,13 @@ function stepBattle(
     return;
   }
 
-  // Drain queued events; the player cannot act mid-animation. Only the beats
-  // WITHOUT words are on a timer.
+  // A short beat between one message and the next, so a dismissed box is seen
+  // to go before its successor arrives.
   if (scene.queue.length > 0) {
     scene.ticks++;
     if (scene.ticks < EVENT_FRAMES) return;
     scene.ticks = 0;
-    const ev = scene.queue.shift();
-    // The bar moves WITH the message that explains it, not before it.
-    if (ev !== undefined && (ev.t === 'damage' || ev.t === 'heal')) {
-      if (ev.side === 'player') scene.shownPlayerHp = ev.hpAfter;
-      else scene.shownEnemyHp = ev.hpAfter;
-    }
-    // `shake` carries no words - it IS the animation. Launching it here rather
-    // than narrating it keeps the wobble count and the picture in step.
-    if (ev !== undefined && ev.t === 'shake') {
-      scene.snare = { frames: 0, shakes: ev.count, caught: ev.count >= 4 };
-      state.lastText = 'You sling a snare.';
-      return;
-    }
-    const msg = ev === undefined ? null : battleMessage(scene, ev);
-    if (msg !== null) {
-      // The one who got hit is the one who flinches, and only for a real hit -
-      // an immune "Nothing. Wrong animal." should look like nothing happened.
-      if (ev !== undefined && ev.t === 'damage' && ev.amount > 0) {
-        scene.flash = FLASH_FRAMES;
-        scene.flashSide = ev.side;
-      }
-      if (ev !== undefined) {
-        const sound = battleSfx(ev);
-        if (sound !== '') {
-          scene.sfx = sound;
-          scene.sfxSeq++;
-        }
-      }
-      // The battle box shows two rows. Messages are composed here, AFTER the
-      // enqueue-time pagination, so a long one was simply cut off mid-sentence.
-      // Split it and push the remainder back to the front of the queue, which
-      // keeps everything in order and gives each page its own press.
-      const pages = paginate(msg);
-      state.lastText = (pages[0] ?? []).join(' ');
-      for (let i = pages.length - 1; i >= 1; i--) {
-        scene.queue.unshift({ t: 'text', text: (pages[i] ?? []).join(' ') });
-      }
-      scene.awaitingAck = true;
-      return;
-    }
-    if (scene.queue.length === 0) afterEvents(content, state, scene, rng);
+    tellNext(content, state, scene, rng);
     return;
   }
 
@@ -1098,11 +1233,12 @@ function stepBattle(
   // The player must replace a fainted creature before anything else happens.
   if (scene.sub === 'forceSwitch' || activeOf(battle.player).hp <= 0) {
     scene.sub = 'forceSwitch';
-    handlePartyMenu(state, scene, b, (idx) => {
+    handlePartyMenu(content, state, scene, b, rng, (idx) => {
       const target = battle.player.party[idx];
       if (!target || target.hp <= 0) return false;
       pushEvents(scene, forceSwitch(content.dex, battle, 'player', idx));
       scene.sub = 'main';
+      tellNext(content, state, scene, rng);
       return true;
     });
     return;
@@ -1134,14 +1270,14 @@ function stepBattle(
       // gauntlet:playthrough hanging on route 1 with "No power left in that one."
       const anyPp = moves.some((m) => m.pp > 0);
       if (anyPp && (!slot || slot.pp <= 0)) {
-        state.lastText = 'No power left in that one.';
+        refuse(content, state, scene, 'No power left in that one.', rng);
         return;
       }
       submitAction(content, state, scene, { kind: 'move', slot: scene.moveCursor }, rng);
       return;
     }
     case 'party': {
-      handlePartyMenu(state, scene, b, (idx) => {
+      handlePartyMenu(content, state, scene, b, rng, (idx) => {
         const target = battle.player.party[idx];
         if (!target || target.hp <= 0 || idx === battle.player.active) return false;
         submitAction(content, state, scene, { kind: 'switch', index: idx }, rng);
@@ -1164,9 +1300,11 @@ function stepBattle(
 }
 
 function handlePartyMenu(
+  content: Content,
   state: GameState,
   scene: BattleScene,
   b: Buttons,
+  rng: Rng,
   confirm: (index: number) => boolean,
 ): void {
   const party = scene.battle.player.party;
@@ -1174,7 +1312,7 @@ function handlePartyMenu(
   if (pressed(state, b, 'up')) scene.partyCursor = (scene.partyCursor + party.length - 1) % Math.max(1, party.length);
   if (pressed(state, b, 'b') && scene.sub !== 'forceSwitch') { scene.sub = 'main'; return; }
   if (!pressed(state, b, 'a')) return;
-  if (!confirm(scene.partyCursor)) state.lastText = 'Not that one.';
+  if (!confirm(scene.partyCursor)) refuse(content, state, scene, 'Not that one.', rng);
 }
 
 function useBattleItem(
@@ -1190,7 +1328,7 @@ function useBattleItem(
 
   if (item === 'snare' || item === 'good_snare' || item === 'great_snare') {
     if (scene.battle.kind === 'trainer') {
-      state.lastText = "That would be theft, and they're watching.";
+      refuse(content, state, scene, "That would be theft, and they're watching.", rng);
       return;
     }
     stack.count--;
@@ -1203,15 +1341,21 @@ function useBattleItem(
     const target = activeOf(scene.battle.player);
     const sp = content.dex.species(target.species);
     const max = maxHp(sp, target);
-    if (target.hp >= max) { state.lastText = 'It is already fine. Better than you.'; return; }
+    if (target.hp >= max) {
+      refuse(content, state, scene, 'It is already fine. Better than you.', rng);
+      return;
+    }
     stack.count--;
+    const before = target.hp;
     target.hp = Math.min(max, target.hp + (item === 'strong_poultice' ? 120 : 40));
-    scene.queue.push({ t: 'heal', side: 'player', amount: 40, hpAfter: target.hp });
+    // The amount actually restored. This used to say 40 whatever happened, so a
+    // strong poultice, or one that only topped up the last few points, lied.
+    scene.queue.push({ t: 'heal', side: 'player', amount: target.hp - before, hpAfter: target.hp });
     submitAction(content, state, scene, { kind: 'item', item }, rng);
     return;
   }
 
-  state.lastText = 'Not now.';
+  refuse(content, state, scene, 'Not now.', rng);
 }
 
 function submitAction(
@@ -1226,14 +1370,18 @@ function submitAction(
   pushEvents(scene, result.events);
   scene.sub = 'main';
   scene.ticks = 0;
-  if (scene.queue.length === 0) afterEvents(content, state, scene, rng);
+  // The first message goes up on the same frame as the press. Waiting a beat
+  // here left the PREVIOUS turn's last line back on screen for a tenth of a
+  // second every turn, since the box had nothing newer to show.
+  tellNext(content, state, scene, rng);
 }
 
 function afterEvents(content: Content, state: GameState, scene: BattleScene, rng: Rng): void {
-  // Everything has been narrated, so the drawn health can catch up to the truth.
-  // This also covers switches, items and faints without special-casing each.
-  scene.shownPlayerHp = activeOf(scene.battle.player).hp;
-  scene.shownEnemyHp = activeOf(scene.battle.enemy).hp;
+  // Everything has been narrated, so what is drawn can catch up to the truth.
+  // By now the two should already agree; this covers anything with no event of
+  // its own, such as a status wearing off.
+  scene.shown.player = showSide(content, scene.battle.player);
+  scene.shown.enemy = showSide(content, scene.battle.enemy);
   if (scene.battle.outcome !== 'ongoing') endBattle(content, state, scene, rng);
 }
 

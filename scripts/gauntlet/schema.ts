@@ -10,6 +10,7 @@
  * Exit 0 or Phase 3 does not advance.
  */
 import { TYPES } from '../../src/core/types.ts';
+import { CREATURE_NAME_COLS, MOVE_NAME_COLS } from '../../src/core/text.ts';
 import type { FeralType } from '../../src/core/types.ts';
 import { MAX_LEARN_GAP, STAT_KEYS, baseStatTotal } from '../../src/core/creature.ts';
 import type { Species, Move, Stage } from '../../src/core/creature.ts';
@@ -212,6 +213,13 @@ async function main(): Promise<void> {
     for (const sp of SPECIES_LIST) dexCounts.set(sp.dex, (dexCounts.get(sp.dex) ?? 0) + 1);
     for (const [dex, count] of dexCounts) {
       if (count > 1) fail(`dex ${dex} is used by ${count} species (must be unique)`);
+    }
+    // A name longer than its box is drawn cut short, and gauntlet:visual only
+    // ever meets the handful of animals near the start.
+    for (const sp of SPECIES_LIST) {
+      if (sp.name.length > CREATURE_NAME_COLS) {
+        fail(`${sp.id}: name "${sp.name}" is ${sp.name.length} characters; a status box fits ${CREATURE_NAME_COLS}`);
+      }
     }
 
     const sortedDex = SPECIES_LIST.map((sp) => sp.dex).sort((a, b) => a - b);
@@ -450,6 +458,11 @@ async function main(): Promise<void> {
 
     for (const mv of MOVE_LIST) {
       if (!TYPES.includes(mv.type)) fail(`${mv.id}: type '${mv.type}' is not a member of TYPES`);
+      // The move list draws names whole. One that is too long for the row
+      // would be cut off on screen, and gauntlet:visual only meets a few moves.
+      if (mv.name.length > MOVE_NAME_COLS) {
+        fail(`${mv.id}: name "${mv.name}" is ${mv.name.length} characters; the move list fits ${MOVE_NAME_COLS}`);
+      }
 
       if (!inRange(mv.power, MOVE_POWER_RANGE)) {
         fail(`${mv.id}: power ${mv.power} is outside ${MOVE_POWER_RANGE[0]}..${MOVE_POWER_RANGE[1]}`);

@@ -16,6 +16,7 @@ import { serialize, restore, type SaveFile } from './core/save.ts';
 import { activeSlot, loadSlot, setActiveSlot, slotStore } from './saves.ts';
 import { createSavePanel } from './save-ui.ts';
 import { createAudio } from './audio/index.ts';
+import { observe } from './observe.ts';
 
 if (Object.values(usingPlaceholder).some(Boolean)) {
   console.info('[content] placeholder data in use for:', usingPlaceholder);
@@ -167,6 +168,18 @@ function inStarterPicker(s: GameState): boolean {
   return s.player.starter === '' && s.scene.kind === 'overworld';
 }
 
+/**
+ * Read-only observation hook for `gauntlet:visual` and the other browser gates.
+ *
+ * It says what the game believes it is showing, so a gate that reads the real
+ * pixels has something to hold them against - see `src/observe.ts`. It
+ * deliberately offers no way to SET anything: a screenshot suite that can stage
+ * its own scenes proves nothing about the game.
+ */
+function publish(): void {
+  (window as unknown as { __fenmark: unknown }).__fenmark = observe(content, state);
+}
+
 function advance(buttons: Buttons): void {
   if (inStarterPicker(state)) {
     if (buttons.left && !pickerPrev.left) {
@@ -181,25 +194,12 @@ function advance(buttons: Buttons): void {
     }
     audio.observe(state);
     pickerPrev = buttons;
+    publish();
     return;
   }
   state = step(content, state, buttons);
 
-  // Read-only observation hook for scripts/shots.ts and gauntlet:visual. It
-  // exposes what the game is currently showing so a screenshot run can tell a
-  // battle from a menu. It deliberately offers no way to SET anything: a
-  // screenshot suite that can stage its own scenes proves nothing about the game.
-  (
-    window as unknown as {
-      __fenmark: { scene: string; map: string; x: number; y: number; frame: number };
-    }
-  ).__fenmark = {
-    scene: state.scene.kind,
-    map: state.player.mapId,
-    x: state.player.x,
-    y: state.player.y,
-    frame: state.frame,
-  };
+  publish();
   // Sound reads the state the same way the renderer does, once per simulation
   // tick rather than once per painted frame - an event that lasts a single tick
   // would otherwise be missed on a slow frame, or played twice on a fast one.
@@ -311,6 +311,8 @@ function frame(now: number): void {
     const p = drawnPlayerPos();
     hook['px'] = p.x;
     hook['py'] = p.y;
+    hook['camX'] = p.camX;
+    hook['camY'] = p.camY;
     hook['ticks'] = ticks;
   }
   screen.present();

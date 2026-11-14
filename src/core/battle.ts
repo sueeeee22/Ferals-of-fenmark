@@ -114,11 +114,35 @@ export type BattleEvent =
   | { readonly t: 'stage'; readonly side: 'player' | 'enemy'; readonly stat: StatKey; readonly delta: number }
   | { readonly t: 'heal'; readonly side: 'player' | 'enemy'; readonly amount: number; readonly hpAfter: number }
   | { readonly t: 'faint'; readonly side: 'player' | 'enemy'; readonly name: string }
-  | { readonly t: 'switch'; readonly side: 'player' | 'enemy'; readonly name: string }
+  | {
+      readonly t: 'switch';
+      readonly side: 'player' | 'enemy';
+      readonly name: string;
+      /**
+       * The creature as it was at the moment it came out. A turn is resolved in
+       * full before any of it is shown, so by the time this event is narrated
+       * the engine's own copy may already be hurt, levelled or gone - the UI
+       * needs the picture as it was THEN, not as it ends up.
+       */
+      readonly index: number;
+      readonly species: string;
+      readonly level: number;
+      readonly hp: number;
+      readonly maxHp: number;
+      readonly status: StatusName | null;
+    }
   | { readonly t: 'shake'; readonly count: number }
   | { readonly t: 'caught'; readonly name: string }
   | { readonly t: 'exp'; readonly amount: number; readonly name: string }
-  | { readonly t: 'levelup'; readonly name: string; readonly level: number }
+  | {
+      readonly t: 'levelup';
+      readonly name: string;
+      readonly level: number;
+      /** Which of the player's party levelled, and its health afterwards. */
+      readonly index: number;
+      readonly hp: number;
+      readonly maxHp: number;
+    }
   | { readonly t: 'learn'; readonly name: string; readonly move: string }
   | { readonly t: 'outcome'; readonly outcome: BattleOutcome };
 
@@ -692,8 +716,17 @@ function doSwitch(
   side.stages = freshStages();
   side.turnsOut = 0;
   side.mustRecharge = false;
-  void dex;
-  events.push({ t: 'switch', side: who, name: target.nickname });
+  events.push({
+    t: 'switch',
+    side: who,
+    name: target.nickname,
+    index,
+    species: target.species,
+    level: target.level,
+    hp: target.hp,
+    maxHp: maxHp(dex.species(target.species), target),
+    status: target.status,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -707,7 +740,7 @@ function awardExp(dex: Dex, state: BattleState, events: BattleEvent[]): void {
   const sp = dex.species(last.species);
   const gain = expGain(sp, last.level, state.kind === 'trainer');
 
-  for (const f of state.player.party) {
+  for (const [index, f] of state.player.party.entries()) {
     if (f.hp <= 0) continue;
     f.exp += gain;
     state.expAwarded += gain;
@@ -719,7 +752,7 @@ function awardExp(dex: Dex, state: BattleState, events: BattleEvent[]): void {
       f.level++;
       const after = maxHp(dex.species(f.species), f);
       f.hp += after - before; // levelling raises current HP by the max-HP delta
-      events.push({ t: 'levelup', name: f.nickname, level: f.level });
+      events.push({ t: 'levelup', name: f.nickname, level: f.level, index, hp: f.hp, maxHp: after });
       learnLevelMoves(dex, f, events);
     }
   }

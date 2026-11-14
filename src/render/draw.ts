@@ -12,18 +12,18 @@
  * `runPending`/`starterPick` comment) — `main.ts` owns it and passes it in.
  */
 
-import type { Content, GameState, BattleScene, MenuScene } from '../core/game.ts';
-import { paginate, pageLength } from '../core/text.ts';
+import type { Content, GameState, BattleScene, MenuScene, ShownSide } from '../core/game.ts';
+import { paginate, pageLength, CREATURE_NAME_COLS, MOVE_NAME_COLS } from '../core/text.ts';
 import {
   STARTERS, WALK_FRAMES, starterChoices, BATTLE_INTRO_FRAMES,
   SNARE_THROW_FRAMES, SNARE_PULL_FRAMES, SNARE_WOBBLE_FRAMES, FLASH_FRAMES,
   type SnareThrow,
 } from '../core/game.ts';
 import { activeOf } from '../core/battle.ts';
-import type { BattleState, Side } from '../core/battle.ts';
+import type { BattleState } from '../core/battle.ts';
 import { Tile, tileAt, visibleNpcs, type GameMap, type Dir } from '../core/world.ts';
 import { maxHp } from '../core/creature.ts';
-import type { Feral, Species, StatusName } from '../core/creature.ts';
+import type { Feral, StatusName } from '../core/creature.ts';
 import { spriteFor, SPRITE_SIZE, type Pixels, type SpriteView } from './forge.ts';
 import * as gb from './gb.ts';
 import { LOGICAL_W, LOGICAL_H, TILE_SIZE, shadeColor } from './gb.ts';
@@ -55,10 +55,17 @@ function fillEllipse(
   ry: number,
   shade: gb.Shade,
 ): void {
+  // Row by row, in whole pixels. The canvas's own `ellipse()` anti-aliases its
+  // edge, which put a ring of in-between greens round every platform - colours
+  // a Game Boy does not have. `gauntlet:visual` counts off-palette pixels and
+  // found about a hundred of them on every battle screen.
   ctx.fillStyle = shadeColor(shade);
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-  ctx.fill();
+  const x0 = Math.round(cx);
+  const y0 = Math.round(cy);
+  for (let dy = -ry; dy <= ry; dy++) {
+    const half = Math.round(rx * Math.sqrt(Math.max(0, 1 - (dy * dy) / ((ry + 0.5) * (ry + 0.5)))));
+    if (half > 0) ctx.fillRect(x0 - half, y0 + dy, half * 2, 1);
+  }
 }
 
 function clearScreen(ctx: CanvasRenderingContext2D, shade: gb.Shade = 0): void {
@@ -128,7 +135,10 @@ function cameraFor(
   map: GameMap,
   x: number, y: number, fromX: number, fromY: number, progress: number,
 ): Camera & { playerPxX: number; playerPxY: number } {
-  const t = progress > 0 ? Math.min(1, progress / WALK_FRAMES) : 0;
+  // Standing still, she is drawn where she IS. Interpolating to t=0 instead
+  // drew her at `from`, and after a doorway `from` is a tile on the map she
+  // just left - so she appeared somewhere else entirely until her first step.
+  const t = progress > 0 ? Math.min(1, progress / WALK_FRAMES) : 1;
   const playerPxX = Math.round(lerp(fromX, x, t) * TILE_SIZE);
   const playerPxY = Math.round(lerp(fromY, y, t) * TILE_SIZE);
   const rawX = Math.round(LOGICAL_W / 2 - TILE_SIZE / 2) - playerPxX;
@@ -209,6 +219,8 @@ function drawWorldBackground(
   const playerSy = cam.originY + cam.playerPxY;
   lastDrawnX = playerSx;
   lastDrawnY = playerSy;
+  lastCamX = cam.originX;
+  lastCamY = cam.originY;
   gb.drawActor(ctx, 'player', dir, pose.frame, pose.step, playerSx, playerSy);
 }
 
@@ -242,9 +254,15 @@ export function setFrameAlpha(alpha: number): void {
  */
 let lastDrawnX = 0;
 let lastDrawnY = 0;
+/**
+ * Where the map's top-left corner was drawn. Outdoors the camera follows the
+ * player, so her SCREEN position never changes and all the motion is in this.
+ */
+let lastCamX = 0;
+let lastCamY = 0;
 
-export function drawnPlayerPos(): { x: number; y: number } {
-  return { x: lastDrawnX, y: lastDrawnY };
+export function drawnPlayerPos(): { x: number; y: number; camX: number; camY: number } {
+  return { x: lastDrawnX, y: lastDrawnY, camX: lastCamX, camY: lastCamY };
 }
 
 // Location banner: shown for a beat after the map id changes. Edge-detected
@@ -252,19 +270,25 @@ export function drawnPlayerPos(): { x: number; y: number } {
 let bannerMapId: string | null = null;
 let bannerUntil = -1;
 
-function drawLocationBanner(ctx: CanvasRenderingContext2D, state: GameState): void {
+function drawLocationBanner(ctx: CanvasRenderingContext2D, content: Content, state: GameState): void {
   const p = state.player;
   if (p.mapId !== bannerMapId) {
     bannerMapId = p.mapId;
     bannerUntil = state.frame + 80;
   }
   if (state.frame > bannerUntil) return;
-  const map = bannerMapId;
-  if (map === null) return;
-  const name = map.replace(/_/g, ' ').toUpperCase();
-  const w = Math.min(LOGICAL_W - 16, gb.measureText(name) + 16);
-  gb.drawBox(ctx, 8, 8, w, 20);
-  gb.drawText(ctx, 16, 14, name.slice(0, 18), 3);
+  const map = content.world.map(p.mapId);
+  // Outdoors only, as `GameMap.indoor` has always said. And the place's NAME:
+  // this used to print the map's internal id, so the Astacio house announced
+  // itself as "FENMARK HOUSE", and an id longer than the box ran out of it.
+  if (map.indoor) return;
+  const name = map.name.toUpperCase();
+  const w = Math.min(gb.TEXTBOX_W, gb.measureText(name) + gb.TEXTBOX_PAD * 2);
+  // Walking in from the north puts her at the top of the screen, which is where
+  // the banner goes - it covered her completely. Drop it to the bottom instead.
+  const y = lastDrawnY < 40 ? LOGICAL_H - 28 : 8;
+  gb.drawBox(ctx, gb.TEXTBOX_X, y, w, 20);
+  gb.drawText(ctx, gb.TEXTBOX_X + gb.TEXTBOX_PAD, y + 6, name.slice(0, TEXT_COLS), 3);
 }
 
 const STARTER_NAMES: Readonly<Record<string, string>> = {
@@ -304,7 +328,7 @@ function drawOverworld(
   }
   if (state.scene.kind !== 'overworld') return;
   drawWorldBackground(ctx, content, state, state.scene.walk);
-  drawLocationBanner(ctx, state);
+  drawLocationBanner(ctx, content, state);
 }
 
 // ---------------------------------------------------------------------------
@@ -392,14 +416,29 @@ function drawBattleIntro(
  * so the whole top row belongs to the name - eleven characters, more than the
  * ten-character nickname limit.
  */
-const ENEMY_BOX = { x: 2, y: 2, w: 98, h: 26 };
-const PLAYER_BOX = { x: 62, y: 54, w: 96, h: 32 };
+/*
+ * ...and then twelve, because two animals in the roster have twelve-letter
+ * names (Nightreynard, Thornbristle) and were being drawn as "Nightreyna.".
+ * Both boxes are now exactly wide enough for CREATURE_NAME_COLS.
+ */
+const ENEMY_BOX = { x: 2, y: 2, w: 102, h: 26 };
+const PLAYER_BOX = { x: 56, y: 54, w: 102, h: 32 };
 const ENEMY_ANCHOR = { cx: 128, baseline: 48, scale: 0.66 };
-const PLAYER_ANCHOR = { cx: 34, baseline: 92, scale: 0.92 };
+/*
+ * Your animal stands clear of every box: left of its own status box and above
+ * the move list. It used to sit four pixels further right and two lower, which
+ * put the right-hand edge of a wide creature under the status box and its feet
+ * under the menu.
+ */
+const PLAYER_ANCHOR = { cx: 30, baseline: 90, scale: 0.92 };
 
-/** Nicknames are capped at 10 in game, so this only ever guards bad data. */
+/** Names are held to CREATURE_NAME_COLS by gauntlet:schema, so this only ever guards bad data. */
+function nameLabel(name: string): string {
+  return name.length > CREATURE_NAME_COLS ? `${name.slice(0, CREATURE_NAME_COLS - 1)}.` : name;
+}
+
 function creatureLabel(f: Feral): string {
-  return f.nickname.length > 11 ? `${f.nickname.slice(0, 10)}.` : f.nickname;
+  return nameLabel(f.nickname);
 }
 
 /**
@@ -413,7 +452,7 @@ function drawStarterPick(
 ): void {
   ctx.fillStyle = gb.shadeColor(0);
   ctx.fillRect(0, 0, gb.LOGICAL_W, gb.LOGICAL_H);
-  gb.drawText(ctx, 44, 6, 'PICK ONE.', 3);
+  gb.drawText(ctx, 44, 4, 'PICK ONE.', 3);
 
   const ids = starterChoices();
   for (let i = 0; i < ids.length; i++) {
@@ -421,53 +460,60 @@ function drawStarterPick(
     if (id === undefined) continue;
     const cx = 30 + i * 50;
     const selected = i === scene.cursor;
-    const baseline = selected ? 68 : 72;
+    const baseline = selected ? 58 : 60;
     const scale = selected ? 0.72 : 0.56;
 
     fillEllipse(ctx, cx, baseline, selected ? 18 : 14, 4, 1);
     gb.drawSprite(
       ctx, creaturePixels(content, id),
-      cx - (SPRITE_SIZE * scale) / 2, baseline - SPRITE_SIZE * scale, scale, false,
+      Math.round(cx - (SPRITE_SIZE * scale) / 2), Math.round(baseline - SPRITE_SIZE * scale), scale, false,
     );
-    if (selected) gb.drawText(ctx, cx - 4, baseline + 4, gb.CURSOR_GLYPH, 3);
+    if (selected) gb.drawText(ctx, cx - 4, baseline + 6, gb.CURSOR_GLYPH, 3);
   }
 
+  /*
+   * The description box. It used to give the description three rows of
+   * seventeen characters and draw whatever fitted, so all three starters were
+   * introduced by a sentence that stopped in the middle: "Does not bark.
+   * Screams. Has never once been". The name and typing now share the top row,
+   * which frees enough of the box to show the whole thing.
+   */
   const chosen = ids[scene.cursor] ?? ids[0];
   if (chosen !== undefined) {
     const sp = content.dex.species(chosen);
-    gb.drawBox(ctx, 4, 80, 152, 56);
-    gb.drawText(ctx, 10, 84, sp.name, 3);
-    gb.drawText(ctx, 10, 94, sp.types.join('/'), 3);
-    const rows = gb.wrapText(sp.dexEntry, 17);
-    for (let i = 0; i < 3; i++) {
-      const row = rows[i];
-      if (row !== undefined) gb.drawText(ctx, 10, 106 + i * 10, row, 3);
+    const box = { x: gb.TEXTBOX_X, y: 74, w: gb.TEXTBOX_W, h: 66 };
+    gb.drawBox(ctx, box.x, box.y, box.w, box.h);
+    const left = box.x + gb.TEXTBOX_PAD;
+    const types = sp.types.join('/');
+    gb.drawText(ctx, left, box.y + 4, sp.name, 3);
+    gb.drawText(ctx, left + (TEXT_COLS - types.length) * 8, box.y + 4, types, 3);
+    const rows = gb.wrapText(sp.dexEntry, TEXT_COLS);
+    for (let i = 0; i < rows.length; i++) {
+      gb.drawText(ctx, left, box.y + 15 + i * 10, rows[i] ?? '', 3);
     }
   }
 }
 
+/**
+ * One side's status box. Everything in it - name, level, bar, numbers, status -
+ * comes from `ShownSide`, which only moves as the turn is narrated; see
+ * `BattleScene.shown` for why none of it may be read from the engine.
+ */
 function drawSideInfo(
   ctx: CanvasRenderingContext2D,
   box: { x: number; y: number; w: number; h: number },
-  f: Feral,
+  f: ShownSide,
   showNumbers: boolean,
-  sp: Species,
-  /** Health to DRAW. Trails `f.hp` until the events explaining the change have
-   *  been narrated - see BattleScene.shownPlayerHp. */
-  shownHp: number,
 ): void {
   gb.drawBox(ctx, box.x, box.y, box.w, box.h);
 
   // Top row: the name alone, with the full box width to itself.
   const nameX = box.x + 4;
-  const nameBudget = Math.max(3, Math.floor((box.w - 8) / 8));
-  const label = creatureLabel(f);
-  const name = label.length > nameBudget ? `${label.slice(0, nameBudget - 1)}.` : label;
-  gb.drawText(ctx, nameX, box.y + 4, name, 3);
+  gb.drawText(ctx, nameX, box.y + 4, nameLabel(f.name), 3);
 
   // Second row: HP bar, then the level, then any status tag.
   const barWidth = Math.min(48, box.w - 12);
-  gb.drawHpBar(ctx, box.x + 5, box.y + 14, shownHp, maxHp(sp, f), barWidth);
+  gb.drawHpBar(ctx, box.x + 5, box.y + 14, f.hp, f.maxHp, barWidth);
   const levelText = `Lv${f.level}`;
   let cursorX = box.x + 8 + barWidth;
   if (cursorX + gb.measureText(levelText) <= box.x + box.w - 3) {
@@ -478,13 +524,9 @@ function drawSideInfo(
     gb.drawText(ctx, cursorX, box.y + 12, STATUS_TAG[f.status], 3);
   }
   if (showNumbers) {
-    const text = `${shownHp}/${maxHp(sp, f)}`;
+    const text = `${f.hp}/${f.maxHp}`;
     gb.drawText(ctx, box.x + box.w - gb.measureText(text) - 5, box.y + 22, text, 3);
   }
-}
-
-function sideActive(side: Side): Feral {
-  return activeOf(side);
 }
 
 const BOTTOM_Y = 96;
@@ -511,7 +553,9 @@ const CMD_X = 8 + BOTTOM_W - CMD_W;
 function drawCommandGrid(ctx: CanvasRenderingContext2D, cursor: number): void {
   gb.drawBox(ctx, CMD_X, BOTTOM_Y, CMD_W, BOTTOM_H);
   for (let i = 0; i < COMMANDS.length; i++) {
-    const y = BOTTOM_Y + 5 + i * 9;
+    // Four rows in a forty-pixel box leaves two pixels each end. Starting two
+    // lower put RUN's feet on the border line.
+    const y = BOTTOM_Y + 3 + i * 9;
     if (i === cursor) gb.drawText(ctx, CMD_X + 4, y, gb.CURSOR_GLYPH, 3);
     gb.drawText(ctx, CMD_X + 13, y, COMMANDS[i] ?? '', 3);
   }
@@ -537,24 +581,41 @@ function drawMessageBox(ctx: CanvasRenderingContext2D, text: string, narrow = fa
   }
 }
 
+/**
+ * The move list: four names, each on a row of its own, and under them one row
+ * for the highlighted move's type and the power it has left.
+ *
+ * It used to put the power on the same row as each name, which left nine
+ * characters for a name. Sixty-two of the ninety-six moves are longer than that
+ * and were drawn cut short with a full stop - "Quick Sn.", "Under Th." - so the
+ * player was choosing between moves they could not read.
+ *
+ * Gen 1 shows type and power in a small box of its own, over the back sprite.
+ * That was tried here and it sat on the head of any tall animal, so the row
+ * lives inside the list instead, where it covers nothing.
+ */
+const MOVE_BOX = { x: gb.TEXTBOX_X, y: 88, w: gb.TEXTBOX_W, h: 48 };
+
 function drawMoveList(ctx: CanvasRenderingContext2D, content: Content, scene: BattleScene): void {
-  // Starts right where PLAYER_BOX ends (y=86) so the two never overlap.
-  const box = { x: 8, y: 88, w: 144, h: 48 };
-  gb.drawBox(ctx, box.x, box.y, box.w, box.h);
   const moves = activeOf(scene.battle.player).moves;
+  const box = MOVE_BOX;
+  gb.drawBox(ctx, box.x, box.y, box.w, box.h);
+  const nameX = box.x + 12;
   for (let i = 0; i < 4; i++) {
     const slot = moves[i];
-    const y = box.y + 5 + i * 10;
-    if (i === scene.moveCursor) gb.drawText(ctx, box.x + 4, y, gb.CURSOR_GLYPH, 3);
+    const y = box.y + 2 + i * 9;
+    if (i === scene.moveCursor) gb.drawText(ctx, box.x + 2, y, gb.CURSOR_GLYPH, 3);
     if (!slot) continue;
-    const mv = content.dex.move(slot.move);
-    const pp = `${slot.pp}/${slot.maxPp}`;
-    const ppX = box.x + box.w - gb.measureText(pp) - 8;
-    const nameX = box.x + 16;
-    const budget = Math.max(3, Math.floor((ppX - nameX - 4) / 8));
-    const name = mv.name.length > budget ? `${mv.name.slice(0, budget - 1)}.` : mv.name;
-    gb.drawText(ctx, nameX, y, name, 3);
-    gb.drawText(ctx, ppX, y, pp, 3);
+    gb.drawText(ctx, nameX, y, content.dex.move(slot.move).name, 3);
+  }
+
+  const chosen = moves[scene.moveCursor];
+  if (chosen) {
+    const mv = content.dex.move(chosen.move);
+    const y = box.y + 39;
+    const pp = `PP ${chosen.pp}/${chosen.maxPp}`;
+    gb.drawText(ctx, nameX, y, mv.type.toUpperCase(), 3);
+    gb.drawText(ctx, nameX + (MOVE_NAME_COLS - pp.length) * 8, y, pp, 3);
   }
 }
 
@@ -577,6 +638,10 @@ function drawListOverlay(
   }
 }
 
+/** Names start at x=24 and run twelve characters; the bar takes what is left of the box. */
+const PARTY_BAR_X = 24 + CREATURE_NAME_COLS * 8 + 2;
+const PARTY_BAR_W = 8 + 144 - 4 - PARTY_BAR_X - 2;
+
 function drawPartyOverlay(
   ctx: CanvasRenderingContext2D,
   content: Content,
@@ -585,11 +650,13 @@ function drawPartyOverlay(
   title: string,
 ): void {
   const rows = party.map((f) => creatureLabel(f));
-  drawListOverlay(ctx, title, rows, cursor, (i, x, y) => {
+  drawListOverlay(ctx, title, rows, cursor, (i, _x, y) => {
     const f = party[i];
     if (!f) return;
     const sp = content.dex.species(f.species);
-    gb.drawHpBar(ctx, x, y + 1, f.hp, maxHp(sp, f), 40);
+    // The bar starts after a full twelve-letter name. It used to start after
+    // nine, so "Stripeling" was written straight across its own health bar.
+    gb.drawHpBar(ctx, PARTY_BAR_X, y + 1, f.hp, maxHp(sp, f), PARTY_BAR_W);
   });
 }
 
@@ -618,26 +685,30 @@ function drawSnareLoop(
   r: number,
   tilt: number,
 ): void {
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(tilt);
-  // Body, then the darker binding across the middle, then the outline. Painted
-  // in that order so the binding never eats the silhouette.
-  ctx.fillStyle = shadeColor(1);
-  ctx.beginPath();
-  ctx.ellipse(0, 0, r, r, 0, 0, Math.PI * 2);
-  ctx.fill();
+  // Plotted pixel by pixel rather than with the canvas's arcs and rotation,
+  // both of which anti-alias - a spinning hoop of colours the Game Boy does not
+  // have. The spin is carried by the binding, which is a line through the
+  // centre at the hoop's current angle.
+  const x0 = Math.round(cx);
+  const y0 = Math.round(cy);
+  const rr = Math.max(2, Math.round(r));
+  const outer = rr * rr + rr;
+  const inner = (rr - 1) * (rr - 1) + (rr - 1);
+  for (let dy = -rr; dy <= rr; dy++) {
+    for (let dx = -rr; dx <= rr; dx++) {
+      const d = dx * dx + dy * dy;
+      if (d > outer) continue;
+      ctx.fillStyle = shadeColor(d > inner ? 3 : 1);
+      ctx.fillRect(x0 + dx, y0 + dy, 1, 1);
+    }
+  }
   ctx.fillStyle = shadeColor(2);
-  ctx.fillRect(-r, -Math.max(1, r * 0.28), r * 2, Math.max(1, r * 0.56));
-  ctx.strokeStyle = shadeColor(3);
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, r, r, 0, 0, Math.PI * 2);
-  ctx.stroke();
+  for (let t = -(rr - 1); t <= rr - 1; t++) {
+    ctx.fillRect(Math.round(x0 + Math.cos(tilt) * t), Math.round(y0 + Math.sin(tilt) * t), 1, 1);
+  }
   // The knot, so it reads as thrown rather than as a coin.
   ctx.fillStyle = shadeColor(3);
-  ctx.fillRect(-1, -1, 2, 2);
-  ctx.restore();
+  ctx.fillRect(x0 - 1, y0 - 1, 2, 2);
 }
 
 /** A ring of dashes flying outward — used for both the click and the break-out. */
@@ -766,10 +837,10 @@ function drawBattle(ctx: CanvasRenderingContext2D, content: Content, state: Game
 
   clearScreen(ctx, 0);
 
-  const enemy = sideActive(battle.enemy);
-  const enemySp = content.dex.species(enemy.species);
-  const player = sideActive(battle.player);
-  const playerSp = content.dex.species(player.species);
+  // Both sides are drawn from what has been NARRATED so far, not from the
+  // engine, which is already at the end of the turn.
+  const enemy = scene.shown.enemy;
+  const player = scene.shown.player;
 
   fillEllipse(ctx, ENEMY_ANCHOR.cx, ENEMY_ANCHOR.baseline, 20, 5, 1);
   // While a snare is in the air it owns the enemy half of the screen: it draws
@@ -777,7 +848,7 @@ function drawBattle(ctx: CanvasRenderingContext2D, content: Content, state: Game
   // somewhere other than its usual spot.
   if (scene.snare !== null) {
     drawSnareThrow(ctx, scene.snare, creaturePixels(content, enemy.species));
-  } else if (visibleThroughFlinch(scene, 'enemy')) {
+  } else if (!enemy.gone && visibleThroughFlinch(scene, 'enemy')) {
     gb.drawSprite(
       ctx, creaturePixels(content, enemy.species),
       ENEMY_ANCHOR.cx - (SPRITE_SIZE * ENEMY_ANCHOR.scale) / 2,
@@ -785,13 +856,13 @@ function drawBattle(ctx: CanvasRenderingContext2D, content: Content, state: Game
       ENEMY_ANCHOR.scale, false,
     );
   }
-  drawSideInfo(ctx, ENEMY_BOX, enemy, false, enemySp, scene.shownEnemyHp);
+  drawSideInfo(ctx, ENEMY_BOX, enemy, false);
 
-  fillEllipse(ctx, PLAYER_ANCHOR.cx, PLAYER_ANCHOR.baseline, 26, 6, 1);
+  fillEllipse(ctx, PLAYER_ANCHOR.cx, PLAYER_ANCHOR.baseline, 25, 6, 1);
   // A real back view, not the front sprite mirrored. Gen 1 draws your creature
   // from behind; flipping the front sprite leaves it staring at the camera with
   // its face and nose visible, which reads immediately as wrong.
-  if (visibleThroughFlinch(scene, 'player')) {
+  if (!player.gone && visibleThroughFlinch(scene, 'player')) {
     gb.drawSprite(
       ctx, creaturePixels(content, player.species, 'back'),
       PLAYER_ANCHOR.cx - (SPRITE_SIZE * PLAYER_ANCHOR.scale) / 2,
@@ -799,7 +870,7 @@ function drawBattle(ctx: CanvasRenderingContext2D, content: Content, state: Game
       PLAYER_ANCHOR.scale, false,
     );
   }
-  drawSideInfo(ctx, PLAYER_BOX, player, true, playerSp, scene.shownPlayerHp);
+  drawSideInfo(ctx, PLAYER_BOX, player, true);
 
   const draining =
     scene.queue.length > 0 || scene.awaitingAck || scene.snare !== null || battle.outcome !== 'ongoing';
@@ -814,11 +885,16 @@ function drawBattle(ctx: CanvasRenderingContext2D, content: Content, state: Game
     return;
   }
 
+  // The party and bag lists take the whole screen, as they do in Gen 1. They
+  // used to be drawn over the fight, and are a little smaller than it: slivers
+  // of both status boxes and half-letters of a name showed round the edges.
   if (scene.sub === 'forceSwitch' || scene.sub === 'party') {
+    clearScreen(ctx, 0);
     drawPartyOverlay(ctx, content, battle.player.party, scene.partyCursor, scene.sub === 'forceSwitch' ? 'SEND OUT WHO?' : 'PARTY');
     return;
   }
   if (scene.sub === 'bag') {
+    clearScreen(ctx, 0);
     drawBagOverlay(ctx, state.player.bag, scene.bagCursor);
     return;
   }
@@ -830,7 +906,7 @@ function drawBattle(ctx: CanvasRenderingContext2D, content: Content, state: Game
   // Gen 1 puts the active creature's NAME here beside the command menu, not a
   // sentence: there is only room for about nine characters once the panel takes
   // its half, and "What will Winter do?" simply clips.
-  drawMessageBox(ctx, creatureLabel(player), true);
+  drawMessageBox(ctx, nameLabel(player.name), true);
   drawCommandGrid(ctx, scene.cursor);
 }
 

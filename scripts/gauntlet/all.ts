@@ -1,5 +1,5 @@
 /**
- * `npm run gauntlet` — runs all eight gates in dependency order.
+ * `npm run gauntlet` — runs all nine gates in dependency order.
  *
  * This command exiting 0 is the only acceptable definition of finished.
  *
@@ -25,7 +25,7 @@ const GATES: readonly Gate[] = [
   { n: 3, name: 'sim', script: 'scripts/gauntlet/sim.ts', cost: '~30s' },
   { n: 4, name: 'curve', script: 'scripts/gauntlet/curve.ts', cost: '~2m' },
   { n: 5, name: 'playthrough', script: 'scripts/gauntlet/playthrough.ts', cost: '~2m' },
-  { n: 6, name: 'visual', script: 'scripts/gauntlet/visual.ts', cost: '~2m, browser' },
+  { n: 6, name: 'visual', script: 'scripts/gauntlet/visual.ts', cost: '~75s, browser' },
   { n: 7, name: 'tone', script: 'scripts/gauntlet/tone.ts', cost: 'fast' },
   { n: 8, name: 'ship', script: 'scripts/gauntlet/ship.ts', cost: '~3m, browser' },
   { n: 9, name: 'audio', script: 'scripts/gauntlet/audio.ts', cost: '~2m, browser' },

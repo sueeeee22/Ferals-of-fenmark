@@ -63,7 +63,8 @@ enough to work with it; open it only when you are about to change it.
 | `sim.ts` | 10,000 self-play battles. Move/creature/type win-rate bands, turn budget, starter parity. |
 | `curve.ts` | Each gym beatable at its intended level and not twenty levels under. Monotonic. |
 | `playthrough.ts` | **The one that defines done.** Headless bot plays to Champion on real inputs, once per starter. |
-| `visual.ts` | Playwright screenshots at story checkpoints + contact sheet, graded against Red/Blue. |
+| `visual.ts` | **Looks at the screen.** Plays the production build in a real browser from the title to the second town, one painted frame at a time, and reads the pixels: 20 rules (words, bars, sprites, motion, nothing ahead of the text). Also regenerates `screenshots/`. |
+| `visual-mutants.ts` | `npm run gauntlet:visual:mutants`. Puts six player-reported bugs back, one at a time, in a throwaway copy, and requires `visual.ts` to go red on each. |
 | `tone.ts` | Every dialogue line graded cold; enforces the three hard lines. |
 | `ship.ts` | Production build, real load, save/reload survives, Lighthouse mobile ≥ 90. |
 | `all.ts` | Runs all eight. This passing is the only definition of finished. |
@@ -75,6 +76,10 @@ enough to work with it; open it only when you are about to change it.
 | `analyze-types.ts` | Proves the type chart numerically. Caught four balance failures and a broken starter triangle in the first draft. |
 | `forge-sheet.ts` | Renders `public/forge-sheet.png` + `forge.html`, the sprite contact sheet. |
 | `png.ts` | Minimal PNG encoder (Node zlib), so no native canvas dependency is needed. |
+| `shots.ts` | Regenerates `screenshots/` - now just runs `gauntlet:visual`, which takes the pictures it checks. |
+| `visual/stage.ts` | The real build in a real browser with the page's clock paused: `frames(n)` paints exactly n frames. Key presses, pixel read-back, screenshots. |
+| `visual/pixels.ts` | Reads a Game Boy screen: finds boxes, health bars and sprites, and OCRs text against the game's own 8x8 font. Pure functions. |
+| `visual/checks.ts` | The rules - what counts as a broken screen - and the frame-by-frame fight and walk analysis. |
 | `ship.ts` | `npm run ship` — production build + Firebase deploy. |
 
 ## Root
@@ -85,6 +90,7 @@ enough to work with it; open it only when you are about to change it.
 | `forge.html` | The sprite contact sheet, browsable. |
 | `firestore.rules` | Deny-by-default. Each save locked to its owning uid. |
 | `src/firebase.ts` | Firebase init. Config is public by design; access is enforced by rules. NOT wired up - see DEPLOY.md. |
+| `src/observe.ts` | What the game believes it is showing, as read-only facts on `window.__fenmark`. The other half of every `gauntlet:visual` comparison. No setter, on purpose. |
 | `src/saves.ts` | Save slots, autosave, backup-on-write and corrupt-save recovery. Shell-side, because `src/core` may not touch localStorage. |
 | `src/save-ui.ts` | The SAVES panel: slots and transfer codes. HTML overlay, deliberately not on the DMG screen. |
 | `vite.config.ts` | Build config. `BASE_PATH` sets the asset prefix - `/Ferals-of-fenmark/` for GitHub Pages, `/` for a root host. |

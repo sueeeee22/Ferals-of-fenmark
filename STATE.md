@@ -30,7 +30,7 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
 | 3 | `gauntlet:sim` | **FAIL — 27** | was 89+, then 38; all structural failures fixed |
 | 4 | `gauntlet:curve` | **FAIL — 8** | was 24, then 15 |
 | 5 | `gauntlet:playthrough` | **PASS** | all three starters reach the Champion, on 4 seeds |
-| 6 | `gauntlet:visual` | not written | but `scripts/shots.ts` EXISTS: 17/18 checkpoints |
+| 6 | `gauntlet:visual` | **PASS** | 20 rules read off the real screen, 23 checkpoints, ~75s |
 | 7 | `gauntlet:tone` | **PASS** | 96 keys, 325 boxes, 1 warning |
 | 8 | `gauntlet:ship` | **PASS** | real build, served from the Pages subpath, driven in a browser |
 
@@ -88,9 +88,9 @@ is reproducible; `PT_SEED` exists so a pass can be distinguished from a lucky ru
   back sprite for the player's creature, full-length names, readable command panel.
 - **Starter selection exists in the browser.** It did not: the pending action dropped
   straight into the overworld and a player began with an empty party.
-- **`scripts/shots.ts` captures 17/18 checkpoints** at 160x144 and phone width, with
-  a `screenshots/index.json` manifest. `gauntlet:visual` (the automated grader) is
-  still unwritten - the capture half exists, the assertion half does not.
+- **`gauntlet:visual` exists and passes.** It takes its own pictures (23 checkpoints,
+  saved to `screenshots/` at 160x144 and phone width) and checks them; `scripts/shots.ts`
+  is now a one-line wrapper round it.
 - **Remaining renderer gap:** overworld player and NPC sprites are still procedural
   humanoids, not authored pixel art.
 - No audio yet.
@@ -134,12 +134,7 @@ The game is a static site: no server, no database, no login, **77KB gzipped**.
 
 ## Next steps, in order
 
-1. **Write `gauntlet:visual`.** `scripts/shots.ts` already captures and writes
-   `screenshots/index.json`; what is missing is the grader: assert every checkpoint
-   present, no blank/near-blank frames, and every pixel in a `gb` shot on the 4-colour
-   DMG palette (off-palette means the renderer smoothed or fractionally scaled).
-   This is the largest remaining hole - it is the only gauntlet with no assertions
-   at all, so nothing currently stops a rendering regression.
+1. ~~Write `gauntlet:visual`.~~ Done - see ROADMAP.md Phase 1.
 2. **Fix the 8 `gauntlet:curve` failures.** Most are the OPPOSITE of too hard - gyms
    beatable while well under level, because the guaranteed type counters make an
    underlevelled team viable. Elite Four #2 and #4 are the remaining "too hard" ones.
@@ -257,6 +252,54 @@ The game is a static site: no server, no database, no login, **77KB gzipped**.
   throw (`BattleScene.snare`) and the hit flinch (`BattleScene.flash`) are counted in
   `stepBattle`; the renderer only reads them. `flash` is decremented BEFORE the early
   returns, or a message waiting on a button press freezes the blink on one frame.
+
+## The screen (`gauntlet:visual`, `scripts/visual/`)
+
+- **The gate READS the screen.** `scripts/visual/pixels.ts` finds boxes by their
+  borders, bars by their outline and sprites by being the big shapes that are not boxes,
+  and reads text by matching 8x8 cells against the game's own font (`FONT` in `gb.ts`).
+  A failure says what the screen reads: `the enemy is called "Kelppup" but its box reads
+  "Kelp / Lv3"`. Nothing asks the renderer where it put things.
+- **`window.__fenmark` is the other half** (`src/observe.ts`): what the game BELIEVES it
+  is showing, as facts - names, levels, health, the current line. Never display strings,
+  or a truncation bug in shared code agrees with itself. Still no setter.
+- **The page's clock belongs to the gate.** `context.clock.install()` then `pauseAt()`
+  BEFORE the page exists; after that `clock.runFor(16)` paints exactly one frame. So the
+  whole tour is deterministic (the game seeds from `Date.now()`, which is fixed) and
+  "the frame the bar moved" is a thing you can ask for. Under a paused clock NOTHING in
+  the page that waits will ever finish: no `waitForFunction`, `waitForSelector` or
+  in-page `setTimeout` - poll from Node with `page.evaluate` instead.
+- **Draw the fight from `scene.shown`, never from `scene.battle`.** The engine resolves a
+  whole turn the instant a move is chosen. Bars were fixed first; the gate then found the
+  LEVEL ticking up on the killing move and a trainer's next animal on the field while the
+  text still described the last one falling. `shown` moves only in `showEvent`, as each
+  event is told. Silent events (status, exp) are applied on the way to the next message,
+  so what they change appears ON the frame of its explanation.
+- **A turn's first message goes up on the frame the move is chosen** (`tellNext` at the
+  end of `submitAction`). Waiting a beat left LAST turn's final line on screen for a
+  tenth of a second every turn. The opening line of a fight is a real queued message for
+  the same reason: written to `lastText` directly it was only ever seen as that flash.
+- **Refusals are messages** (`refuse`). "No power left in that one." and four others were
+  written to `lastText` while a list covered the text box - the button just did nothing.
+- **Standing still, she is drawn at (x,y), not at `walk.from`.** After a doorway `from`
+  was a tile on the map she had just LEFT, so she appeared on the wrong square, camera
+  and all, until her first step. Found by the gate's "is the square bare?" check.
+- **Never use the canvas's `ellipse()`, `arc()`, `rotate()` or `stroke()` on the DMG
+  screen.** They anti-alias, which puts colours on screen the Game Boy does not have.
+  Platforms and the snare are plotted in whole pixels. The gate counts off-palette pixels.
+- **Names must fit: creatures 12, moves 17** (`CREATURE_NAME_COLS`, `MOVE_NAME_COLS` in
+  `core/text.ts`; `gauntlet:schema` enforces both across all content, because the visual
+  tour only meets a dozen animals). The move list draws names whole, with the type and
+  PP of the highlighted move on a fifth row - the PP used to share the name's row, which
+  cut 62 of 96 names short.
+- **At 160x144 the SAVES and SOUND buttons sit on top of the game.** Nobody plays at that
+  size, so the Game Boy pictures are read back from the canvas and the "is anything
+  covering it" check is done on the composited page at phone size instead.
+- **Debugging the gate:** `VISUAL_VERBOSE=1` lists every finding; `VISUAL_UNTIL=<checkpoint>`
+  stops the tour early; `VISUAL_DUMP="battle 8:100-110"` writes those frames of that fight
+  as enlarged PNGs. A failure message always names the recording and the frame.
+- **`npm run gauntlet:visual:mutants`** puts six player-reported bugs back and requires
+  the gate to fail on each. Run it after changing the gate itself.
 
 ## Sound (`src/audio/`)
 

@@ -1,5 +1,4 @@
 {
-  "capturedAt": "2026-08-17T01:27:06.400Z",
   "gb": {
     "width": 160,
     "height": 144
@@ -12,7 +11,7 @@
     {
       "n": 1,
       "name": "title",
-      "status": "ok",
+      "scene": "title",
       "files": [
         "01-title-gb.png",
         "01-title-phone.png"
@@ -21,7 +20,7 @@
     {
       "n": 2,
       "name": "intro-dialogue",
-      "status": "ok",
+      "scene": "dialogue",
       "files": [
         "02-intro-dialogue-gb.png",
         "02-intro-dialogue-phone.png"
@@ -29,145 +28,192 @@
     },
     {
       "n": 3,
-      "name": "intro-mid",
-      "status": "ok",
+      "name": "starter-winter",
+      "scene": "starterPick",
       "files": [
-        "03-intro-mid-gb.png",
-        "03-intro-mid-phone.png"
+        "03-starter-winter-gb.png",
+        "03-starter-winter-phone.png"
       ]
     },
     {
       "n": 4,
-      "name": "starter-choice",
-      "status": "ok",
+      "name": "starter-baloo",
+      "scene": "starterPick",
       "files": [
-        "04-starter-choice-gb.png",
-        "04-starter-choice-phone.png"
+        "04-starter-baloo-gb.png",
+        "04-starter-baloo-phone.png"
       ]
     },
     {
       "n": 5,
-      "name": "overworld-house",
-      "status": "ok",
+      "name": "starter-plato",
+      "scene": "starterPick",
       "files": [
-        "05-overworld-house-gb.png",
-        "05-overworld-house-phone.png"
+        "05-starter-plato-gb.png",
+        "05-starter-plato-phone.png"
       ]
     },
     {
       "n": 6,
-      "name": "overworld-town",
-      "status": "ok",
+      "name": "overworld-house",
+      "scene": "overworld",
       "files": [
-        "06-overworld-town-gb.png",
-        "06-overworld-town-phone.png"
+        "06-overworld-house-gb.png",
+        "06-overworld-house-phone.png"
       ]
     },
     {
       "n": 7,
-      "name": "menu-root",
-      "status": "ok",
+      "name": "overworld-town",
+      "scene": "overworld",
       "files": [
-        "07-menu-root-gb.png",
-        "07-menu-root-phone.png"
+        "07-overworld-town-gb.png",
+        "07-overworld-town-phone.png"
       ]
     },
     {
       "n": 8,
-      "name": "menu-party",
-      "status": "ok",
+      "name": "npc-talk",
+      "scene": "dialogue",
       "files": [
-        "08-menu-party-gb.png",
-        "08-menu-party-phone.png"
+        "08-npc-talk-gb.png",
+        "08-npc-talk-phone.png"
       ]
     },
     {
       "n": 9,
-      "name": "menu-bag",
-      "status": "ok",
+      "name": "menu-root",
+      "scene": "menu/root",
       "files": [
-        "09-menu-bag-gb.png",
-        "09-menu-bag-phone.png"
+        "09-menu-root-gb.png",
+        "09-menu-root-phone.png"
       ]
     },
     {
       "n": 10,
-      "name": "route-grass",
-      "status": "ok",
+      "name": "menu-party",
+      "scene": "menu/party",
       "files": [
-        "10-route-grass-gb.png",
-        "10-route-grass-phone.png"
+        "10-menu-party-gb.png",
+        "10-menu-party-phone.png"
       ]
     },
     {
       "n": 11,
-      "name": "battle-wild",
-      "status": "ok",
+      "name": "menu-bag",
+      "scene": "menu/bag",
       "files": [
-        "11-battle-wild-gb.png",
-        "11-battle-wild-phone.png"
+        "11-menu-bag-gb.png",
+        "11-menu-bag-phone.png"
       ]
     },
     {
       "n": 12,
-      "name": "battle-moves",
-      "status": "ok",
+      "name": "route-grass",
+      "scene": "overworld",
       "files": [
-        "12-battle-moves-gb.png",
-        "12-battle-moves-phone.png"
+        "12-route-grass-gb.png",
+        "12-route-grass-phone.png"
       ]
     },
     {
       "n": 13,
-      "name": "battle-midturn",
-      "status": "ok",
+      "name": "battle-wild",
+      "scene": "battle/main",
       "files": [
-        "13-battle-midturn-gb.png",
-        "13-battle-midturn-phone.png"
+        "13-battle-wild-gb.png",
+        "13-battle-wild-phone.png"
       ]
     },
     {
       "n": 14,
-      "name": "battle-aftermath",
-      "status": "ok",
+      "name": "battle-moves",
+      "scene": "battle/moves",
       "files": [
-        "14-battle-aftermath-gb.png",
-        "14-battle-aftermath-phone.png"
+        "14-battle-moves-gb.png",
+        "14-battle-moves-phone.png"
       ]
     },
     {
       "n": 15,
-      "name": "save-confirm",
-      "status": "ok",
+      "name": "battle-midturn",
+      "scene": "battle/main",
       "files": [
-        "15-save-confirm-gb.png",
-        "15-save-confirm-phone.png"
+        "15-battle-midturn-gb.png",
+        "15-battle-midturn-phone.png"
       ]
     },
     {
       "n": 16,
-      "name": "route-south",
-      "status": "ok",
+      "name": "battle-aftermath",
+      "scene": "overworld",
       "files": [
-        "16-route-south-gb.png",
-        "16-route-south-phone.png"
+        "16-battle-aftermath-gb.png",
+        "16-battle-aftermath-phone.png"
       ]
     },
     {
       "n": 17,
-      "name": "town-second",
-      "status": "ok",
+      "name": "battle-snare",
+      "scene": "battle/main",
       "files": [
-        "17-town-second-gb.png",
-        "17-town-second-phone.png"
+        "17-battle-snare-gb.png",
+        "17-battle-snare-phone.png"
       ]
     },
     {
       "n": 18,
-      "name": "forge-contact-sheet",
-      "status": "MISSING",
-      "files": [],
-      "note": "locator.screenshot: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('canvas').first()\u001b[22m\n"
+      "name": "save-confirm",
+      "scene": "dialogue",
+      "files": [
+        "18-save-confirm-gb.png",
+        "18-save-confirm-phone.png"
+      ]
+    },
+    {
+      "n": 19,
+      "name": "lodge-heal",
+      "scene": "dialogue",
+      "files": [
+        "19-lodge-heal-gb.png",
+        "19-lodge-heal-phone.png"
+      ]
+    },
+    {
+      "n": 20,
+      "name": "battle-party",
+      "scene": "battle/party",
+      "files": [
+        "20-battle-party-gb.png",
+        "20-battle-party-phone.png"
+      ]
+    },
+    {
+      "n": 21,
+      "name": "menu-party-two",
+      "scene": "menu/party",
+      "files": [
+        "21-menu-party-two-gb.png",
+        "21-menu-party-two-phone.png"
+      ]
+    },
+    {
+      "n": 22,
+      "name": "battle-trainer",
+      "scene": "battle/main",
+      "files": [
+        "22-battle-trainer-gb.png",
+        "22-battle-trainer-phone.png"
+      ]
+    },
+    {
+      "n": 23,
+      "name": "town-second",
+      "scene": "overworld",
+      "files": [
+        "23-town-second-gb.png",
+        "23-town-second-phone.png"
+      ]
     }
   ]
 }

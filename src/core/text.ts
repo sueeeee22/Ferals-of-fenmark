@@ -20,6 +20,16 @@ export const ROWS_PER_PAGE = 2;
 export const CHARS_PER_ROW = 18;
 
 /**
+ * The longest a move's name may be: a full row, less the cursor's column.
+ * The move list draws names whole or not at all, so `gauntlet:schema` holds
+ * every move to this - a name that cannot fit cannot be read.
+ */
+export const MOVE_NAME_COLS = CHARS_PER_ROW - 1;
+
+/** The longest a creature's name may be and still fit its battle status box. */
+export const CREATURE_NAME_COLS = 12;
+
+/**
  * Greedy word wrap. A word longer than a row is HARD SPLIT across rows rather
  * than truncated - the old version sliced it and threw the remainder away,
  * which turned a long name into a lie.

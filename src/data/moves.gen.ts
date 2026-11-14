@@ -909,7 +909,7 @@ export const MOVE_LIST: readonly Move[] = [
   },
   {
     id: "no_self_preservation",
-    name: "No Self-Preservation",
+    name: "Nothing To Lose",
     type: "Feral",
     category: "status",
     power: 0,
@@ -1058,7 +1058,7 @@ export const MOVE_LIST: readonly Move[] = [
   },
   {
     id: "under_the_floorboards",
-    name: "Under The Floorboards",
+    name: "Under The Boards",
     type: "Gloom",
     category: "physical",
     power: 90,
@@ -1080,7 +1080,7 @@ export const MOVE_LIST: readonly Move[] = [
   },
   {
     id: "shriek_from_the_dark",
-    name: "Shriek From The Dark",
+    name: "Night Shriek",
     type: "Gloom",
     category: "status",
     power: 0,
@@ -1092,7 +1092,7 @@ export const MOVE_LIST: readonly Move[] = [
   },
   {
     id: "scavengers_patience",
-    name: "Scavenger's Patience",
+    name: "Scavenger's Wait",
     type: "Gloom",
     category: "status",
     power: 0,

@@ -156,7 +156,12 @@ const FONT_SOURCE: Readonly<Record<string, readonly string[]>> = {
   '▼': ['#####', '.###.', '.###.', '..#..', '.....', '.....', '.....'], // ▼
 };
 
-const FONT: Readonly<Record<string, Uint8Array>> = Object.freeze(
+/**
+ * Exported for `gauntlet:visual`, which reads text back OFF the screen by
+ * matching these same bitmaps - the only way to know a box says "Winter" and
+ * not "Wint" is to read it.
+ */
+export const FONT: Readonly<Record<string, Uint8Array>> = Object.freeze(
   Object.fromEntries(Object.entries(FONT_SOURCE).map(([ch, rows]) => [ch, glyph(rows)])),
 );
 
@@ -763,13 +768,19 @@ function hashStr(s: string): number {
   return h >>> 0;
 }
 
-const SHADE_CYCLE: readonly Shade[] = [1, 2, 3];
+/*
+ * Hair and clothes are only ever the two DARK shades. The light green used to
+ * be allowed too, and it is the colour of grass: a villager who drew it for
+ * both was an empty outline standing in a field. Cass, the rival, was one of
+ * them - the first person the game introduces was a pair of antennae.
+ */
+const SHADE_CYCLE: readonly Shade[] = [2, 3];
 
 function variantFor(spriteId: string): ActorVariant {
   const h = hashStr(spriteId);
   return {
-    hair: SHADE_CYCLE[h % 3] ?? 3,
-    shirt: SHADE_CYCLE[Math.floor(h / 3) % 3] ?? 2,
+    hair: SHADE_CYCLE[h % 2] ?? 3,
+    shirt: SHADE_CYCLE[(h >>> 1) % 2] ?? 2,
     hat: (h >>> 4) % 2 === 0,
   };
 }
