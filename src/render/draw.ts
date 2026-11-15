@@ -12,12 +12,12 @@
  * `runPending`/`starterPick` comment) — `main.ts` owns it and passes it in.
  */
 
-import type { Content, GameState, BattleScene, MenuScene, NamingScene, ShopScene, ShownSide } from '../core/game.ts';
+import type { Content, GameState, BattleScene, BoxScene, MenuScene, NamingScene, ShopScene, ShownSide } from '../core/game.ts';
 import { paginate, pageLength, CREATURE_NAME_COLS, MOVE_NAME_COLS } from '../core/text.ts';
 import {
   STARTERS, WALK_FRAMES, starterChoices, BATTLE_INTRO_FRAMES,
   SNARE_THROW_FRAMES, SNARE_PULL_FRAMES, SNARE_WOBBLE_FRAMES, FLASH_FRAMES,
-  bagCount, NAME_KEYS, NAME_MAX, NAME_ROWS, PARTY_ACTIONS,
+  bagCount, boxScroll, BOX_MAX, BOX_ROWS, NAME_KEYS, NAME_MAX, NAME_ROWS, PARTY_ACTIONS,
   type SnareThrow,
 } from '../core/game.ts';
 import { itemName, shopStock } from '../core/items.ts';
@@ -997,6 +997,46 @@ function drawMenu(ctx: CanvasRenderingContext2D, content: Content, state: GameSt
 }
 
 // ---------------------------------------------------------------------------
+// The kennel box
+// ---------------------------------------------------------------------------
+
+const BOX_ROW_H = 12;
+
+/**
+ * One list at a time, a line an animal: name and level. The heading says which
+ * list and how full; the last row says how to get to the other one, because
+ * left and right doing that is not something anyone would guess.
+ */
+function drawBoxScene(ctx: CanvasRenderingContext2D, content: Content, state: GameState, scene: BoxScene): void {
+  drawWorldBackground(ctx, content, state, null);
+  const p = state.player;
+  const list = scene.side === 'party' ? p.party : p.box;
+  const box = PARTY_BOX;
+  gb.drawBox(ctx, box.x, box.y, box.w, box.h);
+  const heading = scene.note !== ''
+    ? scene.note
+    : scene.side === 'party' ? `PARTY ${p.party.length}/6` : `BOX ${p.box.length}/${BOX_MAX}`;
+  gb.drawText(ctx, box.x + 10, box.y + 4, heading, 3);
+
+  const right = box.x + box.w - 4;
+  const top = boxScroll(scene.cursor, list.length);
+  if (list.length === 0) gb.drawText(ctx, box.x + 10, box.y + 18, 'Nobody in here.', 3);
+  for (let row = 0; row < BOX_ROWS; row++) {
+    const i = top + row;
+    const f = list[i];
+    if (!f) break;
+    const y = box.y + 18 + row * BOX_ROW_H;
+    if (i === scene.cursor) gb.drawText(ctx, box.x + 2, y, gb.CURSOR_GLYPH, 3);
+    gb.drawText(ctx, box.x + 10, y, creatureLabel(f), 3);
+    const level = `Lv${f.level}`;
+    gb.drawText(ctx, right - gb.measureText(level), y, level, 3);
+  }
+  // More below than fits: the same arrow a text box uses for "there is more".
+  if (top + BOX_ROWS < list.length) gb.drawText(ctx, right - 8, box.y + 18 + BOX_ROWS * BOX_ROW_H - 2, gb.ADVANCE_PROMPT, 3);
+  gb.drawText(ctx, box.x + 10, box.y + box.h - 12, scene.side === 'party' ? 'LEFT/RIGHT: BOX' : 'LEFT/RIGHT: PARTY', 3);
+}
+
+// ---------------------------------------------------------------------------
 // Naming
 // ---------------------------------------------------------------------------
 
@@ -1176,6 +1216,9 @@ export function draw(
       return;
     case 'naming':
       drawNaming(ctx, content, state, state.scene);
+      return;
+    case 'box':
+      drawBoxScene(ctx, content, state, state.scene);
       return;
     case 'gameover':
       drawGameOver(ctx);

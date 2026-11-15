@@ -253,20 +253,38 @@
     },
     {
       "n": 28,
-      "name": "battle-trainer",
-      "scene": "battle/main",
+      "name": "box-party",
+      "scene": "box",
       "files": [
-        "28-battle-trainer-gb.png",
-        "28-battle-trainer-phone.png"
+        "28-box-party-gb.png",
+        "28-box-party-phone.png"
       ]
     },
     {
       "n": 29,
+      "name": "box-stored",
+      "scene": "box",
+      "files": [
+        "29-box-stored-gb.png",
+        "29-box-stored-phone.png"
+      ]
+    },
+    {
+      "n": 30,
+      "name": "battle-trainer",
+      "scene": "battle/main",
+      "files": [
+        "30-battle-trainer-gb.png",
+        "30-battle-trainer-phone.png"
+      ]
+    },
+    {
+      "n": 31,
       "name": "town-second",
       "scene": "overworld",
       "files": [
-        "29-town-second-gb.png",
-        "29-town-second-phone.png"
+        "31-town-second-gb.png",
+        "31-town-second-phone.png"
       ]
     }
   ]

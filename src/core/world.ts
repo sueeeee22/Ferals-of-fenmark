@@ -139,7 +139,7 @@ export interface EncounterTable {
   readonly slots: readonly EncounterSlot[];
 }
 
-export type NpcKind = 'trainer' | 'talker' | 'shop' | 'healer' | 'rival' | 'leader' | 'item';
+export type NpcKind = 'trainer' | 'talker' | 'shop' | 'healer' | 'rival' | 'leader' | 'item' | 'box';
 
 export interface NpcDef {
   readonly id: string;

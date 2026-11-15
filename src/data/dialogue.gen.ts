@@ -452,6 +452,13 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "Right. Fed, warm, and one of yours has taken my chair on what looks like a permanent basis.",
     "Sleep while you can. Half this county does its best work between midnight and the milk cart.",
   ],
+  kennel_greet: [
+    "KENNELHAND: Thirty stalls, clean straw, and no, I don't care what you've called any of them.",
+    "Leave the ones you can't walk. Take the ones you miss. I keep count and I keep quiet.",
+  ],
+  kennel_leave: [
+    "Go on. They eat better in here than you do on the road, and they complain a great deal less.",
+  ],
   shop_greet: [
     "QUARTERMASTER: If it kills something, mends something or hides something, it's on a shelf.",
     "Top shelf you can't afford, and I'd rather you didn't handle it with those hands.",

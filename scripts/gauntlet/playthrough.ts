@@ -57,6 +57,8 @@ class Bot {
   /** Catches given a name at the letter grid, and party reorders made from the menu. */
   named = 0;
   reorders = 0;
+  /** Animals left with a kennelhand and collected again. */
+  boxTrips = 0;
   /** Tiles crossed at a run (B held) and at a walk. */
   ranTiles = 0;
   walkedTiles = 0;
@@ -154,6 +156,7 @@ class Bot {
       if (this.scene.kind === 'menu') { this.press('b'); continue; }
       if (this.scene.kind === 'shop') { this.press('b'); continue; }
       if (this.scene.kind === 'naming') { this.nameIt(); continue; }
+      if (this.scene.kind === 'box') { this.press('b'); continue; }
       if (this.state.scene.kind === 'hallOfFame') return;
       if (this.scene.kind === 'title') { this.press('a'); continue; }
       this.press('a');
@@ -911,6 +914,62 @@ class Bot {
     this.settle();
   }
 
+  /**
+   * Leave the last animal in the party with the nearest kennelhand, save and
+   * reload with it in the box, and collect it again. The box has to hold an
+   * animal across a save for it to be a box at all.
+   */
+  boxRoundTrip(): void {
+    if (this.state.player.party.length < 2) return;
+    const lodge = this.findNpcMap('box');
+    if (lodge === null || !this.travelTo(lodge)) return;
+    const hand = this.map.npcs.find((n) => n.kind === 'box');
+    if (!hand) return;
+
+    const open = (): boolean => {
+      if (!this.goTo(hand.x - 1, hand.y)) return false;
+      this.press('right');
+      this.press('a');
+      for (let n = 0; this.scene.kind === 'dialogue' && n < 400; n++) this.press('a');
+      return this.scene.kind === 'box';
+    };
+    const close = (): void => {
+      this.press('b');
+      this.clearDialogue();
+      this.settle();
+    };
+
+    if (!open()) { this.settle(); return; }
+    const sc = this.scene;
+    if (sc.kind !== 'box') return;
+    const party = this.state.player.party;
+    const last = party.length - 1;
+    const who = party[last];
+    for (let g = 0; sc.cursor !== last && g < 8; g++) this.press('down');
+    this.press('a');
+    if (this.state.player.box[this.state.player.box.length - 1] !== who) {
+      throw new Error('left an animal with the kennelhand and it is not in the box');
+    }
+    const name = who?.nickname ?? '';
+    const level = who?.level ?? 0;
+    close();
+    this.saveAndReload();
+
+    if (!open()) throw new Error('could not get back to the kennelhand to collect an animal');
+    const again = this.scene;
+    if (again.kind !== 'box') return;
+    this.press('right');
+    const box = this.state.player.box;
+    const at = box.findIndex((f) => f.nickname === name && f.level === level);
+    if (at < 0) throw new Error(`${name} was left in the box and is gone after a save and reload`);
+    for (let g = 0; again.cursor !== at && g < 40; g++) this.press('down');
+    this.press('a');
+    const back = this.state.player.party[this.state.player.party.length - 1];
+    if (back?.nickname !== name || back.level !== level) throw new Error(`collected ${name} from the box and it did not come back`);
+    close();
+    this.boxTrips++;
+  }
+
   /** Save, serialize, throw the state away, reload it. Mid-run, as a player would. */
   saveAndReload(): void {
     if (this.scene.kind !== 'overworld') this.settle();
@@ -956,6 +1015,7 @@ interface RunResult {
   spent: number;
   named: number;
   reorders: number;
+  boxTrips: number;
   seconds: number;
 }
 
@@ -981,6 +1041,7 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
     spent: bot.spent,
     named: bot.named,
     reorders: bot.reorders,
+    boxTrips: bot.boxTrips,
     seconds: (performance.now() - t0) / 1000,
   });
 
@@ -1053,6 +1114,8 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
       // Save and reload mid-run, at every gym, as a real player would.
       bot.healUp();
       bot.saveAndReload();
+      // Every other gym, with an animal left in the kennel box across the save.
+      if (i % 2 === 0) bot.boxRoundTrip();
     }
 
     if (bot.state.player.badges.length < gyms.length) {
@@ -1107,6 +1170,7 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
     // it proved - and it would mean the bot is being supplied some other way.
     if (won && bot.shopVisits === 0) return bail('reached the Champion without ever buying anything');
     if (won && bot.named === 0) return bail('reached the Champion without ever naming a catch');
+    if (won && bot.boxTrips === 0) return bail('reached the Champion without ever using the kennel box');
     if (won && (bot.ranTiles === 0 || bot.walkedTiles === 0)) {
       return bail(`ran ${bot.ranTiles} tiles and walked ${bot.walkedTiles}: both paces should have been used`);
     }
@@ -1122,6 +1186,7 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
       spent: bot.spent,
       named: bot.named,
       reorders: bot.reorders,
+      boxTrips: bot.boxTrips,
       seconds: (performance.now() - t0) / 1000,
     };
   } catch (err) {
@@ -1157,10 +1222,10 @@ for (const starter of STARTERS) {
   if (!r.ok) fail(`${starter}: ${r.reason} (badges ${r.badges}, levels ${r.partyLevels.join('/')})`);
 }
 
-console.log('\n  STARTER       RESULT     BADGES  SAVES  SHOPS  SPENT   NAMED  MOVES  PARTY LEVELS');
+console.log('\n  STARTER       RESULT     BADGES  SAVES  SHOPS  SPENT   NAMED  MOVES  BOX  PARTY LEVELS');
 for (const r of results) {
   console.log(
-    `  ${r.starter.padEnd(14)}${(r.ok ? 'CHAMPION' : 'FAILED').padEnd(11)}${String(r.badges).padEnd(8)}${String(r.saves).padEnd(7)}${String(r.shopVisits).padEnd(7)}${String(r.spent).padEnd(8)}${String(r.named).padEnd(7)}${String(r.reorders).padEnd(7)}${r.partyLevels.join('/')}`,
+    `  ${r.starter.padEnd(14)}${(r.ok ? 'CHAMPION' : 'FAILED').padEnd(11)}${String(r.badges).padEnd(8)}${String(r.saves).padEnd(7)}${String(r.shopVisits).padEnd(7)}${String(r.spent).padEnd(8)}${String(r.named).padEnd(7)}${String(r.reorders).padEnd(7)}${String(r.boxTrips).padEnd(5)}${r.partyLevels.join('/')}`,
   );
 }
 

@@ -267,6 +267,9 @@ function buildTown(
     m.warps.push({ x: 5, y: 7, toMap: lodgeId, toX: 4, toY: 7 });
     buildIndoor(lodgeId, `${name} Lodge`, id, 5, 8, [
       { id: `${id}_healer`, kind: 'healer', x: 4, y: 3, facing: 'down', sprite: 'keeper', name: 'Lodgekeeper', sight: 0, dialogue: 'lodge_heal' },
+      // The kennelhand keeps the animals you are not walking with. Off to the
+      // side, so the straight line from the door to the keeper stays clear.
+      { id: `${id}_kennel`, kind: 'box', x: 7, y: 5, facing: 'left', sprite: 'villager', name: 'Kennelhand', sight: 0, dialogue: 'kennel_greet' },
     ]);
   }
 

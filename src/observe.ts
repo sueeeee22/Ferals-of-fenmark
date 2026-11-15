@@ -90,6 +90,10 @@ export interface Observation {
   readonly cursor: number;
   readonly subCursor: number;
   readonly party: readonly SeenFeral[];
+  /** The animals in the kennel box, in order. */
+  readonly box: readonly SeenFeral[];
+  /** Kennel box screen: which list is showing, 'party' or 'box'. Empty elsewhere. */
+  readonly side: string;
   readonly bag: readonly { readonly item: string; readonly count: number }[];
   readonly flags: readonly string[];
   readonly money: number;
@@ -158,6 +162,7 @@ export function observe(content: Content, s: GameState): Observation {
   let moving = -1;
   let using = '';
   let naming: SeenNaming | null = null;
+  let side = '';
   let battle: SeenBattle | null = null;
 
   switch (sc.kind) {
@@ -192,6 +197,11 @@ export function observe(content: Content, s: GameState): Observation {
       };
       break;
     }
+    case 'box':
+      side = sc.side;
+      cursor = sc.cursor;
+      note = sc.note;
+      break;
     case 'shop':
       cursor = sc.cursor;
       qty = sc.qty;
@@ -254,6 +264,8 @@ export function observe(content: Content, s: GameState): Observation {
     cursor,
     subCursor,
     party: p.party.map((f) => seen(content, f)),
+    box: p.box.map((f) => seen(content, f)),
+    side,
     bag: p.bag.map((b) => ({ item: b.item, count: b.count })),
     flags: p.flags.slice(),
     money: p.money,

@@ -241,6 +241,8 @@ export function createAudio(content: Content): Audio {
       f.sub = scene.sub;
     } else if (scene.kind === 'shop') {
       f.cursor = scene.cursor * 100 + scene.qty;
+    } else if (scene.kind === 'box') {
+      f.cursor = scene.cursor * 10 + (scene.side === 'box' ? 1 : 0);
     } else if (scene.kind === 'naming') {
       f.cursor = scene.row * 1000 + scene.col * 10 + scene.choice;
     } else if (scene.kind === 'overworld') {

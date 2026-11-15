@@ -182,6 +182,7 @@ export type PendingAction =
   | { readonly kind: 'giveItem'; readonly item: string; readonly count: number }
   | { readonly kind: 'setFlag'; readonly flag: string }
   | { readonly kind: 'shop' }
+  | { readonly kind: 'box' }
   | { readonly kind: 'starterPick' };
 
 /**
@@ -384,6 +385,27 @@ export interface ShopScene {
   bought: boolean;
 }
 
+/** Fenmark law, and the `box_full` line that quotes it: thirty to a household. */
+export const BOX_MAX = 30;
+/** How many of a list the kennel ledger shows at once. */
+export const BOX_ROWS = 8;
+
+/**
+ * The kennel box: the animals you own and are not walking with.
+ *
+ * `player.box` has existed since the first save - a seventh catch went into it
+ * - but nothing could ever take one out again, so it was a hole rather than a
+ * box. Every lodge now has a kennelhand who opens this: one list at a time,
+ * left and right to change list, A to send the animal under the cursor across.
+ */
+export interface BoxScene {
+  readonly kind: 'box';
+  /** Which list is showing: the party you walk with, or the box. */
+  side: 'party' | 'box';
+  cursor: number;
+  note: string;
+}
+
 export type Scene =
   | { readonly kind: 'title'; cursor: number }
   | { readonly kind: 'starterPick'; cursor: number }
@@ -393,6 +415,7 @@ export type Scene =
   | MenuScene
   | ShopScene
   | NamingScene
+  | BoxScene
   | { readonly kind: 'gameover'; ticks: number }
   | { readonly kind: 'hallOfFame'; ticks: number };
 
@@ -598,6 +621,7 @@ export function step(content: Content, state: GameState, buttons: Buttons): Game
     case 'menu': stepMenu(content, state, state.scene, buttons); break;
     case 'shop': stepShop(content, state, state.scene, buttons); break;
     case 'naming': stepNaming(content, state, state.scene, buttons); break;
+    case 'box': stepBox(content, state, state.scene, buttons); break;
     case 'gameover': stepGameOver(content, state, buttons); break;
     case 'hallOfFame': state.scene.ticks++; break;
   }
@@ -778,6 +802,9 @@ function interactWithNpc(content: Content, state: GameState, npc: NpcDef): void 
     }
     case 'shop':
       say(state, content, npc.dialogue, { kind: 'shop' });
+      return;
+    case 'box':
+      say(state, content, npc.dialogue, { kind: 'box' });
       return;
     case 'trainer':
     case 'rival':
@@ -969,6 +996,9 @@ function runPending(content: Content, state: GameState, action: PendingAction, r
       return;
     case 'shop':
       state.scene = { kind: 'shop', cursor: 0, qty: 1, note: '', bought: false };
+      return;
+    case 'box':
+      state.scene = { kind: 'box', side: 'party', cursor: 0, note: '' };
       return;
     case 'starterPick':
       if (p.starter === '') state.scene = { kind: 'starterPick', cursor: 0 };
@@ -1430,6 +1460,12 @@ function useBattleItem(
       refuse(content, state, scene, "That would be theft, and they're watching.", rng);
       return;
     }
+    // Six on the lead and thirty in the box: there is nowhere for it to go,
+    // and the game says so before the snare is spent rather than after.
+    if (p.party.length >= 6 && p.box.length >= BOX_MAX) {
+      refuse(content, state, scene, content.dialogue('box_full')[0] ?? 'The box is full.', rng);
+      return;
+    }
     stack.count--;
     const bonus = item === 'great_snare' ? 3 : item === 'good_snare' ? 2 : 1;
     submitAction(content, state, scene, { kind: 'ball', bonus }, rng);
@@ -1764,6 +1800,53 @@ function stepNaming(content: Content, state: GameState, scene: NamingScene, b: B
   else if (key === 'SPC') { if (scene.text.length > 0) type(' '); }
   else if (key === 'DEL') erase();
   else commit();
+}
+
+// --- The kennel box --------------------------------------------------------
+
+/** The first row of the list that is on screen, so the cursor is always in view. */
+export function boxScroll(cursor: number, length: number): number {
+  return Math.max(0, Math.min(cursor - 3, length - BOX_ROWS));
+}
+
+function stepBox(content: Content, state: GameState, scene: BoxScene, b: Buttons): void {
+  const p = state.player;
+  const list = scene.side === 'party' ? p.party : p.box;
+
+  if (pressed(state, b, 'b')) {
+    const lines = content.dialogue('kennel_leave');
+    sayRaw(state, lines.length > 0 ? lines : ['...']);
+    return;
+  }
+  if (pressed(state, b, 'left') || pressed(state, b, 'right')) {
+    scene.side = scene.side === 'party' ? 'box' : 'party';
+    scene.cursor = 0;
+    scene.note = '';
+    return;
+  }
+  if (list.length > 0) {
+    if (pressed(state, b, 'down')) { scene.cursor = (scene.cursor + 1) % list.length; scene.note = ''; }
+    if (pressed(state, b, 'up')) { scene.cursor = (scene.cursor + list.length - 1) % list.length; scene.note = ''; }
+  }
+  if (!pressed(state, b, 'a')) return;
+  const chosen = list[scene.cursor];
+  if (!chosen) return;
+
+  if (scene.side === 'party') {
+    // Someone has to walk out of here with you, and on its own feet.
+    const others = p.party.filter((f) => f !== chosen);
+    if (!others.some((f) => f.hp > 0)) { scene.note = 'Keep one walking.'; return; }
+    if (p.box.length >= BOX_MAX) { scene.note = 'The box is full.'; return; }
+    p.party.splice(scene.cursor, 1);
+    p.box.push(chosen);
+    scene.note = 'Left in the box.';
+  } else {
+    if (p.party.length >= 6) { scene.note = 'Six is the limit.'; return; }
+    p.box.splice(scene.cursor, 1);
+    p.party.push(chosen);
+    scene.note = 'Back on the lead.';
+  }
+  scene.cursor = Math.max(0, Math.min(scene.cursor, list.length - 1));
 }
 
 // --- Shop ------------------------------------------------------------------

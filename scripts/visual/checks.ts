@@ -15,7 +15,7 @@ import { paginate, pageLength, wrapText } from '../../src/core/text.ts';
 import { Tile, tileAt, visibleNpcs, type GameMap } from '../../src/core/world.ts';
 import type { Species } from '../../src/core/creature.ts';
 import { itemName, shopStock } from '../../src/core/items.ts';
-import { NAME_KEYS, NAME_MAX, NAME_ROWS, PARTY_ACTIONS } from '../../src/core/game.ts';
+import { BOX_MAX, BOX_ROWS, boxScroll, NAME_KEYS, NAME_MAX, NAME_ROWS, PARTY_ACTIONS } from '../../src/core/game.ts';
 import type { SeenFeral } from '../../src/observe.ts';
 import type { Seen, Sight } from './stage.ts';
 import {
@@ -628,6 +628,39 @@ function inspectShop(t: Tally, where: string, s: Sight, lay: Layout): void {
 }
 
 /**
+ * The kennel box: the heading counts the list that is showing, every animal in
+ * view is named with its level, the cursor is on the right one, and the last
+ * row says how to reach the other list.
+ */
+function inspectBox(t: Tally, where: string, s: Sight, lay: Layout): void {
+  const seen = s.seen;
+  const box = [...lay.boxes].sort((a, b) => b.w * b.h - a.w * a.h)[0];
+  if (!t.check('words', box !== undefined, () => `${where}: the kennel box is open but nothing is on screen`) || box === undefined) return;
+  const rd = lay.read(box);
+  const rows = rowsOf(rd);
+  const list = seen.side === 'party' ? seen.party : seen.box;
+  const heading = seen.note !== '' ? seen.note
+    : seen.side === 'party' ? `PARTY ${seen.party.length}/6` : `BOX ${seen.box.length}/${BOX_MAX}`;
+  t.check('words', squash(rows[0]?.text ?? '') === squash(asDrawn(heading)), () =>
+    `${where}: the top of the list should read ${quote(heading)}; it reads ${quote(rows[0]?.text ?? '')}`);
+  const hint = seen.side === 'party' ? 'LEFT/RIGHT: BOX' : 'LEFT/RIGHT: PARTY';
+  const last = rows[rows.length - 1]?.text ?? '';
+  t.check('words', squash(last) === squash(asDrawn(hint)), () => `${where}: the bottom row should read ${quote(hint)}; it reads ${quote(last)}`);
+
+  const top = boxScroll(seen.cursor, list.length);
+  const said = quote(rows.map((r) => r.text).join(' / '));
+  for (let i = top; i < Math.min(list.length, top + BOX_ROWS); i++) {
+    const m = list[i];
+    if (m === undefined) continue;
+    const run = rd.runs.find((r) => r.text.replace(/^▶/, '') === asDrawn(m.name));
+    if (!t.check('words', run !== undefined, () => `${where}: ${quote(m.name)} should be on the list, which reads ${said}`) || run === undefined) continue;
+    t.check('words', rd.runs.some((r) => r.y === run.y && r.text === `Lv${m.level}`), () => `${where}: ${m.name} is level ${m.level}; its row does not say so. The list reads ${said}`);
+    t.check('words', run.text.startsWith('▶') === (i === seen.cursor), () => `${where}: the cursor should be on row ${seen.cursor + 1}, ${run.text.startsWith('▶') ? 'but is' : 'and is not'} on ${m.name}`);
+  }
+  if (list.length === 0) t.check('words', said.includes('Nobody in here.'), () => `${where}: an empty list should say so; it reads ${said}`);
+}
+
+/**
  * Naming: the question, then the letters. What has been typed is on screen, all
  * of it; every letter of the grid can be read; the cursor is where the game
  * thinks it is.
@@ -893,6 +926,9 @@ export function inspect(t: Tally, where: string, s: Sight, world: World): Layout
       break;
     case 'naming':
       inspectNaming(t, where, s, lay);
+      break;
+    case 'box':
+      inspectBox(t, where, s, lay);
       break;
     case 'battle':
       inspectBattle(t, where, s, lay);

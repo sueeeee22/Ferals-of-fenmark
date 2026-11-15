@@ -1076,8 +1076,43 @@ async function tour(): Promise<void> {
       tally.check('words', back.seen.party.map((m) => m.name).join(',') === order, () =>
         `moving it back should restore ${order}; the party is ${back.seen.party.map((m) => m.name).join(',')}`);
       await st.press('b', 2);
+
+      // --- The kennel box: leave one, look for it, take it back ---------------------
+      if (await travel('fenmark_lodge', 6, 5)) {
+        await face('right');
+        await st.press('a');
+        await readDialogue('the kennelhand');
+        const open = await checkpoint('box-party', { scene: 'box' });
+        const stay = open.seen.party[0]?.name ?? '';
+        const goes = open.seen.party[1]?.name ?? '';
+        await st.press('down');
+        inspect(tally, 'box, cursor on the second animal', await st.see(), world);
+        await st.press('a');
+        const left = await st.see();
+        inspect(tally, 'box, after leaving one', left, world);
+        tally.check('words', left.seen.party.length === 1 && left.seen.box.some((m) => m.name === goes), () =>
+          `leaving ${goes} should put it in the box; the party is ${left.seen.party.map((m) => m.name).join(',')} and the box ${left.seen.box.map((m) => m.name).join(',')}`);
+        // The last one that can stand may not be left behind.
+        await st.press('a');
+        const refused = await st.see();
+        inspect(tally, 'box, trying to leave the last animal', refused, world);
+        tally.check('words', refused.seen.party.length === 1 && refused.seen.note !== '', () =>
+          `the game let ${stay} be left in the box with nobody else to walk with`);
+        await st.press('right');
+        const stored = await checkpoint('box-stored', { scene: 'box' });
+        tally.check('label', stored.seen.side === 'box', () => 'pressing right in the kennel box did not show the box');
+        await st.press('a');
+        const taken = await st.see();
+        inspect(tally, 'box, after taking it back', taken, world);
+        tally.check('words', taken.seen.box.length === 0 && taken.seen.party.map((m) => m.name).join(',') === `${stay},${goes}`, () =>
+          `taking ${goes} back should restore the party; it is ${taken.seen.party.map((m) => m.name).join(',')}`);
+        await st.press('b');
+        await readDialogue('leaving the kennel');
+      } else {
+        tourGaps.push('the kennelhand could not be reached, so the box was not seen');
+      }
     } else {
-      tourGaps.push('no second animal was caught, so the party list and switching were only seen with one name in them');
+      tourGaps.push('no second animal was caught, so the party list, switching and the kennel box were only seen with one name in them');
     }
   }
 
