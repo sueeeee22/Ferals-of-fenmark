@@ -10,7 +10,7 @@
  */
 
 import type { GameState, PlayerState } from './game.ts';
-import { NO_BUTTONS } from './game.ts';
+import { NO_BUTTONS, WALK_FRAMES } from './game.ts';
 import type { RngState } from './rng.ts';
 
 export const SAVE_VERSION = 1;
@@ -80,7 +80,10 @@ export function restore(file: SaveFile): GameState {
     rngState: file.rngState,
     scene: {
       kind: 'overworld',
-      walk: { progress: 0, dir: file.player.facing, hop: false, fromX: file.player.x, fromY: file.player.y },
+      walk: {
+        progress: 0, span: WALK_FRAMES, dir: file.player.facing, hop: false,
+        fromX: file.player.x, fromY: file.player.y,
+      },
     },
     player: file.player,
     prev: NO_BUTTONS,

@@ -77,6 +77,8 @@ export interface Observation {
   readonly frame: number;
   readonly facing: string;
   readonly walking: boolean;
+  /** Ticks the step in progress takes: 16 walking, 8 running. 0 standing still. */
+  readonly stride: number;
   readonly starter: string;
   /** The line the text box is working through (dialogue), or the battle message. */
   readonly text: string;
@@ -131,6 +133,7 @@ export function observe(content: Content, s: GameState): Observation {
   let cursor = 0;
   let subCursor = 0;
   let walking = false;
+  let stride = 0;
   let qty = 0;
   let note = '';
   let battle: SeenBattle | null = null;
@@ -143,6 +146,7 @@ export function observe(content: Content, s: GameState): Observation {
       break;
     case 'overworld':
       walking = sc.walk.progress > 0;
+      stride = walking ? sc.walk.span : 0;
       break;
     case 'menu':
       sub = sc.sub;
@@ -202,6 +206,7 @@ export function observe(content: Content, s: GameState): Observation {
     frame: s.frame,
     facing: p.facing,
     walking,
+    stride,
     starter: p.starter,
     text,
     page,

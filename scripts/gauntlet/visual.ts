@@ -25,7 +25,7 @@
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadContent } from './content-loader.ts';
-import { STARTERS } from '../../src/core/game.ts';
+import { RUN_FRAMES, STARTERS } from '../../src/core/game.ts';
 import { shopStock } from '../../src/core/items.ts';
 import { DIR_VEC, canWalk, propsOf, tileAt, type Dir, type GameMap } from '../../src/core/world.ts';
 import { spriteFor } from '../../src/render/forge.ts';
@@ -453,13 +453,14 @@ async function travel(goalMap: string, gx: number, gy: number, avoid: ReadonlySe
 }
 
 /** Hold a direction for `tiles` tiles, recording every painted frame of it. */
-async function walkTape(dir: Dir, tiles: number, hitchAt = -1): Promise<Sight[]> {
+async function walkTape(dir: Dir, tiles: number, hitchAt = -1, run = false): Promise<Sight[]> {
   const tape: Sight[] = [await st.see()];
   const first = tape[0];
   if (first === undefined) return tape;
   const [dx, dy] = DIR_VEC[dir];
   const goalX = first.seen.x + dx * tiles;
   const goalY = first.seen.y + dy * tiles;
+  if (run) await st.down('b');
   await st.down(dir);
   let released = false;
   for (let i = 0; i < tiles * 20 + 60; i++) {
@@ -483,6 +484,7 @@ async function walkTape(dir: Dir, tiles: number, hitchAt = -1): Promise<Sight[]>
     }
   }
   if (!released) await st.up(dir);
+  if (run) await st.up('b');
   return tape;
 }
 
@@ -776,6 +778,20 @@ async function tour(): Promise<void> {
   if (await travel('fenmark', 9, 8)) {
     const tape = await walkTape('up', 2);
     inspectWalkTape(tally, 'town, walking up', tape, 'up', 2);
+  }
+
+  // --- Running: B held. Twice the pace, whole pixels, and it still stops on a tile ---
+  if (await travel('fenmark', 9, 8)) {
+    for (const dir of ['down', 'up'] as const) {
+      const tape = await walkTape(dir, 5, -1, true);
+      inspectWalkTape(tally, `town, running ${dir}`, tape, dir, 5, 2);
+      const strides = new Set(tape.filter((s) => s.seen.walking).map((s) => s.seen.stride));
+      tally.check('smooth', strides.size === 1 && strides.has(RUN_FRAMES), () =>
+        `town, running ${dir}: with B held every step should take ${RUN_FRAMES} ticks; saw ${[...strides].join(', ')}`);
+      const moving = tape.filter((s) => s.seen.walking).length;
+      tally.check('smooth', moving <= 5 * RUN_FRAMES + 6, () =>
+        `town, running ${dir}: five tiles took ${moving} frames, which is no faster than walking`);
+    }
   }
 
   // --- Someone to talk to --------------------------------------------------------

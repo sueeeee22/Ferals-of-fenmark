@@ -135,12 +135,12 @@ function lerp(a: number, b: number, t: number): number {
  */
 function cameraFor(
   map: GameMap,
-  x: number, y: number, fromX: number, fromY: number, progress: number,
+  x: number, y: number, fromX: number, fromY: number, progress: number, span: number,
 ): Camera & { playerPxX: number; playerPxY: number } {
   // Standing still, she is drawn where she IS. Interpolating to t=0 instead
   // drew her at `from`, and after a doorway `from` is a tile on the map she
   // just left - so she appeared somewhere else entirely until her first step.
-  const t = progress > 0 ? Math.min(1, progress / WALK_FRAMES) : 1;
+  const t = progress > 0 ? Math.min(1, progress / span) : 1;
   const playerPxX = Math.round(lerp(fromX, x, t) * TILE_SIZE);
   const playerPxY = Math.round(lerp(fromY, y, t) * TILE_SIZE);
   const rawX = Math.round(LOGICAL_W / 2 - TILE_SIZE / 2) - playerPxX;
@@ -191,7 +191,7 @@ function drawWorldBackground(
   ctx: CanvasRenderingContext2D,
   content: Content,
   state: GameState,
-  walk: { progress: number; dir: Dir; fromX: number; fromY: number } | null,
+  walk: { progress: number; span: number; dir: Dir; fromX: number; fromY: number } | null,
 ): void {
   const p = state.player;
   const map = content.world.map(p.mapId);
@@ -201,7 +201,7 @@ function drawWorldBackground(
   const progress = rawProgress > 0 ? rawProgress + frameAlpha : 0;
   const fromX = walk?.fromX ?? p.x;
   const fromY = walk?.fromY ?? p.y;
-  const cam = cameraFor(map, p.x, p.y, fromX, fromY, progress);
+  const cam = cameraFor(map, p.x, p.y, fromX, fromY, progress, walk?.span ?? WALK_FRAMES);
 
   clearScreen(ctx, map.indoor ? 0 : 1);
   drawTiles(ctx, map, cam, state.frame);

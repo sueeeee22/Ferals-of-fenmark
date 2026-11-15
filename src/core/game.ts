@@ -67,6 +67,17 @@ export type ButtonName = keyof Buttons;
  */
 export const WALK_FRAMES = 16;
 
+/**
+ * Ticks to cross one tile with B held: twice walking pace, two whole pixels a
+ * tick. Gen 1 had no running (that arrived two generations later), but its
+ * walking pace over a long route is the thing a modern player notices first.
+ *
+ * Walking stays the default on purpose - see WALK_FRAMES: a tap must mean one
+ * tile, and at this speed it does not. Holding B is how you say you are going
+ * somewhere and do not mean to stop on a particular square.
+ */
+export const RUN_FRAMES = 8;
+
 // ---------------------------------------------------------------------------
 // Content injection — core never imports src/data
 // ---------------------------------------------------------------------------
@@ -134,8 +145,14 @@ export interface PlayerState {
 }
 
 export interface WalkState {
-  /** 0 when standing still, else 1..WALK_FRAMES. */
+  /** 0 when standing still, else 1..span. */
   progress: number;
+  /**
+   * How many ticks THIS step takes: WALK_FRAMES, or RUN_FRAMES if B was held
+   * when it began. Fixed for the length of the step, so letting go of B half
+   * way across a tile never changes speed mid-stride.
+   */
+  span: number;
   dir: Dir;
   /** Ledge hops cover two tiles. */
   hop: boolean;
@@ -486,7 +503,10 @@ function sayRaw(state: GameState, lines: readonly string[], then: PendingAction 
 function enterOverworld(state: GameState): void {
   state.scene = {
     kind: 'overworld',
-    walk: { progress: 0, dir: state.player.facing, hop: false, fromX: state.player.x, fromY: state.player.y },
+    walk: {
+      progress: 0, span: WALK_FRAMES, dir: state.player.facing, hop: false,
+      fromX: state.player.x, fromY: state.player.y,
+    },
   };
 }
 
@@ -578,7 +598,7 @@ function stepOverworld(
   //     and input was not read until the tick after. Falling through spends it.
   if (walk.progress > 0) {
     walk.progress++;
-    if (walk.progress <= WALK_FRAMES) return;
+    if (walk.progress <= walk.span) return;
 
     walk.progress = 0;
     // Re-anchor the interpolation to where we actually ARE. `fromX/fromY` still
@@ -668,6 +688,9 @@ function stepOverworld(
   walk.fromY = p.y;
   walk.dir = dir;
   walk.hop = hop;
+  // A ledge hop is two tiles in one stride and is never hurried: at running
+  // pace it would cover four pixels a tick, which reads as a teleport.
+  walk.span = b.b && !hop ? RUN_FRAMES : WALK_FRAMES;
   walk.progress = 1;
   const [dx, dy] = DIR_VEC[dir];
   p.x += dx * (hop ? 2 : 1);

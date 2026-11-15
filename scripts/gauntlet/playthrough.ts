@@ -54,6 +54,9 @@ class Bot {
   /** Trips to a shop counter that ended with something bought, and what they cost. */
   shopVisits = 0;
   spent = 0;
+  /** Tiles crossed at a run (B held) and at a walk. */
+  ranTiles = 0;
+  walkedTiles = 0;
   /**
    * How many times softening has killed the thing we were trying to catch.
    * Once an over-levelled bot's WEAKEST move one-shots every wild it meets,
@@ -471,7 +474,7 @@ class Bot {
    * step and desyncs from its BFS path. So: hold only until the move commits,
    * release immediately, then coast out the animation with no buttons held.
    */
-  private stepOneTile(dir: Dir): boolean {
+  private stepOneTile(dir: Dir, run = false): boolean {
     // Let any in-flight tile transition finish FIRST. The reducer ignores input
     // while walk.progress > 0, so calling this mid-animation burned the six
     // wait-frames on someone else's step, saw no position change, and reported
@@ -482,7 +485,9 @@ class Bot {
     const startX = this.state.player.x;
     const startY = this.state.player.y;
     const startMap = this.state.player.mapId;
-    const held: Buttons = { ...NO_BUTTONS, [dir]: true };
+    // B held is a run. The bot runs when it is going somewhere and walks when
+    // it is pacing the grass, which is what a player does with the same button.
+    const held: Buttons = { ...NO_BUTTONS, [dir]: true, b: run };
 
     // Turning in place costs a frame, so give it a few before giving up.
     for (let i = 0; i < 6; i++) {
@@ -497,15 +502,19 @@ class Bot {
 
     if (this.state.scene.kind !== 'overworld') return false;
     // A warp counts as movement even though the coordinates may coincide.
-    if (this.state.player.mapId !== startMap) return true;
-    return this.state.player.x !== startX || this.state.player.y !== startY;
+    const moved =
+      this.state.player.mapId !== startMap ||
+      this.state.player.x !== startX || this.state.player.y !== startY;
+    if (moved && run) this.ranTiles++;
+    else if (moved) this.walkedTiles++;
+    return moved;
   }
 
   /** Walk a path, handling anything that interrupts (battles, trainers, signs). */
   walkPath(path: readonly Dir[]): void {
     const startMap = this.state.player.mapId;
     for (const dir of path) {
-      const moved = this.stepOneTile(dir);
+      const moved = this.stepOneTile(dir, true);
       if (this.scene.kind !== 'overworld') {
         this.settle();
         return; // path is stale after an interruption; caller re-plans
@@ -1016,6 +1025,9 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
     // A run that never bought anything did not test the shops, whatever else
     // it proved - and it would mean the bot is being supplied some other way.
     if (won && bot.shopVisits === 0) return bail('reached the Champion without ever buying anything');
+    if (won && (bot.ranTiles === 0 || bot.walkedTiles === 0)) {
+      return bail(`ran ${bot.ranTiles} tiles and walked ${bot.walkedTiles}: both paces should have been used`);
+    }
     return {
       starter,
       ok: won,

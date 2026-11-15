@@ -1064,6 +1064,7 @@ export function inspectBattleTape(t: Tally, where: string, tape: readonly Sight[
  */
 export function inspectWalkTape(
   t: Tally, where: string, tape: readonly Sight[], dir: 'up' | 'down' | 'left' | 'right', tiles: number,
+  pxPerTick = 1,
 ): void {
   const horizontal = dir === 'left' || dir === 'right';
   const sign = dir === 'right' || dir === 'down' ? 1 : -1;
@@ -1083,8 +1084,10 @@ export function inspectWalkTape(
 
     t.check('smooth', moved >= 0, () =>
       `${at}: the player slid ${-moved}px BACKWARDS while walking ${dir} (drawn at ${pos(a)}, then ${pos(b)})`);
-    // One pixel per tick; a painted frame that ran two ticks may move two.
-    const limit = Math.max(1, b.seen.ticks) + 1;
+    // One pixel per tick walking, two running; a painted frame that ran two
+    // ticks may move twice that. The one extra tick's worth is the sub-frame
+    // remainder the renderer adds - at a walk that is the same "+1" as ever.
+    const limit = (Math.max(1, b.seen.ticks) + 1) * pxPerTick;
     t.check('smooth', moved <= limit, () =>
       `${at}: the player jumped ${moved}px in one frame while walking ${dir} (that frame ran ${b.seen.ticks} tick(s))`);
 
