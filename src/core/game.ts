@@ -459,6 +459,32 @@ const RIVAL_PICK: Readonly<Record<string, string>> = {
   baloo_pup: 'plato_pup',
 };
 
+/** The starter the rival takes when the player takes this one. */
+export function rivalFor(starter: string): string {
+  return RIVAL_PICK[starter] ?? 'baloo_pup';
+}
+
+/**
+ * A trainer's team as THIS save meets it.
+ *
+ * Only the Champion's differs. Cass took the starter that beats yours at the
+ * kennel gate, and the script says that is the animal waiting at the end -
+ * but the team table has one ace for everybody (Baloo's line), so two players
+ * in three met the wrong dog, and one of them met their own. Any member of the
+ * Champion's team from a starter's line is swapped for the same stage of the
+ * line the rival actually took.
+ */
+export function trainerTeamFor(def: TrainerDef, rivalStarter: string): readonly TrainerMember[] {
+  if (def.id !== 'champion' || rivalStarter === '') return def.team;
+  const line = rivalStarter.split('_')[0] ?? '';
+  const lines = STARTERS.map((id) => id.split('_')[0] ?? '');
+  return def.team.map((m) => {
+    const [own, ...rest] = m.species.split('_');
+    if (own === undefined || !lines.includes(own) || own === line) return m;
+    return { species: [line, ...rest].join('_'), level: m.level };
+  });
+}
+
 export function newGame(seed: number | string): GameState {
   const rng = Rng.fromSeed(seed);
   return {
@@ -889,7 +915,8 @@ function beginTrainerBattle(
   rng: Rng,
 ): void {
   const def = content.trainer(trainerId);
-  const team = def.team.map((m) => makeFeral(content.dex, m.species, m.level, rng, def.name));
+  const members = trainerTeamFor(def, state.player.rivalStarter);
+  const team = members.map((m) => makeFeral(content.dex, m.species, m.level, rng, def.name));
   const battle = startBattle(state.player.party, team, {
     kind: 'trainer',
     trainerId,

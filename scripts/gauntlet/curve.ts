@@ -20,7 +20,7 @@ import { startBattle } from '../../src/core/battle.ts';
 import type { Dex } from '../../src/core/battle.ts';
 import type { Feral } from '../../src/core/creature.ts';
 import type { GameMap } from '../../src/core/world.ts';
-import { STARTERS } from '../../src/core/game.ts';
+import { STARTERS, rivalFor, trainerTeamFor } from '../../src/core/game.ts';
 import type { StarterId, TrainerDef } from '../../src/core/game.ts';
 import { makeFeral, autoBattle } from '../../src/core/testkit.ts';
 import { Rng } from '../../src/core/rng.ts';
@@ -399,7 +399,10 @@ async function main(): Promise<void> {
     const results: EntityResult[] = [];
 
     for (const e of entities) {
-      const def = loaded.content.trainer(e.id);
+      // The team this starter's player actually meets: the Champion's ace is
+      // whichever starter beats theirs, so it is not the same fight for all three.
+      const table = loaded.content.trainer(e.id);
+      const def: TrainerDef = { ...table, team: trainerTeamFor(table, rivalFor(starter)) };
       const caught = compositions.get(e.id) ?? [];
       const compositionIds = [starter, ...caught];
       console.log(`  ${e.label.padEnd(16)} team: ${compositionIds.join(', ')}`);
