@@ -90,6 +90,11 @@ export interface Observation {
   readonly party: readonly SeenFeral[];
   readonly bag: readonly { readonly item: string; readonly count: number }[];
   readonly flags: readonly string[];
+  readonly money: number;
+  readonly badges: number;
+  /** Shop only: how many A would buy, and the shop's answer to the last press. */
+  readonly qty: number;
+  readonly note: string;
   readonly battle: SeenBattle | null;
 }
 
@@ -126,6 +131,8 @@ export function observe(content: Content, s: GameState): Observation {
   let cursor = 0;
   let subCursor = 0;
   let walking = false;
+  let qty = 0;
+  let note = '';
   let battle: SeenBattle | null = null;
 
   switch (sc.kind) {
@@ -141,6 +148,11 @@ export function observe(content: Content, s: GameState): Observation {
       sub = sc.sub;
       cursor = sc.cursor;
       subCursor = sc.subCursor;
+      break;
+    case 'shop':
+      cursor = sc.cursor;
+      qty = sc.qty;
+      note = sc.note;
       break;
     case 'starterPick':
     case 'title':
@@ -200,6 +212,10 @@ export function observe(content: Content, s: GameState): Observation {
     party: p.party.map((f) => seen(content, f)),
     bag: p.bag.map((b) => ({ item: b.item, count: b.count })),
     flags: p.flags.slice(),
+    money: p.money,
+    badges: p.badges.length,
+    qty,
+    note,
     battle,
   };
 }

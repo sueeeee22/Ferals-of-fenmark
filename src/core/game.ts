@@ -14,6 +14,7 @@ import { paginate, pageLength } from './text.ts';
 import { HIT_LINES, hitBucket } from '../data/hitlines.ts';
 import type { Feral, Species, StatusName } from './creature.ts';
 import { computeStat, expForLevel, maxHp, selectMoveset } from './creature.ts';
+import { shopStock, STACK_MAX } from './items.ts';
 import {
   canWalk, DIR_VEC, isLedgeHop, npcAt, rollEncounter, triggeredTrainer, tileAt,
   warpAt, facingToward, propsOf,
@@ -163,6 +164,7 @@ export type PendingAction =
   | { readonly kind: 'heal' }
   | { readonly kind: 'giveItem'; readonly item: string; readonly count: number }
   | { readonly kind: 'setFlag'; readonly flag: string }
+  | { readonly kind: 'shop' }
   | { readonly kind: 'starterPick' };
 
 /**
@@ -298,6 +300,25 @@ export interface MenuScene {
   subCursor: number;
 }
 
+/**
+ * A shop counter. The list is `shopStock(badges)` with LEAVE on the end, so the
+ * cursor runs 0..stock.length.
+ *
+ * The clerk used to be a `shop` NPC who said two lines about shelves and sold
+ * nothing: money piled up with nowhere to go and the only snares in the game
+ * were the five you were born with.
+ */
+export interface ShopScene {
+  readonly kind: 'shop';
+  cursor: number;
+  /** How many of the highlighted thing A will buy. */
+  qty: number;
+  /** The shop's answer to the last press, shown until the cursor moves. */
+  note: string;
+  /** Something was bought this visit, so the clerk has a line about it. */
+  bought: boolean;
+}
+
 export type Scene =
   | { readonly kind: 'title'; cursor: number }
   | { readonly kind: 'starterPick'; cursor: number }
@@ -305,6 +326,7 @@ export type Scene =
   | DialogueScene
   | BattleScene
   | MenuScene
+  | ShopScene
   | { readonly kind: 'gameover'; ticks: number }
   | { readonly kind: 'hallOfFame'; ticks: number };
 
@@ -505,6 +527,7 @@ export function step(content: Content, state: GameState, buttons: Buttons): Game
     case 'dialogue': stepDialogue(content, state, state.scene, buttons, rng); break;
     case 'battle': stepBattle(content, state, state.scene, buttons, rng); break;
     case 'menu': stepMenu(content, state, state.scene, buttons); break;
+    case 'shop': stepShop(content, state, state.scene, buttons); break;
     case 'gameover': stepGameOver(content, state, buttons); break;
     case 'hallOfFame': state.scene.ticks++; break;
   }
@@ -680,6 +703,9 @@ function interactWithNpc(content: Content, state: GameState, npc: NpcDef): void 
       say(state, content, npc.dialogue);
       return;
     }
+    case 'shop':
+      say(state, content, npc.dialogue, { kind: 'shop' });
+      return;
     case 'trainer':
     case 'rival':
     case 'leader':
@@ -860,16 +886,16 @@ function runPending(content: Content, state: GameState, action: PendingAction, r
       healParty(content, p);
       enterOverworld(state);
       return;
-    case 'giveItem': {
-      const stack = p.bag.find((s) => s.item === action.item);
-      if (stack) stack.count += action.count;
-      else p.bag.push({ item: action.item, count: action.count });
+    case 'giveItem':
+      addToBag(p, action.item, action.count);
       enterOverworld(state);
       return;
-    }
     case 'setFlag':
       setFlag(p, action.flag);
       enterOverworld(state);
+      return;
+    case 'shop':
+      state.scene = { kind: 'shop', cursor: 0, qty: 1, note: '', bought: false };
       return;
     case 'starterPick':
       if (p.starter === '') state.scene = { kind: 'starterPick', cursor: 0 };
@@ -1479,6 +1505,79 @@ function stepMenu(content: Content, state: GameState, scene: MenuScene, b: Butto
       }
     }
   }
+}
+
+// --- Shop ------------------------------------------------------------------
+
+/** How many of `item` the player is carrying. */
+export function bagCount(p: PlayerState, item: string): number {
+  return p.bag.find((s) => s.item === item)?.count ?? 0;
+}
+
+function addToBag(p: PlayerState, item: string, count: number): void {
+  const stack = p.bag.find((s) => s.item === item);
+  if (stack) stack.count = Math.min(STACK_MAX, stack.count + count);
+  else p.bag.push({ item, count: Math.min(STACK_MAX, count) });
+}
+
+/**
+ * The most of one thing this player could buy right now: what the purse covers,
+ * and what the bag has room for. Zero means A will be refused.
+ */
+export function shopLimit(p: PlayerState, item: string, price: number): number {
+  const afford = price > 0 ? Math.floor(p.money / price) : STACK_MAX;
+  return Math.max(0, Math.min(afford, STACK_MAX - bagCount(p, item)));
+}
+
+function stepShop(content: Content, state: GameState, scene: ShopScene, b: Buttons): void {
+  const p = state.player;
+  const stock = shopStock(p.badges.length);
+  const rows = stock.length + 1;
+
+  const leave = (): void => {
+    const lines = scene.bought
+      ? [...content.dialogue('shop_buy'), ...content.dialogue('shop_leave')]
+      : content.dialogue('shop_leave');
+    sayRaw(state, lines.length > 0 ? lines : ['...']);
+  };
+
+  if (pressed(state, b, 'b')) { leave(); return; }
+
+  if (pressed(state, b, 'down') || pressed(state, b, 'up')) {
+    scene.cursor = (scene.cursor + (pressed(state, b, 'down') ? 1 : rows - 1)) % rows;
+    scene.qty = 1;
+    scene.note = '';
+    return;
+  }
+
+  const item = stock[scene.cursor];
+  if (item === undefined) {
+    if (pressed(state, b, 'a')) leave();
+    return;
+  }
+
+  // Left and right count, and wrap, so ten of something is one press from one
+  // of something in either direction. The ceiling is what can actually be
+  // bought, so the total shown is never a number the purse cannot meet.
+  const limit = Math.max(1, shopLimit(p, item.id, item.price));
+  if (pressed(state, b, 'right')) { scene.qty = scene.qty >= limit ? 1 : scene.qty + 1; scene.note = ''; }
+  if (pressed(state, b, 'left')) { scene.qty = scene.qty <= 1 ? limit : scene.qty - 1; scene.note = ''; }
+
+  if (!pressed(state, b, 'a')) return;
+  if (bagCount(p, item.id) >= STACK_MAX) {
+    scene.note = 'No room for more.';
+    return;
+  }
+  const cost = item.price * scene.qty;
+  if (cost > p.money) {
+    scene.note = "You can't pay that.";
+    return;
+  }
+  p.money -= cost;
+  addToBag(p, item.id, scene.qty);
+  scene.bought = true;
+  scene.note = scene.qty === 1 ? 'Sold.' : `Sold. All ${scene.qty}.`;
+  scene.qty = 1;
 }
 
 function stepGameOver(content: Content, state: GameState, b: Buttons): void {

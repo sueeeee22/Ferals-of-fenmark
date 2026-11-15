@@ -109,92 +109,128 @@
     },
     {
       "n": 12,
-      "name": "route-grass",
-      "scene": "overworld",
+      "name": "shop-shelf",
+      "scene": "shop",
       "files": [
-        "12-route-grass-gb.png",
-        "12-route-grass-phone.png"
+        "12-shop-shelf-gb.png",
+        "12-shop-shelf-phone.png"
       ]
     },
     {
       "n": 13,
-      "name": "battle-wild",
-      "scene": "battle/main",
+      "name": "shop-sold",
+      "scene": "shop",
       "files": [
-        "13-battle-wild-gb.png",
-        "13-battle-wild-phone.png"
+        "13-shop-sold-gb.png",
+        "13-shop-sold-phone.png"
       ]
     },
     {
       "n": 14,
-      "name": "battle-moves",
-      "scene": "battle/moves",
+      "name": "route-grass",
+      "scene": "overworld",
       "files": [
-        "14-battle-moves-gb.png",
-        "14-battle-moves-phone.png"
+        "14-route-grass-gb.png",
+        "14-route-grass-phone.png"
       ]
     },
     {
       "n": 15,
-      "name": "battle-midturn",
+      "name": "battle-wild",
       "scene": "battle/main",
       "files": [
-        "15-battle-midturn-gb.png",
-        "15-battle-midturn-phone.png"
+        "15-battle-wild-gb.png",
+        "15-battle-wild-phone.png"
       ]
     },
     {
       "n": 16,
-      "name": "battle-aftermath",
-      "scene": "overworld",
+      "name": "battle-moves",
+      "scene": "battle/moves",
       "files": [
-        "16-battle-aftermath-gb.png",
-        "16-battle-aftermath-phone.png"
+        "16-battle-moves-gb.png",
+        "16-battle-moves-phone.png"
       ]
     },
     {
       "n": 17,
-      "name": "battle-snare",
+      "name": "battle-midturn",
       "scene": "battle/main",
       "files": [
-        "17-battle-snare-gb.png",
-        "17-battle-snare-phone.png"
+        "17-battle-midturn-gb.png",
+        "17-battle-midturn-phone.png"
       ]
     },
     {
       "n": 18,
-      "name": "save-confirm",
-      "scene": "dialogue",
+      "name": "battle-aftermath",
+      "scene": "overworld",
       "files": [
-        "18-save-confirm-gb.png",
-        "18-save-confirm-phone.png"
+        "18-battle-aftermath-gb.png",
+        "18-battle-aftermath-phone.png"
       ]
     },
     {
       "n": 19,
-      "name": "lodge-heal",
-      "scene": "dialogue",
+      "name": "battle-snare",
+      "scene": "battle/main",
       "files": [
-        "19-lodge-heal-gb.png",
-        "19-lodge-heal-phone.png"
+        "19-battle-snare-gb.png",
+        "19-battle-snare-phone.png"
       ]
     },
     {
       "n": 20,
-      "name": "battle-trainer",
-      "scene": "battle/main",
+      "name": "save-confirm",
+      "scene": "dialogue",
       "files": [
-        "20-battle-trainer-gb.png",
-        "20-battle-trainer-phone.png"
+        "20-save-confirm-gb.png",
+        "20-save-confirm-phone.png"
       ]
     },
     {
       "n": 21,
+      "name": "lodge-heal",
+      "scene": "dialogue",
+      "files": [
+        "21-lodge-heal-gb.png",
+        "21-lodge-heal-phone.png"
+      ]
+    },
+    {
+      "n": 22,
+      "name": "battle-party",
+      "scene": "battle/party",
+      "files": [
+        "22-battle-party-gb.png",
+        "22-battle-party-phone.png"
+      ]
+    },
+    {
+      "n": 23,
+      "name": "menu-party-two",
+      "scene": "menu/party",
+      "files": [
+        "23-menu-party-two-gb.png",
+        "23-menu-party-two-phone.png"
+      ]
+    },
+    {
+      "n": 24,
+      "name": "battle-trainer",
+      "scene": "battle/main",
+      "files": [
+        "24-battle-trainer-gb.png",
+        "24-battle-trainer-phone.png"
+      ]
+    },
+    {
+      "n": 25,
       "name": "town-second",
       "scene": "overworld",
       "files": [
-        "21-town-second-gb.png",
-        "21-town-second-phone.png"
+        "25-town-second-gb.png",
+        "25-town-second-phone.png"
       ]
     }
   ]

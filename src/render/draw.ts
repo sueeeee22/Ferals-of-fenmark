@@ -12,13 +12,15 @@
  * `runPending`/`starterPick` comment) — `main.ts` owns it and passes it in.
  */
 
-import type { Content, GameState, BattleScene, MenuScene, ShownSide } from '../core/game.ts';
+import type { Content, GameState, BattleScene, MenuScene, ShopScene, ShownSide } from '../core/game.ts';
 import { paginate, pageLength, CREATURE_NAME_COLS, MOVE_NAME_COLS } from '../core/text.ts';
 import {
   STARTERS, WALK_FRAMES, starterChoices, BATTLE_INTRO_FRAMES,
   SNARE_THROW_FRAMES, SNARE_PULL_FRAMES, SNARE_WOBBLE_FRAMES, FLASH_FRAMES,
+  bagCount,
   type SnareThrow,
 } from '../core/game.ts';
+import { itemName, shopStock } from '../core/items.ts';
 import { activeOf } from '../core/battle.ts';
 import type { BattleState } from '../core/battle.ts';
 import { Tile, tileAt, visibleNpcs, type GameMap, type Dir } from '../core/world.ts';
@@ -665,11 +667,14 @@ function drawBagOverlay(
   bag: readonly { item: string; count: number }[],
   cursor: number,
 ): void {
-  const rows = bag.map((s) => s.item.replace(/_/g, ' '));
+  // Names come from the item table, which holds them to twelve characters so
+  // the count always has the end of the row to itself. The raw id was drawn
+  // before, and "strong poultice" ran straight through its own count.
+  const rows = bag.map((s) => itemName(s.item));
   drawListOverlay(ctx, 'BAG', rows, cursor, (i, x, y) => {
     const s = bag[i];
     if (!s) return;
-    gb.drawText(ctx, x + 40 - gb.measureText(`x${s.count}`), y, `x${s.count}`, 3);
+    gb.drawText(ctx, x + 48 - gb.measureText(`x${s.count}`), y, `x${s.count}`, 3);
   });
 }
 
@@ -949,6 +954,48 @@ function drawMenu(ctx: CanvasRenderingContext2D, content: Content, state: GameSt
 }
 
 // ---------------------------------------------------------------------------
+// Shop
+// ---------------------------------------------------------------------------
+
+/** The shelf: one row per thing for sale, its price at the end of the row. */
+const SHOP_BOX = { x: 8, y: 4, w: 144, h: 88 };
+const SHOP_ROW_H = 12;
+
+function drawShop(ctx: CanvasRenderingContext2D, content: Content, state: GameState, scene: ShopScene): void {
+  drawWorldBackground(ctx, content, state, null);
+  const p = state.player;
+  const stock = shopStock(p.badges.length);
+  const box = SHOP_BOX;
+  gb.drawBox(ctx, box.x, box.y, box.w, box.h);
+  gb.drawText(ctx, box.x + 12, box.y + 4, 'SUPPLIES', 3);
+
+  const right = box.x + box.w - 4;
+  for (let i = 0; i <= stock.length; i++) {
+    const y = box.y + 18 + i * SHOP_ROW_H;
+    if (i === scene.cursor) gb.drawText(ctx, box.x + 3, y, gb.CURSOR_GLYPH, 3);
+    const item = stock[i];
+    if (item === undefined) {
+      gb.drawText(ctx, box.x + 12, y, 'LEAVE', 3);
+      continue;
+    }
+    gb.drawText(ctx, box.x + 12, y, item.name, 3);
+    const price = String(item.price);
+    gb.drawText(ctx, right - gb.measureText(price), y, price, 3);
+  }
+
+  // Under the shelf: what you have, then what this press would do. The answer
+  // to a press ("Sold.") takes the second row until the cursor moves.
+  const chosen = stock[scene.cursor];
+  const purse = `Purse ${p.money}`;
+  const own = chosen === undefined ? '' : `Own ${bagCount(p, chosen.id)}`;
+  const top = own === '' ? purse : `${purse}${' '.repeat(Math.max(1, TEXT_COLS - purse.length - own.length))}${own}`;
+  const bottom = scene.note !== ''
+    ? scene.note
+    : chosen === undefined ? '' : `Buy ${scene.qty} for ${chosen.price * scene.qty}?`;
+  gb.drawTextBox(ctx, [top, bottom], 999, false);
+}
+
+// ---------------------------------------------------------------------------
 // Terminal screens
 // ---------------------------------------------------------------------------
 
@@ -1012,6 +1059,9 @@ export function draw(
       return;
     case 'menu':
       drawMenu(ctx, content, state);
+      return;
+    case 'shop':
+      drawShop(ctx, content, state, state.scene);
       return;
     case 'gameover':
       drawGameOver(ctx);

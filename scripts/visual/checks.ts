@@ -14,6 +14,7 @@
 import { paginate, pageLength, wrapText } from '../../src/core/text.ts';
 import { Tile, tileAt, visibleNpcs, type GameMap } from '../../src/core/world.ts';
 import type { Species } from '../../src/core/creature.ts';
+import { itemName, shopStock } from '../../src/core/items.ts';
 import type { SeenFeral } from '../../src/observe.ts';
 import type { Seen, Sight } from './stage.ts';
 import {
@@ -539,7 +540,7 @@ function inspectMenu(t: Tally, where: string, s: Sight, lay: Layout): void {
   if (seen.sub === 'bag') {
     t.check('words', hasRun(rd, 'BAG'), () => `${where}: the bag has no BAG heading`);
     for (const stack of seen.bag) {
-      const name = stack.item.replace(/_/g, ' ');
+      const name = itemName(stack.item);
       const run = rd.runs.find((r) => r.text === asDrawn(name));
       if (!t.check('words', run !== undefined, () => `${where}: the bag holds ${quote(name)} but the list reads ${quote(allText(rd))}`)) continue;
       if (run === undefined) continue;
@@ -548,6 +549,42 @@ function inspectMenu(t: Tally, where: string, s: Sight, lay: Layout): void {
         `${where}: ${name} should show ${count}; that row reads ${quote(rd.runs.filter((r) => r.y === run.y).map((r) => r.text).join(' '))}`);
     }
   }
+}
+
+/**
+ * The shop: every row of the shelf says what it is and what it costs, the
+ * cursor is where the game thinks it is, and the box underneath tells the
+ * truth about the purse and about what the next press will do.
+ */
+function inspectShop(t: Tally, where: string, s: Sight, lay: Layout): void {
+  const seen = s.seen;
+  const shelf = lay.boxes.find((b) => b.y < 60 && b.w >= 120);
+  if (!t.check('words', shelf !== undefined, () => `${where}: the shop is open but there is no shelf on screen`) || shelf === undefined) return;
+  const rd = lay.read(shelf);
+  const rows = rowsOf(rd);
+  t.check('words', hasRun(rd, 'SUPPLIES'), () => `${where}: the shelf has no SUPPLIES heading`);
+
+  const stock = shopStock(seen.badges);
+  const labels = [...stock.map((i) => `${i.name}${i.price}`), 'LEAVE'];
+  for (const [i, label] of labels.entries()) {
+    const want = squash(asDrawn(label));
+    const row = rows.find((r) => squash(r.text.replace('▶', '')) === want);
+    if (!t.check('words', row !== undefined, () =>
+      `${where}: the shelf should have a row reading ${quote(label)}; it reads ${quote(rows.map((r) => r.text).join(' / '))}`) || row === undefined) continue;
+    const pointed = row.text.includes('▶');
+    t.check('words', pointed === (i === seen.cursor), () =>
+      `${where}: the cursor should be on row ${seen.cursor + 1}, but ${pointed ? 'is' : 'is not'} on ${quote(label)}`);
+  }
+
+  const box = textBox(lay);
+  if (!t.check('words', box !== null, () => `${where}: the shop has no box saying what you have`) || box === null) return;
+  const chosen = stock[seen.cursor];
+  const own = chosen === undefined ? '' : `Own ${seen.bag.find((b) => b.item === chosen.id)?.count ?? 0}`;
+  const next = seen.note !== '' ? seen.note : chosen === undefined ? '' : `Buy ${seen.qty} for ${chosen.price * seen.qty}?`;
+  const want = squash(asDrawn(`Purse ${seen.money}${own}${next}`));
+  const got = messageRows(lay, box);
+  t.check('words', squash(got.join('')) === want, () =>
+    `${where}: under the shelf should read "Purse ${seen.money}", ${quote(own)} and ${quote(next)}; the screen reads ${quote(got.join(' / '))}`);
 }
 
 // --- Battle ------------------------------------------------------------------
@@ -733,7 +770,7 @@ function inspectBattle(t: Tally, where: string, s: Sight, lay: Layout): void {
     const rd = lay.read(parts.overlay);
     if (b.sub === 'bag') {
       for (const stack of s.seen.bag) {
-        const name = stack.item.replace(/_/g, ' ');
+        const name = itemName(stack.item);
         t.check('words', hasRun(rd, name), () => `${where}: the bag holds ${quote(name)} but the list reads ${quote(allText(rd))}`);
       }
     } else {
@@ -765,6 +802,9 @@ export function inspect(t: Tally, where: string, s: Sight, world: World): Layout
     case 'menu':
       inspectMenu(t, where, s, lay);
       if (s.seen.sub === 'root') inspectActors(t, where, s, lay, world);
+      break;
+    case 'shop':
+      inspectShop(t, where, s, lay);
       break;
     case 'battle':
       inspectBattle(t, where, s, lay);

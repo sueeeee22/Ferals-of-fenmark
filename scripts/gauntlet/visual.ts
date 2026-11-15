@@ -26,6 +26,7 @@ import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:
 import { join } from 'node:path';
 import { loadContent } from './content-loader.ts';
 import { STARTERS } from '../../src/core/game.ts';
+import { shopStock } from '../../src/core/items.ts';
 import { DIR_VEC, canWalk, propsOf, tileAt, type Dir, type GameMap } from '../../src/core/world.ts';
 import { spriteFor } from '../../src/render/forge.ts';
 import { GB_VIEW, PHONE_VIEW, ROOT, Stage, build, type Btn, type Seen, type Sight } from '../visual/stage.ts';
@@ -795,6 +796,36 @@ async function tour(): Promise<void> {
   await checkpoint('menu-bag', { scene: 'menu', sub: 'bag' });
   await st.press('b', 2);
 
+  // --- The shop: look at the shelf, buy something, check the change ----------------
+  if (!(await travel('fenmark_shop', 4, 4))) throw new Error('could not reach the shop counter');
+  await face('up');
+  await st.press('a');
+  await readDialogue('the shopkeeper');
+  {
+    const shelf = await checkpoint('shop-shelf', { scene: 'shop' });
+    const snaresBefore = shelf.seen.bag.find((b) => b.item === 'snare')?.count ?? 0;
+    // Three snares: right twice, then A. Every frame on the way is looked at.
+    for (let i = 0; i < 2; i++) {
+      await st.press('right');
+      inspect(tally, `shop, counting to ${i + 2}`, await st.see(), world);
+    }
+    await st.press('a');
+    const sold = await checkpoint('shop-sold', { scene: 'shop' });
+    const snaresAfter = sold.seen.bag.find((b) => b.item === 'snare')?.count ?? 0;
+    tally.check('words', snaresAfter === snaresBefore + 3 && sold.seen.money === shelf.seen.money - 600, () =>
+      `buying 3 snares at 200 took the bag from ${snaresBefore} to ${snaresAfter} and the purse from ${shelf.seen.money} to ${sold.seen.money}`);
+    // Down the shelf to LEAVE, looking at each row with the cursor on it.
+    for (let i = 0; i < 6; i++) {
+      const now = await st.see();
+      if (now.seen.scene !== 'shop') break;
+      inspect(tally, `shop, row ${now.seen.cursor + 1}`, now, world);
+      if (now.seen.cursor === shopStock(now.seen.badges).length) break;
+      await st.press('down');
+    }
+    await st.press('a');
+    await readDialogue('leaving the shop');
+  }
+
   // --- Route 1: the long grass ---------------------------------------------------
   // The first trainer watches the road at row 7. The grass above him is safe.
   const watched = new Set(['8,7', '9,7', '10,7', '9,14', '10,14', '11,14']);
@@ -951,7 +982,8 @@ try {
 // stops being taken is a check that silently stops being made.
 const REQUIRED = [
   'title', 'intro-dialogue', 'starter-winter', 'starter-baloo', 'starter-plato', 'overworld-house',
-  'overworld-town', 'npc-talk', 'menu-root', 'menu-party', 'menu-bag', 'route-grass', 'battle-wild',
+  'overworld-town', 'npc-talk', 'menu-root', 'menu-party', 'menu-bag', 'shop-shelf', 'shop-sold',
+  'route-grass', 'battle-wild',
   'battle-moves', 'battle-midturn', 'battle-aftermath', 'battle-snare', 'save-confirm', 'lodge-heal',
   'battle-trainer', 'town-second',
 ];

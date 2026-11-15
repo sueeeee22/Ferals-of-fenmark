@@ -14,8 +14,9 @@ import {
   NO_BUTTONS, WALK_FRAMES,
   type Buttons, type ButtonName, type Content, type GameState, type StarterId,
 } from '../../src/core/game.ts';
-import { canWalk, DIR_VEC, propsOf, tileAt, warpAt, type Dir, type GameMap } from '../../src/core/world.ts';
+import { canWalk, DIR_VEC, propsOf, tileAt, warpAt, type Dir, type GameMap, type NpcKind } from '../../src/core/world.ts';
 import { maxHp } from '../../src/core/creature.ts';
+import { shopStock } from '../../src/core/items.ts';
 import { serialize, deserialize, restore } from '../../src/core/save.ts';
 import { loadContent, type LoadedContent } from './content-loader.ts';
 
@@ -50,6 +51,9 @@ class Bot {
   battlesLost = 0;
   caught = 0;
   saves = 0;
+  /** Trips to a shop counter that ended with something bought, and what they cost. */
+  shopVisits = 0;
+  spent = 0;
   /**
    * How many times softening has killed the thing we were trying to catch.
    * Once an over-levelled bot's WEAKEST move one-shots every wild it meets,
@@ -142,6 +146,7 @@ class Bot {
       if (this.scene.kind === 'dialogue') { this.press('a'); continue; }
       if (this.scene.kind === 'battle') { this.fightBattle(); continue; }
       if (this.scene.kind === 'menu') { this.press('b'); continue; }
+      if (this.scene.kind === 'shop') { this.press('b'); continue; }
       if (this.state.scene.kind === 'hallOfFame') return;
       if (this.scene.kind === 'title') { this.press('a'); continue; }
       this.press('a');
@@ -281,13 +286,69 @@ class Bot {
     );
   }
 
-  /** Keep enough snares to actually build a party. Shops are not modelled yet. */
-  restockSnares(): void {
-    const stack = this.state.player.bag.find((i) => i.item === 'snare');
-    if (stack && stack.count < 5) stack.count = 20;
-    else if (!stack) this.state.player.bag.push({ item: 'snare', count: 20 });
-    const pot = this.state.player.bag.find((i) => i.item === 'poultice');
-    if (pot && pot.count < 5) pot.count = 20;
+  private count(item: string): number {
+    return this.state.player.bag.find((i) => i.item === item)?.count ?? 0;
+  }
+
+  /**
+   * Walk to the nearest shop and buy snares and poultices at the counter, with
+   * the same presses and the same purse a player has.
+   *
+   * This used to be `restockSnares()`, which reached into the bag and wrote
+   * "20" in it, because the shops sold nothing. That hid two things: whether
+   * the prize money is enough to keep a party supplied, and whether the shop
+   * can actually be operated. Both are now part of what "the bot finished"
+   * means. Returns true if anything was bought.
+   */
+  shop(): boolean {
+    const p = this.state.player;
+    // Snares matter while there is still a party to build; after that a few
+    // spares will do, and the rest of the purse is better spent on poultices.
+    const wantSnares = p.party.length < 4 ? 15 : 5;
+    const wantPoultices = 10;
+    const needs = this.count('snare') < wantSnares || this.count('poultice') < wantPoultices;
+    if (!needs || p.money < 200) return false;
+
+    if (this.scene.kind !== 'overworld') this.settle();
+    const shopMap = this.findNpcMap('shop');
+    if (shopMap === null || !this.travelTo(shopMap)) return false;
+    const clerk = this.map.npcs.find((n) => n.kind === 'shop');
+    if (!clerk || !this.goTo(clerk.x, clerk.y + 1)) return false;
+    this.press('up');
+    this.press('a');
+    for (let n = 0; this.scene.kind === 'dialogue' && n < 400; n++) this.press('a');
+    if (this.scene.kind !== 'shop') {
+      this.settle();
+      return false;
+    }
+
+    const before = p.money;
+    this.buy('snare', wantSnares);
+    this.buy('poultice', wantPoultices);
+    this.press('b');
+    this.clearDialogue();
+    this.settle();
+    const paid = before - this.state.player.money;
+    if (paid <= 0) return false;
+    this.shopVisits++;
+    this.spent += paid;
+    trace(`shop: paid ${paid}, now ${this.count('snare')} snares, ${this.count('poultice')} poultices, purse ${this.state.player.money}`);
+    return true;
+  }
+
+  /** Bring one item up to `want`, or as near as the purse allows. */
+  private buy(item: string, want: number): void {
+    const sc = this.scene;
+    if (sc.kind !== 'shop') return;
+    const stock = shopStock(this.state.player.badges.length);
+    const row = stock.findIndex((i) => i.id === item);
+    const def = stock[row];
+    if (!def) return;
+    const n = Math.min(want - this.count(item), Math.floor(this.state.player.money / def.price));
+    if (n <= 0) return;
+    for (let g = 0; sc.cursor !== row && g < 12; g++) this.press('down');
+    for (let g = 0; sc.qty < n && g < 120; g++) this.press('right');
+    this.press('a');
   }
 
   /** Lowest-damage move that still does SOMETHING, for softening a catch target. */
@@ -642,6 +703,7 @@ class Bot {
      * difficulty curve. Catching is snare-limited, not time-limited.
      */
     const CATCH_GRACE = 9000;
+    let shopless = false;
     let levelMetAt = -1;
     const done = (): boolean => {
       if (lead() < target) return false;
@@ -668,11 +730,13 @@ class Bot {
         continue;
       }
 
-      // Shops are not modelled, so the harness is the shop. Without this the
-      // bot was snare-limited rather than time-limited: one stack per gym, four
-      // throws a battle, and it simply ran dry and walked into the next gym
-      // alone. A player with money would have restocked.
-      if (this.state.player.party.length < minParty) this.restockSnares();
+      // Out of snares with a party still to build: walk back to a shop, as a
+      // player would. If the shop cannot help (no money, no road) stop asking,
+      // or the bot spends the whole budget commuting.
+      if (this.state.player.party.length < minParty && this.snareIndex() < 0 && !shopless) {
+        if (this.shop()) continue;
+        shopless = true;
+      }
 
       const spot = this.findGrassTile();
       trace(
@@ -709,8 +773,13 @@ class Bot {
     }
   }
 
-  /** The nearest map containing a healer NPC. */
+  /** The nearest map with a healer in it. */
   private findLodge(): string | null {
+    return this.findNpcMap('healer');
+  }
+
+  /** The nearest map with someone of this kind in it. */
+  private findNpcMap(kind: NpcKind): string | null {
     const seen = new Set<string>([this.state.player.mapId]);
     let frontier = [this.state.player.mapId];
     const flags = new Set(this.state.player.flags);
@@ -723,7 +792,7 @@ class Bot {
         } catch {
           continue;
         }
-        if (map.npcs.some((n) => n.kind === 'healer')) return id;
+        if (map.npcs.some((n) => n.kind === kind)) return id;
         for (const w of map.warps) {
           if (w.requiresFlag !== undefined && !flags.has(w.requiresFlag)) continue;
           if (seen.has(w.toMap)) continue;
@@ -798,6 +867,8 @@ interface RunResult {
   badges: number;
   partyLevels: number[];
   saves: number;
+  shopVisits: number;
+  spent: number;
   seconds: number;
 }
 
@@ -819,6 +890,8 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
     badges: bot.state.player.badges.length,
     partyLevels: bot.state.player.party.map((f) => f.level),
     saves: bot.saves,
+    shopVisits: bot.shopVisits,
+    spent: bot.spent,
     seconds: (performance.now() - t0) / 1000,
   });
 
@@ -841,7 +914,7 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
 
       // Arrive with a party at or slightly above the leader's level, the way a
       // player who walked the route and caught things along the way would.
-      bot.restockSnares();
+      bot.shop();
       bot.grindTo(Math.max(5, targetLevel + 2), 600000, Math.min(4, i + 2));
       bot.healUp();
 
@@ -873,7 +946,7 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
         // Each failed attempt escalates the target, the way a player who got
         // beaten would go away and train rather than walking straight back in.
         const lead = bot.state.player.party.reduce((b, f) => Math.max(b, f.level), targetLevel);
-        bot.restockSnares();
+        bot.shop();
         bot.grindTo(
           Math.min(targetLevel + 12, Math.max(targetLevel + 2, lead + 3)),
           600000,
@@ -930,7 +1003,7 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
         );
         if (reachedHallOfFame(bot)) break;
         const lead = bot.state.player.party.reduce((b, f) => Math.max(b, f.level), 58);
-        bot.restockSnares();
+        bot.shop();
         bot.grindTo(Math.min(80, Math.max(60, lead + 3)), 600000, 4);
         bot.healUp();
         if (!bot.travelTo(mapId)) return bail(`could not re-enter ${mapId}`);
@@ -940,6 +1013,9 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
     }
 
     const won = reachedHallOfFame(bot) || hasFlag(bot.state.player, 'champion');
+    // A run that never bought anything did not test the shops, whatever else
+    // it proved - and it would mean the bot is being supplied some other way.
+    if (won && bot.shopVisits === 0) return bail('reached the Champion without ever buying anything');
     return {
       starter,
       ok: won,
@@ -948,6 +1024,8 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
       badges: bot.state.player.badges.length,
       partyLevels: bot.state.player.party.map((f) => f.level),
       saves: bot.saves,
+      shopVisits: bot.shopVisits,
+      spent: bot.spent,
       seconds: (performance.now() - t0) / 1000,
     };
   } catch (err) {
@@ -983,10 +1061,10 @@ for (const starter of STARTERS) {
   if (!r.ok) fail(`${starter}: ${r.reason} (badges ${r.badges}, levels ${r.partyLevels.join('/')})`);
 }
 
-console.log('\n  STARTER       RESULT     BADGES  SAVES  PARTY LEVELS');
+console.log('\n  STARTER       RESULT     BADGES  SAVES  SHOPS  SPENT   PARTY LEVELS');
 for (const r of results) {
   console.log(
-    `  ${r.starter.padEnd(14)}${(r.ok ? 'CHAMPION' : 'FAILED').padEnd(11)}${String(r.badges).padEnd(8)}${String(r.saves).padEnd(7)}${r.partyLevels.join('/')}`,
+    `  ${r.starter.padEnd(14)}${(r.ok ? 'CHAMPION' : 'FAILED').padEnd(11)}${String(r.badges).padEnd(8)}${String(r.saves).padEnd(7)}${String(r.shopVisits).padEnd(7)}${String(r.spent).padEnd(8)}${r.partyLevels.join('/')}`,
   );
 }
 

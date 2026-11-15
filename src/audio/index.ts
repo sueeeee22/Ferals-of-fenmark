@@ -239,6 +239,8 @@ export function createAudio(content: Content): Audio {
     } else if (scene.kind === 'menu') {
       f.cursor = scene.cursor * 100 + scene.subCursor;
       f.sub = scene.sub;
+    } else if (scene.kind === 'shop') {
+      f.cursor = scene.cursor * 100 + scene.qty;
     } else if (scene.kind === 'overworld') {
       f.hop = scene.walk.hop;
     }
