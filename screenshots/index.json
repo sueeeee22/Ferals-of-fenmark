@@ -172,38 +172,38 @@
     },
     {
       "n": 19,
-      "name": "menu-poultice",
-      "scene": "menu/party",
+      "name": "battle-snare",
+      "scene": "battle/main",
       "files": [
-        "19-menu-poultice-gb.png",
-        "19-menu-poultice-phone.png"
+        "19-battle-snare-gb.png",
+        "19-battle-snare-phone.png"
       ]
     },
     {
       "n": 20,
-      "name": "battle-snare",
-      "scene": "battle/main",
+      "name": "save-confirm",
+      "scene": "dialogue",
       "files": [
-        "20-battle-snare-gb.png",
-        "20-battle-snare-phone.png"
+        "20-save-confirm-gb.png",
+        "20-save-confirm-phone.png"
       ]
     },
     {
       "n": 21,
-      "name": "save-confirm",
+      "name": "lodge-heal",
       "scene": "dialogue",
       "files": [
-        "21-save-confirm-gb.png",
-        "21-save-confirm-phone.png"
+        "21-lodge-heal-gb.png",
+        "21-lodge-heal-phone.png"
       ]
     },
     {
       "n": 22,
-      "name": "lodge-heal",
-      "scene": "dialogue",
+      "name": "menu-poultice",
+      "scene": "menu/party",
       "files": [
-        "22-lodge-heal-gb.png",
-        "22-lodge-heal-phone.png"
+        "22-menu-poultice-gb.png",
+        "22-menu-poultice-phone.png"
       ]
     },
     {

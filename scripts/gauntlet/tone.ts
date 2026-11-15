@@ -93,7 +93,7 @@ const REQUIRED_KEYS: readonly string[] = [
   'elite_1', 'elite_1_defeat', 'elite_2', 'elite_2_defeat',
   'elite_3', 'elite_3_defeat', 'elite_4', 'elite_4_defeat',
   'champion_intro', 'champion_defeat', 'hall_of_fame',
-  'lodge_heal', 'shop_greet', 'shop_buy', 'shop_leave', 'blackout',
+  'lodge_heal', 'shop_greet', 'shop_buy', 'shop_leave', 'kennel_greet', 'kennel_leave', 'blackout',
   'catch_success', 'catch_fail', 'box_full', 'evolve', 'badge_get',
   'sign_1', 'sign_2', 'sign_3', 'sign_4', 'sign_5', 'sign_6',
   'npc_gossip_1', 'npc_gossip_2', 'npc_gossip_3', 'npc_gossip_4',
@@ -365,7 +365,7 @@ const BATTLE_KINDS: ReadonlySet<string> = new Set(['trainer', 'rival', 'leader']
   // Keys the reducer and the service screens look up by literal.
   for (const key of [
     'intro', 'starter_offer', 'starter_winter', 'starter_baloo', 'starter_plato',
-    'hall_of_fame', 'blackout', 'shop_buy', 'shop_leave',
+    'hall_of_fame', 'blackout', 'shop_buy', 'shop_leave', 'kennel_leave',
     'catch_success', 'catch_fail', 'box_full', 'evolve', 'badge_get',
     'sign_1', 'sign_2', 'sign_3', 'sign_4', 'sign_5', 'sign_6',
   ]) {

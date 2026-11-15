@@ -22,6 +22,7 @@ enough to work with it; open it only when you are about to change it.
 | `types.ts` | The 12-type chart on three axes (weapon / habitat / temperament) + effectiveness lookups. |
 | `creature.ts` | `Species`, `Move`, `Feral` shapes; stat, damage, exp and catch maths. The content contract. |
 | `battle.ts` | Turn resolution state machine. Emits a typed event stream the UI animates and the sim asserts on. |
+| `items.ts` | Everything that can be in the bag: display name, price, badges needed before a shop sells it. |
 | `world.ts` | Tile grid, tile property table, collision, ledges, warps, encounter tables, trainer line of sight. |
 | `game.ts` | The top-level reducer. `step(content, state, buttons)` = one frame. Save file is this state. |
 | `testkit.ts` | Shared helpers for gauntlets: `makeDex`, `makeFeral`, `autoBattle`. |

@@ -1,7 +1,7 @@
 # Roadmap
 
 Each phase is one session-sized brief. "Done" means: gauntlets no worse than before, the change verified in a real browser (Playwright, `tests/browser.ts`), committed, and deployed.
-All nine gates pass as of Phase 2.
+All nine gates pass as of Phase 3.
 
 ## Phase 1 — See the screen — DONE
 `npm run gauntlet:visual` plays the real build in a browser from the title to the second town and reads the pixels: 20 rules, 23 checkpoints, about 75 seconds. How it works and how to debug it: STATE.md, "The screen".
@@ -38,8 +38,33 @@ Left open, deliberately:
 - The champion's ace is Baloo for every player; the script says it should be the starter that beats yours. Needs a per-save trainer team (Phase 3).
 - (Phase 5) Seen by the visual tour: taking only your starter down Route 1 at level 9 loses to the second trainer there about seven times in eight. The playthrough bot never notices because it catches a party first. Worth a look when tuning the first ten minutes.
 
-## Phase 3 — Gen 1 features that are missing (effort: high)
-Check STATE.md "What does NOT exist yet" first. Likely: shops you can actually buy from (the bot restocks snares by cheating), a PC box you can use, the Dex screen, nicknaming, held-B to run, a fishing or surfing equivalent if the maps need it. One feature per commit; extend the playthrough bot so it uses each feature legitimately.
+## Phase 3 — Gen 1 features that are missing — DONE
+Five features, one commit each (naming and the party list share one - they rewrite the same menu), each used by the playthrough bot through real button presses and each read off the real screen by `gauntlet:visual`. How each works and what to know before touching it: STATE.md, "Menus, shops, the box and the Dex".
+
+- **Shops.** Every town's clerk sells: up/down to choose, left/right to count, A to buy, B to leave. Gen 1 prices (snare 200, poultice 300); good snares from 2 badges, big poultices from 3, great snares from 5. The bot used to write "20 snares" into its own bag; it now walks to a shop and pays out of prize money (9-14 trips and 17-25k a run), and a run that never buys fails.
+- **Hold B to run.** Twice walking pace. Walking is unchanged, so a tap is still one tile.
+- **Naming, and a party list worth opening.** A catch asks "Give it a name?" and opens a letter grid. The party list shows level, health in numbers and status; A on an animal offers MOVE / NAME / BACK. A poultice from the bag asks who gets it.
+- **The kennel box.** A kennelhand in every lodge: PARTY and BOX lists, A sends an animal across. 30 in the box, and the last animal that can stand cannot be left.
+- **The Dex.** Every species met in a fight and every one owned is remembered. A list of all 153, and a page for each one met; owning one fills the page in.
+
+Also fixed, from the "left for Phase 3" notes:
+- A locked door no longer leaves you standing on its tile.
+- The Champion's ace is the starter that beats yours (it was Baloo for everybody). `gauntlet:curve` fights each starter against the team it really meets: 85.6 / 89.2 / 92.4%.
+- `strong_poultice` overlapping its count: item names now come from a table that holds them to twelve characters.
+- The sixth visual mutant (*identical starter sprites*) is now caught. The guess in the Phase 1 notes was right; it was the one-word fix. All six planted bugs fail the gate.
+- The playthrough was re-run on two more seeds after all of the above: 9 of 9 runs reach the Champion, parties at levels 66-80.
+
+**Known issues and things not built, for whoever is next:**
+- Shops only sell. There is no selling back, and nothing else to spend on (no status cures, no repels - `repelSteps` exists in the save and nothing sets it).
+- No summary page for an animal: its moves, stats and experience can only be seen in a fight. The party list's action row (`PARTY_ACTIONS`) is where a fourth action would go.
+- The Dex does not say where an animal lives.
+- One box of thirty. Leaving an animal in it does not heal it.
+- Names are typed on the grid with the d-pad. A keyboard player cannot just type.
+- Nothing in the game tells you B runs. (Phase 5: the first ten minutes.)
+- While running, a tap can carry you two tiles. That is the price of the speed, and why walking is the default; do not "fix" it by slowing the run without re-reading the WALK_FRAMES note in STATE.md.
+- `item` NPCs still set a flag and hand nothing over, but no map has one, so nothing is broken by it yet.
+- No fishing. Water is crossed with the Tide badge and has its own encounters, which is the surfing equivalent; the maps do not need more.
+- In the browser tour the box, the Dex and naming are only reached because a second animal gets caught on Route 1. The tour's clock is fixed so this is the same every run, but if the early encounter tables change and the catch stops happening, the gate will fail on "the tour never reached name-ask" - that means re-check the catch, not the feature.
 
 ## Phase 4 — Content and feel (effort: high, medium for pure writing)
 More NPC dialogue in TONE.md's register (the hard rules in CLAUDE.md apply), a post-game, sprite polish on the weakest families (sea otters are the worst), overworld animation (water, grass rustle), and audio tuning from user feedback.

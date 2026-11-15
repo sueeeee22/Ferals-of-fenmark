@@ -948,44 +948,49 @@ async function tour(): Promise<void> {
   }
 
   // --- A poultice from the bag, for whoever is picked -------------------------------
-  // The first fight has usually cost the starter something. Open the bag, take
-  // the poultice, choose the patient, and check the sum.
-  if ((await st.peek()).scene === 'overworld') {
-    await st.press('start');
-    await st.press('down');
-    await st.press('a');
-    const bag = await st.see();
-    const row = bag.seen.bag.findIndex((b) => b.item === 'poultice');
-    if (bag.seen.sub === 'bag' && row >= 0) {
-      // A snare cannot be used out here, and the bag says so instead of nothing.
-      const snareRow = bag.seen.bag.findIndex((b) => b.item === 'snare');
-      for (let i = 0; i < 6 && (await st.peek()).subCursor !== snareRow && snareRow >= 0; i++) await st.press('down');
-      if (snareRow >= 0) {
+  // Open the bag, take the poultice, choose the patient, and check the sum.
+  // Done the first time the lead comes out of a fight actually hurt, so the
+  // sum being checked is a real one and not "nothing to mend".
+  let poulticeShown = false;
+  const usePoultice = async (): Promise<void> => {
+    poulticeShown = true;
+    if ((await st.peek()).scene === 'overworld') {
+      await st.press('start');
+      await st.press('down');
+      await st.press('a');
+      const bag = await st.see();
+      const row = bag.seen.bag.findIndex((b) => b.item === 'poultice');
+      if (bag.seen.sub === 'bag' && row >= 0) {
+        // A snare cannot be used out here, and the bag says so instead of nothing.
+        const snareRow = bag.seen.bag.findIndex((b) => b.item === 'snare');
+        for (let i = 0; i < 6 && (await st.peek()).subCursor !== snareRow && snareRow >= 0; i++) await st.press('down');
+        if (snareRow >= 0) {
+          await st.press('a');
+          const refused = await st.see();
+          inspect(tally, 'bag, trying to use a snare', refused, world);
+          tally.check('words', refused.seen.note !== '', () => 'pressing A on a snare in the bag did nothing and said nothing');
+        }
+        for (let i = 0; i < 6 && (await st.peek()).subCursor !== row; i++) await st.press('down');
         await st.press('a');
-        const refused = await st.see();
-        inspect(tally, 'bag, trying to use a snare', refused, world);
-        tally.check('words', refused.seen.note !== '', () => 'pressing A on a snare in the bag did nothing and said nothing');
+        const who = await st.see();
+        inspect(tally, 'bag, choosing who gets the poultice', who, world);
+        const patient = who.seen.party[0];
+        const had = who.seen.bag[row]?.count ?? 0;
+        await st.press('a');
+        const done = await checkpoint('menu-poultice', { scene: 'menu', sub: 'party' });
+        const now = done.seen.party[0];
+        const left = done.seen.bag.find((b) => b.item === 'poultice')?.count ?? 0;
+        if (patient !== undefined && now !== undefined) {
+          const gain = Math.min(40, patient.maxHp - patient.hp);
+          tally.check('words', now.hp === patient.hp + gain && left === had - (gain > 0 ? 1 : 0), () =>
+            `a poultice on ${patient.name} at ${patient.hp}/${patient.maxHp} left it at ${now.hp} and the bag at ${left} (was ${had})`);
+        }
+        await st.press('b');
+        inspect(tally, 'bag, after the poultice', await st.see(), world);
       }
-      for (let i = 0; i < 6 && (await st.peek()).subCursor !== row; i++) await st.press('down');
-      await st.press('a');
-      const who = await st.see();
-      inspect(tally, 'bag, choosing who gets the poultice', who, world);
-      const patient = who.seen.party[0];
-      const had = who.seen.bag[row]?.count ?? 0;
-      await st.press('a');
-      const done = await checkpoint('menu-poultice', { scene: 'menu', sub: 'party' });
-      const now = done.seen.party[0];
-      const left = done.seen.bag.find((b) => b.item === 'poultice')?.count ?? 0;
-      if (patient !== undefined && now !== undefined) {
-        const gain = Math.min(40, patient.maxHp - patient.hp);
-        tally.check('words', now.hp === patient.hp + gain && left === had - (gain > 0 ? 1 : 0), () =>
-          `a poultice on ${patient.name} at ${patient.hp}/${patient.maxHp} left it at ${now.hp} and the bag at ${left} (was ${had})`);
-      }
-      await st.press('b');
-      inspect(tally, 'bag, after the poultice', await st.see(), world);
+      await st.press('b', 3);
     }
-    await st.press('b', 3);
-  }
+  };
 
   // A second one, opened with a snare, to watch it fly.
   if (!(await travel('route_1', 5, 5, watched))) throw new Error('could not get back to the long grass');
@@ -1030,7 +1035,8 @@ async function tour(): Promise<void> {
     // because there is nothing left to catch a second animal with.
     const canStillCatch = s.party.length < 2 && s.bag.some((x) => x.item === 'snare' && x.count > 0);
     if (lead.level >= ready && (swapShown || !canStillCatch) && (s.party.length < 2 || swapShown)) break;
-    if (lead.hp < lead.maxHp * 0.5) await heal();
+    if (!poulticeShown && lead.hp < lead.maxHp && s.scene === 'overworld') await usePoultice();
+    else if (lead.hp < lead.maxHp * 0.5) await heal();
     if (!(await travel('route_1', 5, 5, watched))) break;
     // Until there is a second animal, try to catch one. Once there is, swap to
     // it once mid-fight, to watch one creature leave the screen and another
@@ -1042,6 +1048,10 @@ async function tour(): Promise<void> {
     if (!alone) swapShown = true;
     if ((await hunt(plan)) === null) break;
     await afterFight('after a fight in the grass');
+  }
+  if (!poulticeShown) {
+    await usePoultice();
+    tourGaps.push('the lead was never hurt between fights, so the poultice from the bag was only seen being refused');
   }
   await heal();
 
@@ -1217,7 +1227,8 @@ try {
 const REQUIRED = [
   'title', 'intro-dialogue', 'starter-winter', 'starter-baloo', 'starter-plato', 'overworld-house',
   'overworld-town', 'npc-talk', 'menu-root', 'menu-party', 'menu-bag', 'shop-shelf', 'shop-sold',
-  'route-grass', 'battle-wild', 'menu-poultice',
+  'route-grass', 'battle-wild', 'menu-poultice', 'dex-list', 'dex-entry', 'box-party', 'box-stored',
+  'name-ask', 'name-grid',
   'battle-moves', 'battle-midturn', 'battle-aftermath', 'battle-snare', 'save-confirm', 'lodge-heal',
   'battle-trainer', 'town-second',
 ];

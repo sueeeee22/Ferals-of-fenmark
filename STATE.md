@@ -29,8 +29,8 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
 | 2 | `gauntlet:schema` | **PASS** | 153 species, 96 moves, 0 orphan moves, starter spread 0.0% |
 | 3 | `gauntlet:sim` | **PASS** | was 89+, then 38, then 27; see BLOCKERS.md items 1, 2 and 6 |
 | 4 | `gauntlet:curve` | **PASS** | was 24, then 15, then 3 (gym 8) |
-| 5 | `gauntlet:playthrough` | **PASS** | all three starters reach the Champion, on 4 seeds |
-| 6 | `gauntlet:visual` | **PASS** | 20 rules read off the real screen, 23 checkpoints, ~75s |
+| 5 | `gauntlet:playthrough` | **PASS** | all three starters reach the Champion, on 3 seeds, buying, naming, boxing and reading the Dex on the way |
+| 6 | `gauntlet:visual` | **PASS** | 20 rules read off the real screen, 34 checkpoints, ~80s |
 | 7 | `gauntlet:tone` | **PASS** | 96 keys, 325 boxes, 1 warning |
 | 8 | `gauntlet:ship` | **PASS** | real build, served from the Pages subpath, driven in a browser |
 
@@ -44,22 +44,24 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
 `gauntlet:curve`: gym 8 at intended level 68% / 88% / 96% (was 18 / 54 / 46);
 Champion 86% / 84% / 76%.
 
-`gauntlet:playthrough`, current run (~4 min for all three):
+`gauntlet:playthrough`, current run (~90s for all three):
 
-| starter | result | badges | saves | party levels |
-|---------|--------|--------|-------|--------------|
-| `winter_pup` | CHAMPION | 8 | 9 | 66/70/71/71 |
-| `baloo_pup`  | CHAMPION | 8 | 9 | 73/75/76/76 |
-| `plato_pup`  | CHAMPION | 8 | 9 | 76/78/80/80 |
+| starter | result | badges | saves | shop trips | spent | Dex met/owned | party levels |
+|---------|--------|--------|-------|-----------|-------|---------------|--------------|
+| `winter_pup` | CHAMPION | 8 | 13 | 9 | 16700 | 94/9 | 69/71/71/71 |
+| `baloo_pup`  | CHAMPION | 8 | 13 | 14 | 19400 | 92/8 | 72/75/76/76 |
+| `plato_pup`  | CHAMPION | 8 | 13 | 13 | 24500 | 91/10 | 77/77/78/79 |
+
+A run FAILS, even at the Champion, if the bot never bought anything, never named a
+catch, never used the kennel box, never opened the Dex, or used only one walking pace.
 
 The numbers on the two balance gates sit close to their limits in three places
 (legendary wolf 74% against a 75% ceiling, Winter at gym 8 68% against a 65% floor,
 squirrel pup 34% against 25%). They are deterministic, so they hold until the data
 changes - but any balance edit should expect to re-tune those three first.
 
-(Before the Phase 2 rebalance this was re-checked on three further seeds via
-`PT_SEED=alpha npm run gauntlet:playthrough`, 12 of 12 runs. It has NOT been
-re-checked on other seeds since - worth doing before trusting it as more than one run.)
+(Re-checked after Phase 3 on `PT_SEED=alpha` and `PT_SEED=beta` as well as the default:
+9 of 9 runs, parties at levels 66-80.)
 
 ---
 
@@ -81,34 +83,22 @@ re-checked on other seeds since - worth doing before trusting it as more than on
 
 ## What does NOT exist yet
 
-- **The renderer has landed and the game boots.** `src/render/gb.ts` (8x8 font, 26
-  hand-authored tile patterns, animated water and tall grass), `src/render/draw.ts`,
-  `src/game/content.ts`, and a real `src/main.ts` with a 60fps fixed-timestep loop,
-  keyboard and touch input. `npm run build` succeeds. Screenshots in `screenshots/`.
-- **All three starters complete the game**, on real button presses through the real
-  reducer, from a new save to the Hall of Fame - 8 badges and 9 save/reload round
-  trips each. Verified on four seeds. This is the gauntlet the brief called the
-  definition of finished for gameplay, and it is green.
-- **Sprite forge rebuilt with per-family drawing routines** - eight visibly different
-  body plans. See `BLOCKERS.md` item 4 (now FIXED) for what is still weaker than Gen 1.
-- **Battle screen matches Gen 1's layout**, verified by looking at screenshots: real
-  back sprite for the player's creature, full-length names, readable command panel.
-- **Starter selection exists in the browser.** It did not: the pending action dropped
-  straight into the overworld and a player began with an empty party.
-- **`gauntlet:visual` exists and passes.** It takes its own pictures (23 checkpoints,
-  saved to `screenshots/` at 160x144 and phone width) and checks them; `scripts/shots.ts`
-  is now a one-line wrapper round it.
-- **Remaining renderer gap:** overworld player and NPC sprites are still procedural
-  humanoids, not authored pixel art.
-- No audio yet.
-- `DEPLOY.md` and `npm run ship` are unwritten. Firebase config, rules and
-  `src/firebase.ts` already exist and are good.
+(This section used to be a list of things that had since been built. Rewritten at Phase 3.)
+
+- Selling at shops; anything to buy besides snares and poultices; repels.
+- A summary page for an animal (moves, stats, experience) outside a fight.
+- Where-to-find information in the Dex.
+- More than one box; healing on deposit.
+- Typing a name from a real keyboard.
+- Any in-game hint that B runs.
+- A post-game, an options menu, authored pixel art for people (Phases 4 and 5).
+- Firebase is not wired up, on purpose. See "Shipping".
 
 ---
 
 ## Shipping
 
-The game is a static site: no server, no database, no login, **77KB gzipped**.
+The game is a static site: no server, no database, no login, **94KB gzipped**.
 
 - **The link:** `https://sueeeee22.github.io/Ferals-of-fenmark/`
 - **One-time setup, and only a human can do it:** Settings → Pages → Source:
@@ -141,11 +131,7 @@ The game is a static site: no server, no database, no login, **77KB gzipped**.
 
 ## Next steps, in order
 
-1. ~~Write `gauntlet:visual`.~~ Done - see ROADMAP.md Phase 1.
-2. ~~Fix `gauntlet:sim` and `gauntlet:curve`.~~ Done - see ROADMAP.md Phase 2.
-3. **Audio.** Nothing exists. The brief asks for chiptune via WebAudio.
-4. Overworld player/NPC sprites: authored pixel art instead of procedural humanoids.
-5. `BLOCKERS.md` items 1 and 2 (status moves, starter parity).
+ROADMAP.md is the list. Phases 1-3 are done; Phase 4 (content and feel) is next.
 
 ---
 
@@ -305,6 +291,37 @@ The game is a static site: no server, no database, no login, **77KB gzipped**.
   as enlarged PNGs. A failure message always names the recording and the frame.
 - **`npm run gauntlet:visual:mutants`** puts six player-reported bugs back and requires
   the gate to fail on each. Run it after changing the gate itself.
+
+## Menus, shops, the box and the Dex (Phase 3)
+
+- **Each of these is its own scene kind** (`shop`, `box`, `naming`) or a `sub` of the
+  pause menu (`party`, `bag`, `dex`), stepped in `game.ts` and drawn in `draw.ts`. None
+  of them is saved: `restore` always resumes in the overworld, and the autosave only
+  fires there.
+- **A row of text is eighteen characters and the gate will find the nineteenth.** Every
+  list is the text box's width (`PARTY_BOX`). Answers to a press ("Sold.", "Keep one
+  walking.") are drawn where the heading goes and must be seventeen characters or fewer.
+  "Keep one standing." was one over and `gauntlet:visual` caught it running into the
+  border.
+- **Item names come from `src/core/items.ts`**, twelve characters at most, because a
+  count or a price shares the row. Never draw the raw item id.
+- **A cursor drawn in the cell before a word reads as part of the word.** The gate's
+  reader joins glyphs that sit on the same 8px grid, so "▶Winter" is one run. Checks
+  strip the cursor; they do not look for the name as a run of its own.
+- **`WalkState.span` is the length of the step in progress** (16 walking, 8 running, set
+  when the step starts from whether B is held). The renderer divides by `span`, never by
+  `WALK_FRAMES`. A ledge hop is always 16.
+- **The Dex lists (`player.seen`, `player.caught`) are missing from saves made before
+  Phase 3.** `restore` → `withDefaults` fills them from the party and box. Any new field
+  on `PlayerState` needs the same treatment or old saves crash on load.
+- **`Content.speciesIds`** is every species in Dex order. Both content builders
+  (`src/game/content.ts`, `scripts/gauntlet/content-loader.ts`) must provide it.
+- **`trainerTeamFor(def, rivalStarter)`** is the team a save actually meets. Only the
+  Champion's differs. Anything that simulates the Champion must go through it, or it is
+  measuring a fight nobody has.
+- **The bot must not be handed what the game sells.** `restockSnares()` wrote items
+  into the bag and hid for two phases that shops sold nothing. If the bot needs
+  something, it gets it the way a player does, and the run fails if it never did.
 
 ## Sound (`src/audio/`)
 
