@@ -15,6 +15,7 @@ import { paginate, pageLength, wrapText } from '../../src/core/text.ts';
 import { Tile, tileAt, visibleNpcs, type GameMap } from '../../src/core/world.ts';
 import type { Species } from '../../src/core/creature.ts';
 import { itemName, shopStock } from '../../src/core/items.ts';
+import { NAME_KEYS, NAME_MAX, NAME_ROWS, PARTY_ACTIONS } from '../../src/core/game.ts';
 import type { SeenFeral } from '../../src/observe.ts';
 import type { Seen, Sight } from './stage.ts';
 import {
@@ -498,6 +499,26 @@ function barFor(lay: Layout, box: Rect, y: number): Bar | null {
   return lay.bars.find((b) => contains(box, b) && Math.abs(b.y - y) <= 4) ?? null;
 }
 
+/**
+ * The party list, in a fight or out of one: every animal's name, and under it
+ * a bar and numbers that say the same thing about its health, and its level.
+ */
+function inspectPartyRows(t: Tally, where: string, lay: Layout, box: Rect, party: readonly SeenFeral[]): void {
+  const rd = lay.read(box);
+  const said = quote(allText(rd).replace(/\n/g, ' / '));
+  for (const m of party) {
+    // The cursor (or the "picked up" mark) sits in the cell before the name
+    // and reads as part of the same run.
+    const run = rd.runs.find((r) => r.text.replace(/^[▶▼]/, '') === asDrawn(m.name));
+    if (!t.check('words', run !== undefined, () => `${where}: ${quote(m.name)} is in the party but the list reads ${said}`) || run === undefined) continue;
+    const onRow = (dy: number, text: string): boolean => rd.runs.some((r) => r.y === run.y + dy && r.text === text);
+    t.check('words', onRow(0, `Lv${m.level}`), () => `${where}: ${m.name} is level ${m.level}; its row does not say so. The list reads ${said}`);
+    t.check('words', onRow(10, `${m.hp}/${m.maxHp}`), () => `${where}: ${m.name} has ${m.hp}/${m.maxHp}; its row does not say so. The list reads ${said}`);
+    const verdict = barVerdict(barFor(lay, box, run.y + 11), m.hp, m.maxHp);
+    t.check('bars', verdict === null, () => `${where}: ${m.name}: ${verdict}`);
+  }
+}
+
 function barVerdict(bar: Bar | null, hp: number, max: number): string | null {
   if (bar === null) return 'there is no health bar';
   const frac = max > 0 ? Math.max(0, Math.min(1, hp / max)) : 0;
@@ -526,19 +547,38 @@ function inspectMenu(t: Tally, where: string, s: Sight, lay: Layout): void {
   }
 
   if (seen.sub === 'party') {
-    t.check('words', hasRun(rd, 'PARTY'), () => `${where}: the party list has no PARTY heading`);
-    for (const m of seen.party) {
-      const run = rd.runs.find((r) => r.text === asDrawn(m.name));
-      if (!t.check('words', run !== undefined, () => `${where}: ${quote(m.name)} is in the party but the list reads ${quote(allText(rd))}`)) continue;
-      if (run === undefined) continue;
-      const verdict = barVerdict(barFor(lay, box, run.y), m.hp, m.maxHp);
-      t.check('bars', verdict === null, () => `${where}: ${m.name}: ${verdict}`);
+    // The top row is the heading, the row of actions, a question or an answer.
+    // Worked out here from the facts, not asked of the renderer.
+    const heading = seen.act >= 0 ? PARTY_ACTIONS.join(' ')
+      : seen.note !== '' ? seen.note
+      : seen.moving >= 0 ? 'MOVE TO WHERE?'
+      : seen.using !== '' ? 'USE ON WHO?'
+      : 'PARTY';
+    const topRuns = rd.runs.filter((r) => r.y <= box.y + 8);
+    const top = topRuns.map((r) => r.text).join(' ');
+    t.check('words', squash(top.replace('▶', '')) === squash(asDrawn(heading)), () =>
+      `${where}: the top of the party list should read ${quote(heading)}; it reads ${quote(top)}`);
+    if (seen.act >= 0) {
+      // The cursor sits immediately before the highlighted action.
+      const want = `▶${PARTY_ACTIONS[seen.act] ?? ''}`;
+      t.check('words', squash(top).includes(want), () => `${where}: the cursor should be on ${PARTY_ACTIONS[seen.act]}; the row reads ${quote(top)}`);
+    }
+    inspectPartyRows(t, where, lay, box, seen.party);
+    const pointed = rd.runs.filter((r) => r.text.startsWith('▶') && r.y > box.y + 12);
+    const want = seen.party[seen.subCursor];
+    t.check('words', pointed.length === 1 && want !== undefined && pointed[0]?.text === `▶${asDrawn(want.name)}`, () =>
+      `${where}: the cursor should be on ${want?.name ?? 'nobody'}; it is on ${quote(pointed.map((r) => r.text).join(' and '))}`);
+    if (seen.moving >= 0 && seen.moving !== seen.subCursor) {
+      const held = seen.party[seen.moving];
+      t.check('words', held !== undefined && rd.runs.some((r) => r.text === `▼${asDrawn(held.name)}`), () =>
+        `${where}: ${held?.name ?? 'the animal'} has been picked up to be moved and nothing on screen marks it`);
     }
     return;
   }
 
   if (seen.sub === 'bag') {
-    t.check('words', hasRun(rd, 'BAG'), () => `${where}: the bag has no BAG heading`);
+    const title = seen.note === '' ? 'BAG' : seen.note;
+    t.check('words', squash(rowsOf(rd)[0]?.text ?? '') === squash(asDrawn(title)), () => `${where}: the top of the bag should read ${quote(title)}; it reads ${quote(rowsOf(rd)[0]?.text ?? '')}`);
     for (const stack of seen.bag) {
       const name = itemName(stack.item);
       const run = rd.runs.find((r) => r.text === asDrawn(name));
@@ -585,6 +625,53 @@ function inspectShop(t: Tally, where: string, s: Sight, lay: Layout): void {
   const got = messageRows(lay, box);
   t.check('words', squash(got.join('')) === want, () =>
     `${where}: under the shelf should read "Purse ${seen.money}", ${quote(own)} and ${quote(next)}; the screen reads ${quote(got.join(' / '))}`);
+}
+
+/**
+ * Naming: the question, then the letters. What has been typed is on screen, all
+ * of it; every letter of the grid can be read; the cursor is where the game
+ * thinks it is.
+ */
+function inspectNaming(t: Tally, where: string, s: Sight, lay: Layout): void {
+  const n = s.seen.naming;
+  if (n === null) return;
+  const f = s.frame;
+
+  if (n.asking) {
+    const yn = lay.boxes.find((b) => b.w < 80 && b.y < 90);
+    const box = textBox(lay);
+    if (!t.check('words', yn !== undefined && box !== null, () => `${where}: asked whether to name it, but there is no YES/NO on screen`) || yn === undefined || box === null) return;
+    const rows = rowsOf(lay.read(yn));
+    t.check('words', rows.length === 2 && squash(rows[0]?.text.replace('▶', '') ?? '') === 'YES' && squash(rows[1]?.text.replace('▶', '') ?? '') === 'NO', () =>
+      `${where}: the choice should read YES / NO; it reads ${quote(rows.map((r) => r.text).join(' / '))}`);
+    t.check('words', (rows[n.choice]?.text ?? '').includes('▶') && !(rows[1 - n.choice]?.text ?? '').includes('▶'), () =>
+      `${where}: the cursor should be on ${n.choice === 0 ? 'YES' : 'NO'}`);
+    const said = messageRows(lay, box).join(' ');
+    t.check('words', squash(said) === squash(asDrawn(`Give it a name? It is a ${n.species}.`)), () =>
+      `${where}: the question should name ${quote(n.species)}; the box reads ${quote(said)}`);
+    const blob = findBlobs(f, 0, lay.boxes, { x: 0, y: 0, w: f.w, h: 90 }).filter((b) => b.area >= 80).sort((a, b) => b.area - a.area)[0];
+    const verdict = spriteVerdict(blob);
+    t.check('sprites', verdict === null, () => `${where}: the animal being named: ${verdict}`);
+    return;
+  }
+
+  // Above the grid: its species, and the name so far padded out with dots.
+  const head = rowsOf(readText(f, { x: 48, y: 0, w: f.w - 48, h: 44 })).map((r) => r.text);
+  const typed = `${n.typed}${'.'.repeat(Math.max(0, NAME_MAX - n.typed.length))}`;
+  t.check('words', head.some((r) => r === asDrawn(`${n.species}?`)), () => `${where}: the screen should ask after ${quote(n.species)}; it reads ${quote(head.join(' / '))}`);
+  t.check('words', head.some((r) => r === asDrawn(typed)), () => `${where}: ${quote(n.typed)} has been typed, so the name should read ${quote(typed)}; the screen reads ${quote(head.join(' / '))}`);
+
+  const grid = lay.boxes.find((b) => b.y >= 40 && b.w >= 140);
+  if (!t.check('words', grid !== undefined, () => `${where}: there are no letters to choose from`) || grid === undefined) return;
+  const rows = rowsOf(lay.read(grid));
+  // The case key is labelled with the case it switches TO.
+  const keys = NAME_KEYS.map((k) => (k === 'case' ? (n.lower ? 'ABC' : 'abc') : k));
+  const want = [...NAME_ROWS.map((r) => (n.lower ? r.toLowerCase() : r)), keys.join('')];
+  for (const [i, w] of want.entries()) {
+    const got = rows[i]?.text ?? '';
+    t.check('words', squash(got.replace('▶', '')) === squash(asDrawn(w)), () => `${where}: row ${i + 1} of the letters should read ${quote(w)}; it reads ${quote(got)}`);
+    t.check('words', got.includes('▶') === (i === n.row), () => `${where}: the cursor should be on row ${n.row + 1}, ${got.includes('▶') ? 'but is' : 'and is not'} on row ${i + 1}`);
+  }
 }
 
 // --- Battle ------------------------------------------------------------------
@@ -774,9 +861,7 @@ function inspectBattle(t: Tally, where: string, s: Sight, lay: Layout): void {
         t.check('words', hasRun(rd, name), () => `${where}: the bag holds ${quote(name)} but the list reads ${quote(allText(rd))}`);
       }
     } else {
-      for (const m of s.seen.party) {
-        t.check('words', hasRun(rd, m.name), () => `${where}: ${quote(m.name)} is in the party but the list reads ${quote(allText(rd))}`);
-      }
+      inspectPartyRows(t, where, lay, parts.overlay, s.seen.party);
     }
   }
 }
@@ -805,6 +890,9 @@ export function inspect(t: Tally, where: string, s: Sight, world: World): Layout
       break;
     case 'shop':
       inspectShop(t, where, s, lay);
+      break;
+    case 'naming':
+      inspectNaming(t, where, s, lay);
       break;
     case 'battle':
       inspectBattle(t, where, s, lay);

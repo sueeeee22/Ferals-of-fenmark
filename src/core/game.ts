@@ -14,7 +14,7 @@ import { paginate, pageLength } from './text.ts';
 import { HIT_LINES, hitBucket } from '../data/hitlines.ts';
 import type { Feral, Species, StatusName } from './creature.ts';
 import { computeStat, expForLevel, maxHp, selectMoveset } from './creature.ts';
-import { shopStock, STACK_MAX } from './items.ts';
+import { isPoultice, isSnare, poulticeHeal, shopStock, STACK_MAX } from './items.ts';
 import {
   canWalk, DIR_VEC, isLedgeHop, npcAt, rollEncounter, triggeredTrainer, tileAt,
   warpAt, facingToward, propsOf,
@@ -315,6 +315,54 @@ export interface MenuScene {
   cursor: number;
   sub: 'root' | 'party' | 'bag' | 'dex' | 'save';
   subCursor: number;
+  /**
+   * Party list: which of PARTY_ACTIONS is highlighted for the animal under the
+   * cursor, or -1 while the list itself has the cursor.
+   */
+  act: number;
+  /** Party list: the animal picked up to be moved, or -1. */
+  moving: number;
+  /** Party list reached from the bag: the item waiting for a patient, or ''. */
+  using: string;
+  /** The game's answer to the last press, shown where the heading goes. */
+  note: string;
+}
+
+/** What can be done to an animal from the party list. */
+export const PARTY_ACTIONS = ['MOVE', 'NAME', 'BACK'] as const;
+
+/** The longest a name the player types may be. Fits every box a name is drawn in. */
+export const NAME_MAX = 10;
+/** The letter grid, a row at a time. The fourth row is NAME_KEYS. */
+export const NAME_ROWS = ['ABCDEFGHI', 'JKLMNOPQR', 'STUVWXYZ-'] as const;
+/** Under the letters: switch case, a space, rub one out, finish. */
+export const NAME_KEYS = ['case', 'SPC', 'DEL', 'END'] as const;
+
+/**
+ * Naming an animal.
+ *
+ * Reached two ways: straight after a catch, where it first asks whether you
+ * want to bother (`asking`), and from the party list, where you have already
+ * said so. Finishing with nothing typed gives the animal back its species name,
+ * which is also how a name is taken off again.
+ */
+export interface NamingScene {
+  readonly kind: 'naming';
+  /** Whose name: an index into the party, or into the box for a seventh catch. */
+  where: 'party' | 'box';
+  index: number;
+  asking: boolean;
+  /** While asking: 0 is YES, 1 is NO. */
+  choice: number;
+  text: string;
+  /** 0-2 are letter rows, 3 is the row of keys. */
+  row: number;
+  col: number;
+  lower: boolean;
+  /** Where the player came from, and so where they go back to. */
+  back: 'overworld' | 'party';
+  /** Anything the end of the fight still has to say once the naming is done. */
+  after: string[];
 }
 
 /**
@@ -344,6 +392,7 @@ export type Scene =
   | BattleScene
   | MenuScene
   | ShopScene
+  | NamingScene
   | { readonly kind: 'gameover'; ticks: number }
   | { readonly kind: 'hallOfFame'; ticks: number };
 
@@ -548,6 +597,7 @@ export function step(content: Content, state: GameState, buttons: Buttons): Game
     case 'battle': stepBattle(content, state, state.scene, buttons, rng); break;
     case 'menu': stepMenu(content, state, state.scene, buttons); break;
     case 'shop': stepShop(content, state, state.scene, buttons); break;
+    case 'naming': stepNaming(content, state, state.scene, buttons); break;
     case 'gameover': stepGameOver(content, state, buttons); break;
     case 'hallOfFame': state.scene.ticks++; break;
   }
@@ -651,7 +701,7 @@ function stepOverworld(
 
   // --- Standing: menu, interaction, movement ------------------------------
   if (pressed(state, b, 'start')) {
-    state.scene = { kind: 'menu', cursor: 0, sub: 'root', subCursor: 0 };
+    state.scene = openMenu('root', 0, 0);
     return;
   }
 
@@ -1375,7 +1425,7 @@ function useBattleItem(
   const stack = p.bag.find((s) => s.item === item);
   if (!stack || stack.count <= 0) return;
 
-  if (item === 'snare' || item === 'good_snare' || item === 'great_snare') {
+  if (isSnare(item)) {
     if (scene.battle.kind === 'trainer') {
       refuse(content, state, scene, "That would be theft, and they're watching.", rng);
       return;
@@ -1386,7 +1436,7 @@ function useBattleItem(
     return;
   }
 
-  if (item === 'poultice' || item === 'strong_poultice') {
+  if (isPoultice(item)) {
     const target = activeOf(scene.battle.player);
     const sp = content.dex.species(target.species);
     const max = maxHp(sp, target);
@@ -1396,7 +1446,7 @@ function useBattleItem(
     }
     stack.count--;
     const before = target.hp;
-    target.hp = Math.min(max, target.hp + (item === 'strong_poultice' ? 120 : 40));
+    target.hp = Math.min(max, target.hp + poulticeHeal(item));
     // The amount actually restored. This used to say 40 whatever happened, so a
     // strong poultice, or one that only topped up the last few points, lied.
     scene.queue.push({ t: 'heal', side: 'player', amount: target.hp - before, hpAfter: target.hp });
@@ -1438,11 +1488,17 @@ function endBattle(content: Content, state: GameState, scene: BattleScene, rng: 
   const p = state.player;
   const outcome = scene.battle.outcome;
 
+  let caughtAt: { where: 'party' | 'box'; index: number } | null = null;
   if (outcome === 'caught' && scene.battle.caught) {
     const caught = scene.battle.caught;
     caught.originalTrainer = p.name;
-    if (p.party.length < 6) p.party.push(caught);
-    else p.box.push(caught);
+    if (p.party.length < 6) {
+      p.party.push(caught);
+      caughtAt = { where: 'party', index: p.party.length - 1 };
+    } else {
+      p.box.push(caught);
+      caughtAt = { where: 'box', index: p.box.length - 1 };
+    }
   }
 
   if (outcome === 'won' && scene.trainerId !== null) {
@@ -1483,6 +1539,16 @@ function endBattle(content: Content, state: GameState, scene: BattleScene, rng: 
   }
 
   void rng;
+  if (caughtAt !== null) {
+    // A seventh animal does not vanish: say where it went, after the naming.
+    if (caughtAt.where === 'box') lines.push('No room on the lead. It goes to the kennel box at the lodge.');
+    state.scene = {
+      kind: 'naming', where: caughtAt.where, index: caughtAt.index,
+      asking: true, choice: 0, text: '', row: 0, col: 0, lower: false,
+      back: 'overworld', after: lines,
+    };
+    return;
+  }
   if (lines.length > 0) sayRaw(state, lines);
   else enterOverworld(state);
 }
@@ -1490,6 +1556,10 @@ function endBattle(content: Content, state: GameState, scene: BattleScene, rng: 
 // --- Pause menu ------------------------------------------------------------
 
 const MENU_ROOT = ['PARTY', 'BAG', 'DEX', 'SAVE', 'BACK'] as const;
+
+function openMenu(sub: MenuScene['sub'], cursor: number, subCursor: number): MenuScene {
+  return { kind: 'menu', cursor, sub, subCursor, act: -1, moving: -1, using: '', note: '' };
+}
 
 function stepMenu(content: Content, state: GameState, scene: MenuScene, b: Buttons): void {
   if (scene.sub === 'root') {
@@ -1506,28 +1576,194 @@ function stepMenu(content: Content, state: GameState, scene: MenuScene, b: Butto
     }
     scene.sub = choice === 'PARTY' ? 'party' : choice === 'BAG' ? 'bag' : 'dex';
     scene.subCursor = 0;
+    scene.act = -1;
+    scene.moving = -1;
+    scene.using = '';
+    scene.note = '';
     return;
   }
 
-  const len = scene.sub === 'party' ? state.player.party.length : state.player.bag.length;
-  if (pressed(state, b, 'down') && len > 0) scene.subCursor = (scene.subCursor + 1) % len;
-  if (pressed(state, b, 'up') && len > 0) scene.subCursor = (scene.subCursor + len - 1) % len;
-  if (pressed(state, b, 'b')) { scene.sub = 'root'; return; }
+  if (scene.sub === 'party') {
+    stepMenuParty(content, state, scene, b);
+    return;
+  }
+
+  const len = state.player.bag.length;
+  if (pressed(state, b, 'down') && len > 0) { scene.subCursor = (scene.subCursor + 1) % len; scene.note = ''; }
+  if (pressed(state, b, 'up') && len > 0) { scene.subCursor = (scene.subCursor + len - 1) % len; scene.note = ''; }
+  if (pressed(state, b, 'b')) { scene.sub = 'root'; scene.note = ''; return; }
 
   if (pressed(state, b, 'a') && scene.sub === 'bag') {
     const stack = state.player.bag[scene.subCursor];
-    if (stack && stack.count > 0 && (stack.item === 'poultice' || stack.item === 'strong_poultice')) {
-      const target = state.player.party[0];
-      if (target) {
-        const sp = content.dex.species(target.species);
-        const max = maxHp(sp, target);
-        if (target.hp < max) {
-          stack.count--;
-          target.hp = Math.min(max, target.hp + (stack.item === 'strong_poultice' ? 120 : 40));
-        }
-      }
+    if (!stack || stack.count <= 0) return;
+    if (!isPoultice(stack.item)) {
+      // A snare has nothing to be thrown at out here. Say so: this press used
+      // to do nothing at all, which reads as the game having hung.
+      scene.note = 'No use out here.';
+      return;
     }
+    if (state.player.party.length === 0) return;
+    // Pick who gets it. It used to go to whoever was first in the party,
+    // silently, whether or not they were the one who was hurt.
+    scene.sub = 'party';
+    scene.subCursor = 0;
+    scene.using = stack.item;
+    scene.note = '';
   }
+}
+
+/**
+ * The party list out of battle: look, reorder, rename, or - arriving from the
+ * bag with a poultice in hand - choose who gets it.
+ */
+function stepMenuParty(content: Content, state: GameState, scene: MenuScene, b: Buttons): void {
+  const p = state.player;
+  const party = p.party;
+  const len = party.length;
+
+  // The row of actions for the animal under the cursor.
+  if (scene.act >= 0) {
+    const n = PARTY_ACTIONS.length;
+    if (pressed(state, b, 'right') || pressed(state, b, 'down')) scene.act = (scene.act + 1) % n;
+    if (pressed(state, b, 'left') || pressed(state, b, 'up')) scene.act = (scene.act + n - 1) % n;
+    if (pressed(state, b, 'b')) { scene.act = -1; return; }
+    if (!pressed(state, b, 'a')) return;
+    const action = PARTY_ACTIONS[scene.act];
+    scene.act = -1;
+    if (action === 'MOVE') {
+      scene.moving = scene.subCursor;
+    } else if (action === 'NAME') {
+      state.scene = {
+        kind: 'naming', where: 'party', index: scene.subCursor,
+        asking: false, choice: 0, text: '', row: 0, col: 0, lower: false,
+        back: 'party', after: [],
+      };
+    }
+    return;
+  }
+
+  if (pressed(state, b, 'down') && len > 0) { scene.subCursor = (scene.subCursor + 1) % len; scene.note = ''; }
+  if (pressed(state, b, 'up') && len > 0) { scene.subCursor = (scene.subCursor + len - 1) % len; scene.note = ''; }
+
+  if (pressed(state, b, 'b')) {
+    scene.note = '';
+    if (scene.moving >= 0) { scene.moving = -1; return; }
+    if (scene.using !== '') {
+      // Back to the bag, on the thing that was being used.
+      const at = p.bag.findIndex((s) => s.item === scene.using);
+      scene.using = '';
+      scene.sub = 'bag';
+      scene.subCursor = Math.max(0, at);
+      return;
+    }
+    scene.sub = 'root';
+    return;
+  }
+  if (!pressed(state, b, 'a')) return;
+  const target = party[scene.subCursor];
+  if (!target) return;
+
+  if (scene.using !== '') {
+    const stack = p.bag.find((s) => s.item === scene.using);
+    if (!stack || stack.count <= 0) { scene.using = ''; scene.sub = 'bag'; scene.subCursor = 0; return; }
+    const max = maxHp(content.dex.species(target.species), target);
+    if (target.hp <= 0) { scene.note = 'Out cold. Lodge.'; return; }
+    if (target.hp >= max) { scene.note = 'Nothing to mend.'; return; }
+    const before = target.hp;
+    target.hp = Math.min(max, target.hp + poulticeHeal(stack.item));
+    stack.count--;
+    scene.note = `Mended ${target.hp - before}.`;
+    return;
+  }
+
+  if (scene.moving >= 0) {
+    const from = scene.moving;
+    const to = scene.subCursor;
+    const a = party[from];
+    if (a && from !== to) {
+      party[from] = target;
+      party[to] = a;
+    }
+    scene.moving = -1;
+    return;
+  }
+
+  scene.act = 0;
+  scene.note = '';
+}
+
+// --- Naming ----------------------------------------------------------------
+
+function namingTarget(p: PlayerState, scene: NamingScene): Feral | undefined {
+  return scene.where === 'party' ? p.party[scene.index] : p.box[scene.index];
+}
+
+function stepNaming(content: Content, state: GameState, scene: NamingScene, b: Buttons): void {
+  const p = state.player;
+  const target = namingTarget(p, scene);
+
+  const finish = (): void => {
+    if (scene.after.length > 0) { sayRaw(state, scene.after); return; }
+    if (scene.back === 'party') {
+      state.scene = openMenu('party', 0, Math.min(scene.index, Math.max(0, p.party.length - 1)));
+      return;
+    }
+    enterOverworld(state);
+  };
+  const commit = (): void => {
+    if (target) {
+      const typed = scene.text.trim();
+      target.nickname = typed === '' ? content.dex.species(target.species).name : typed;
+    }
+    finish();
+  };
+
+  if (!target) { finish(); return; }
+
+  if (scene.asking) {
+    if (pressed(state, b, 'down') || pressed(state, b, 'up')) scene.choice = 1 - scene.choice;
+    if (pressed(state, b, 'b')) { finish(); return; }
+    if (!pressed(state, b, 'a')) return;
+    if (scene.choice === 0) scene.asking = false;
+    else finish();
+    return;
+  }
+
+  const erase = (): void => { scene.text = scene.text.slice(0, -1); };
+  const type = (ch: string): void => {
+    if (scene.text.length >= NAME_MAX) return;
+    scene.text += ch;
+    // Full: put the cursor on END, where the next press belongs.
+    if (scene.text.length >= NAME_MAX) { scene.row = 3; scene.col = 3; }
+  };
+
+  if (pressed(state, b, 'start')) { commit(); return; }
+  if (pressed(state, b, 'b')) { erase(); return; }
+
+  const width = scene.row === 3 ? NAME_KEYS.length : 9;
+  if (pressed(state, b, 'right')) scene.col = (scene.col + 1) % width;
+  if (pressed(state, b, 'left')) scene.col = (scene.col + width - 1) % width;
+  const vertical = pressed(state, b, 'down') ? 1 : pressed(state, b, 'up') ? -1 : 0;
+  if (vertical !== 0) {
+    const next = (scene.row + vertical + 4) % 4;
+    // The keys are wider than the letters, so a column has to be translated
+    // on the way in and out of that row rather than carried across.
+    if (next === 3 && scene.row !== 3) scene.col = Math.min(NAME_KEYS.length - 1, Math.floor((scene.col * NAME_KEYS.length) / 9));
+    else if (scene.row === 3 && next !== 3) scene.col = scene.col * 2 + 1;
+    scene.row = next;
+  }
+
+  if (!pressed(state, b, 'a')) return;
+  if (scene.row < 3) {
+    const ch = (NAME_ROWS[scene.row] ?? '')[scene.col] ?? '';
+    if (ch !== '') type(scene.lower ? ch.toLowerCase() : ch);
+    return;
+  }
+  const key = NAME_KEYS[scene.col];
+  if (key === 'case') scene.lower = !scene.lower;
+  else if (key === 'SPC') { if (scene.text.length > 0) type(' '); }
+  else if (key === 'DEL') erase();
+  else commit();
 }
 
 // --- Shop ------------------------------------------------------------------

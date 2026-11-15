@@ -425,6 +425,10 @@ async function travel(goalMap: string, gx: number, gy: number, avoid: ReadonlySe
       await fight({});
       continue;
     }
+    if (s.scene === 'naming') {
+      await settleNaming();
+      continue;
+    }
     if (s.scene === 'dialogue') {
       await readDialogue(`on the way to ${goalMap}`);
       continue;
@@ -701,6 +705,73 @@ async function fight(plan: FightPlan): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
+// Naming a catch
+// ---------------------------------------------------------------------------
+
+let nameShown = false;
+
+/** Put the letter cursor on a cell, one press at a time, looking at every frame. */
+async function nameCursorTo(row: number, col: number): Promise<void> {
+  for (let guard = 0; guard < 40; guard++) {
+    const s = await st.see();
+    const n = s.seen.naming;
+    if (n === null || n.asking) return;
+    inspect(tally, 'naming, moving the cursor', s, world);
+    if (n.row !== row) await st.press('down');
+    else if (n.col !== col) await st.press('right');
+    else return;
+  }
+}
+
+/**
+ * The question that follows a catch. The first time, say yes and call it Rex -
+ * a capital, then two small letters, so the case key is used too. After that,
+ * say no: once is enough to have seen it.
+ */
+async function settleNaming(): Promise<void> {
+  const s = await st.peek();
+  if (s.scene !== 'naming') return;
+  if (nameShown) {
+    inspect(tally, 'declining to name a catch', await st.see(), world);
+    await st.press('down');
+    inspect(tally, 'declining to name a catch, on NO', await st.see(), world);
+    await st.press('a');
+    return;
+  }
+  nameShown = true;
+  const before = s.party.map((m) => m.name);
+  await checkpoint('name-ask', { scene: 'naming' });
+  await st.press('a');
+  await nameCursorTo(1, 8); // R
+  await st.press('a');
+  await nameCursorTo(3, 0); // the case key
+  await st.press('a');
+  await nameCursorTo(0, 4); // e
+  await st.press('a');
+  await nameCursorTo(2, 5); // x
+  await st.press('a');
+  const typed = await checkpoint('name-grid', { scene: 'naming' });
+  tally.check('words', typed.seen.naming?.typed === 'Rex', () =>
+    `pressing R, the case key, e and x typed ${JSON.stringify(typed.seen.naming?.typed)}`);
+  // B rubs one out; type it again.
+  await st.press('b');
+  const rubbed = await st.see();
+  inspect(tally, 'naming, after rubbing one out', rubbed, world);
+  tally.check('words', rubbed.seen.naming?.typed === 'Re', () => `B should rub out one letter; the name is now ${JSON.stringify(rubbed.seen.naming?.typed)}`);
+  await st.press('a');
+  await st.press('start');
+  const after = await st.peek();
+  tally.check('words', after.party.some((m) => m.name === 'Rex') && !before.includes('Rex'), () =>
+    `the catch was named Rex, but the party is called ${after.party.map((m) => m.name).join(', ')}`);
+}
+
+/** Whatever a fight leaves behind: the naming question, then anything left to say. */
+async function afterFight(where: string): Promise<void> {
+  await settleNaming();
+  if ((await st.peek()).scene === 'dialogue') await readDialogue(where);
+}
+
+// ---------------------------------------------------------------------------
 // 3. The tour
 // ---------------------------------------------------------------------------
 
@@ -875,11 +946,51 @@ async function tour(): Promise<void> {
     if (s.scene === 'dialogue') await readDialogue('after the first fight');
   }
 
+  // --- A poultice from the bag, for whoever is picked -------------------------------
+  // The first fight has usually cost the starter something. Open the bag, take
+  // the poultice, choose the patient, and check the sum.
+  if ((await st.peek()).scene === 'overworld') {
+    await st.press('start');
+    await st.press('down');
+    await st.press('a');
+    const bag = await st.see();
+    const row = bag.seen.bag.findIndex((b) => b.item === 'poultice');
+    if (bag.seen.sub === 'bag' && row >= 0) {
+      // A snare cannot be used out here, and the bag says so instead of nothing.
+      const snareRow = bag.seen.bag.findIndex((b) => b.item === 'snare');
+      for (let i = 0; i < 6 && (await st.peek()).subCursor !== snareRow && snareRow >= 0; i++) await st.press('down');
+      if (snareRow >= 0) {
+        await st.press('a');
+        const refused = await st.see();
+        inspect(tally, 'bag, trying to use a snare', refused, world);
+        tally.check('words', refused.seen.note !== '', () => 'pressing A on a snare in the bag did nothing and said nothing');
+      }
+      for (let i = 0; i < 6 && (await st.peek()).subCursor !== row; i++) await st.press('down');
+      await st.press('a');
+      const who = await st.see();
+      inspect(tally, 'bag, choosing who gets the poultice', who, world);
+      const patient = who.seen.party[0];
+      const had = who.seen.bag[row]?.count ?? 0;
+      await st.press('a');
+      const done = await checkpoint('menu-poultice', { scene: 'menu', sub: 'party' });
+      const now = done.seen.party[0];
+      const left = done.seen.bag.find((b) => b.item === 'poultice')?.count ?? 0;
+      if (patient !== undefined && now !== undefined) {
+        const gain = Math.min(40, patient.maxHp - patient.hp);
+        tally.check('words', now.hp === patient.hp + gain && left === had - (gain > 0 ? 1 : 0), () =>
+          `a poultice on ${patient.name} at ${patient.hp}/${patient.maxHp} left it at ${now.hp} and the bag at ${left} (was ${had})`);
+      }
+      await st.press('b');
+      inspect(tally, 'bag, after the poultice', await st.see(), world);
+    }
+    await st.press('b', 3);
+  }
+
   // A second one, opened with a snare, to watch it fly.
   if (!(await travel('route_1', 5, 5, watched))) throw new Error('could not get back to the long grass');
   const second = await hunt({ snareFirst: true, tryRefusal: true, shots: { snare: 'battle-snare' } });
   if (second === null) throw new Error('no second wild creature appeared');
-  if ((await st.peek()).scene === 'dialogue') await readDialogue('after the second fight');
+  await afterFight('after the second fight');
 
   // --- Saving ----------------------------------------------------------------------
   if ((await st.peek()).scene === 'overworld') {
@@ -929,7 +1040,7 @@ async function tour(): Promise<void> {
       : swapShown ? {} : { switchOnce: true, shots: { party: 'battle-party' } };
     if (!alone) swapShown = true;
     if ((await hunt(plan)) === null) break;
-    if ((await st.peek()).scene === 'dialogue') await readDialogue('after a fight in the grass');
+    await afterFight('after a fight in the grass');
   }
   await heal();
 
@@ -939,7 +1050,31 @@ async function tour(): Promise<void> {
     if (s.scene === 'overworld' && s.party.length > 1) {
       await st.press('start');
       await st.press('a');
-      await checkpoint('menu-party-two', { scene: 'menu', sub: 'party' });
+      const two = await checkpoint('menu-party-two', { scene: 'menu', sub: 'party' });
+      // Reorder: pick up the first, put it second, look, and put it back -
+      // the road south is walked with the strong one in front.
+      const order = two.seen.party.map((m) => m.name).join(',');
+      for (let pass = 0; pass < 2; pass++) {
+        await st.press('a');
+        const acts = await st.see();
+        inspect(tally, 'party, the row of actions', acts, world);
+        tally.check('label', acts.seen.act === 0, () => 'pressing A on an animal in the party list did not offer anything to do');
+        await st.press('a');
+        inspect(tally, 'party, an animal picked up', await st.see(), world);
+        await st.press('down');
+        inspect(tally, 'party, choosing where it goes', await st.see(), world);
+        await st.press('a');
+        if (pass === 0) {
+          const moved = await checkpoint('menu-party-moved', { scene: 'menu', sub: 'party' });
+          const names = moved.seen.party.map((m) => m.name);
+          tally.check('words', names.slice(0, 2).reverse().concat(names.slice(2)).join(',') === order, () =>
+            `moving the first animal to second place turned ${order} into ${names.join(',')}`);
+        }
+        await st.press('up');
+      }
+      const back = await st.see();
+      tally.check('words', back.seen.party.map((m) => m.name).join(',') === order, () =>
+        `moving it back should restore ${order}; the party is ${back.seen.party.map((m) => m.name).join(',')}`);
       await st.press('b', 2);
     } else {
       tourGaps.push('no second animal was caught, so the party list and switching were only seen with one name in them');
@@ -956,6 +1091,10 @@ async function tour(): Promise<void> {
       const isTrainer = s.battle?.kind === 'trainer';
       await fight(isTrainer && !trainerShot ? { shots: { menu: 'battle-trainer' } } : {});
       if (isTrainer) trainerShot = true;
+      continue;
+    }
+    if (s.scene === 'naming') {
+      await settleNaming();
       continue;
     }
     if (s.scene === 'dialogue') {
@@ -999,7 +1138,7 @@ try {
 const REQUIRED = [
   'title', 'intro-dialogue', 'starter-winter', 'starter-baloo', 'starter-plato', 'overworld-house',
   'overworld-town', 'npc-talk', 'menu-root', 'menu-party', 'menu-bag', 'shop-shelf', 'shop-sold',
-  'route-grass', 'battle-wild',
+  'route-grass', 'battle-wild', 'menu-poultice',
   'battle-moves', 'battle-midturn', 'battle-aftermath', 'battle-snare', 'save-confirm', 'lodge-heal',
   'battle-trainer', 'town-second',
 ];

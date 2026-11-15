@@ -97,7 +97,25 @@ export interface Observation {
   /** Shop only: how many A would buy, and the shop's answer to the last press. */
   readonly qty: number;
   readonly note: string;
+  /** Party list: the action highlighted (-1 none), the animal being moved, the item in hand. */
+  readonly act: number;
+  readonly moving: number;
+  readonly using: string;
+  /** The naming screen, when it is up. */
+  readonly naming: SeenNaming | null;
   readonly battle: SeenBattle | null;
+}
+
+export interface SeenNaming {
+  readonly asking: boolean;
+  readonly choice: number;
+  /** What has been typed so far. */
+  readonly typed: string;
+  readonly row: number;
+  readonly col: number;
+  readonly lower: boolean;
+  /** The species being named - not its current nickname. */
+  readonly species: string;
 }
 
 function seenShown(sh: ShownSide): SeenFeral {
@@ -136,6 +154,10 @@ export function observe(content: Content, s: GameState): Observation {
   let stride = 0;
   let qty = 0;
   let note = '';
+  let act = -1;
+  let moving = -1;
+  let using = '';
+  let naming: SeenNaming | null = null;
   let battle: SeenBattle | null = null;
 
   switch (sc.kind) {
@@ -152,7 +174,24 @@ export function observe(content: Content, s: GameState): Observation {
       sub = sc.sub;
       cursor = sc.cursor;
       subCursor = sc.subCursor;
+      act = sc.act;
+      moving = sc.moving;
+      using = sc.using;
+      note = sc.note;
       break;
+    case 'naming': {
+      const who = sc.where === 'party' ? p.party[sc.index] : p.box[sc.index];
+      naming = {
+        asking: sc.asking,
+        choice: sc.choice,
+        typed: sc.text,
+        row: sc.row,
+        col: sc.col,
+        lower: sc.lower,
+        species: who ? content.dex.species(who.species).name : '',
+      };
+      break;
+    }
     case 'shop':
       cursor = sc.cursor;
       qty = sc.qty;
@@ -221,6 +260,10 @@ export function observe(content: Content, s: GameState): Observation {
     badges: p.badges.length,
     qty,
     note,
+    act,
+    moving,
+    using,
+    naming,
     battle,
   };
 }

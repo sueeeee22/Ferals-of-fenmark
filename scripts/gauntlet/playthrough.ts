@@ -11,7 +11,7 @@
 import { performance } from 'node:perf_hooks';
 import {
   newGame, step, chooseStarter, hasFlag, partyAlive,
-  NO_BUTTONS, WALK_FRAMES,
+  NO_BUTTONS, WALK_FRAMES, NAME_ROWS,
   type Buttons, type ButtonName, type Content, type GameState, type StarterId,
 } from '../../src/core/game.ts';
 import { canWalk, DIR_VEC, propsOf, tileAt, warpAt, type Dir, type GameMap, type NpcKind } from '../../src/core/world.ts';
@@ -54,6 +54,9 @@ class Bot {
   /** Trips to a shop counter that ended with something bought, and what they cost. */
   shopVisits = 0;
   spent = 0;
+  /** Catches given a name at the letter grid, and party reorders made from the menu. */
+  named = 0;
+  reorders = 0;
   /** Tiles crossed at a run (B held) and at a walk. */
   ranTiles = 0;
   walkedTiles = 0;
@@ -150,6 +153,7 @@ class Bot {
       if (this.scene.kind === 'battle') { this.fightBattle(); continue; }
       if (this.scene.kind === 'menu') { this.press('b'); continue; }
       if (this.scene.kind === 'shop') { this.press('b'); continue; }
+      if (this.scene.kind === 'naming') { this.nameIt(); continue; }
       if (this.state.scene.kind === 'hallOfFame') return;
       if (this.scene.kind === 'title') { this.press('a'); continue; }
       this.press('a');
@@ -279,7 +283,79 @@ class Bot {
     // above flips to throwing on turn one.
     if (softenTurns > 0 && !snareThrown) this.softenKos++;
 
+    if (this.scene.kind === 'naming') this.nameIt();
     if (this.scene.kind === 'dialogue') this.clearDialogue();
+  }
+
+  /**
+   * The question after a catch. The first few get a name, typed on the grid a
+   * letter at a time and checked afterwards; the rest are declined, the way a
+   * player stops bothering by the fourth hare.
+   */
+  private nameIt(): void {
+    const sc = this.scene;
+    if (sc.kind !== 'naming') return;
+    if (this.named >= 3) {
+      this.press('b');
+      return;
+    }
+    const where = sc.where;
+    const index = sc.index;
+    const want = ['Ace', 'Bo', 'Cub'][this.named] ?? 'Ace';
+    this.press('a'); // YES
+    for (const ch of want) {
+      const upper = ch.toUpperCase();
+      const lower = ch !== upper;
+      if (sc.lower !== lower) {
+        this.nameCursor(3, 0);
+        this.press('a');
+      }
+      const row = NAME_ROWS.findIndex((r) => r.includes(upper));
+      this.nameCursor(row, (NAME_ROWS[row] ?? '').indexOf(upper));
+      this.press('a');
+    }
+    this.nameCursor(3, 3); // END
+    this.press('a');
+    const p = this.state.player;
+    const got = (where === 'party' ? p.party[index] : p.box[index])?.nickname;
+    if (got !== want) throw new Error(`typed the name "${want}" on the grid and the animal is called "${got ?? '(nobody)'}"`);
+    this.named++;
+  }
+
+  private nameCursor(row: number, col: number): void {
+    const sc = this.scene;
+    if (sc.kind !== 'naming') return;
+    for (let g = 0; sc.row !== row && g < 8; g++) this.press('down');
+    for (let g = 0; sc.col !== col && g < 12; g++) this.press('right');
+  }
+
+  /**
+   * Put the highest-level animal at the front, through the party list, the way
+   * a player does before a gym. Does nothing if it is already there.
+   */
+  leadWithStrongest(): void {
+    const party = this.state.player.party;
+    let best = 0;
+    for (let i = 1; i < party.length; i++) {
+      if ((party[i]?.level ?? 0) > (party[best]?.level ?? 0)) best = i;
+    }
+    if (best === 0 || party.length < 2) return;
+    const mover = party[best];
+    if (this.scene.kind !== 'overworld') this.settle();
+    this.press('start');
+    this.press('a'); // PARTY is the first entry
+    const sc = this.scene;
+    if (sc.kind !== 'menu' || sc.sub !== 'party') { this.settle(); return; }
+    for (let g = 0; sc.subCursor !== best && g < 8; g++) this.press('down');
+    this.press('a'); // the row of actions, on MOVE
+    this.press('a'); // pick it up
+    for (let g = 0; sc.subCursor !== 0 && g < 8; g++) this.press('up');
+    this.press('a'); // put it down in front
+    if (this.state.player.party[0] !== mover) throw new Error('moved an animal to the front of the party and it is not there');
+    this.reorders++;
+    this.press('b');
+    this.press('b');
+    this.settle();
   }
 
   /** Bag index of a usable snare, or -1. */
@@ -878,6 +954,8 @@ interface RunResult {
   saves: number;
   shopVisits: number;
   spent: number;
+  named: number;
+  reorders: number;
   seconds: number;
 }
 
@@ -901,6 +979,8 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
     saves: bot.saves,
     shopVisits: bot.shopVisits,
     spent: bot.spent,
+    named: bot.named,
+    reorders: bot.reorders,
     seconds: (performance.now() - t0) / 1000,
   });
 
@@ -929,6 +1009,7 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
 
       if (!bot.travelTo(spec.town)) return bail(`could not reach ${spec.town} (gym ${i + 1})`);
       bot.healUp();
+      bot.leadWithStrongest();
       if (!bot.travelTo(spec.gymMap)) return bail(`could not enter ${spec.gymMap}`);
       trace(`entered ${spec.gymMap} at ${bot.state.player.x},${bot.state.player.y}`);
 
@@ -1025,6 +1106,7 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
     // A run that never bought anything did not test the shops, whatever else
     // it proved - and it would mean the bot is being supplied some other way.
     if (won && bot.shopVisits === 0) return bail('reached the Champion without ever buying anything');
+    if (won && bot.named === 0) return bail('reached the Champion without ever naming a catch');
     if (won && (bot.ranTiles === 0 || bot.walkedTiles === 0)) {
       return bail(`ran ${bot.ranTiles} tiles and walked ${bot.walkedTiles}: both paces should have been used`);
     }
@@ -1038,6 +1120,8 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
       saves: bot.saves,
       shopVisits: bot.shopVisits,
       spent: bot.spent,
+      named: bot.named,
+      reorders: bot.reorders,
       seconds: (performance.now() - t0) / 1000,
     };
   } catch (err) {
@@ -1073,10 +1157,10 @@ for (const starter of STARTERS) {
   if (!r.ok) fail(`${starter}: ${r.reason} (badges ${r.badges}, levels ${r.partyLevels.join('/')})`);
 }
 
-console.log('\n  STARTER       RESULT     BADGES  SAVES  SHOPS  SPENT   PARTY LEVELS');
+console.log('\n  STARTER       RESULT     BADGES  SAVES  SHOPS  SPENT   NAMED  MOVES  PARTY LEVELS');
 for (const r of results) {
   console.log(
-    `  ${r.starter.padEnd(14)}${(r.ok ? 'CHAMPION' : 'FAILED').padEnd(11)}${String(r.badges).padEnd(8)}${String(r.saves).padEnd(7)}${String(r.shopVisits).padEnd(7)}${String(r.spent).padEnd(8)}${r.partyLevels.join('/')}`,
+    `  ${r.starter.padEnd(14)}${(r.ok ? 'CHAMPION' : 'FAILED').padEnd(11)}${String(r.badges).padEnd(8)}${String(r.saves).padEnd(7)}${String(r.shopVisits).padEnd(7)}${String(r.spent).padEnd(8)}${String(r.named).padEnd(7)}${String(r.reorders).padEnd(7)}${r.partyLevels.join('/')}`,
   );
 }
 

@@ -12,12 +12,12 @@
  * `runPending`/`starterPick` comment) — `main.ts` owns it and passes it in.
  */
 
-import type { Content, GameState, BattleScene, MenuScene, ShopScene, ShownSide } from '../core/game.ts';
+import type { Content, GameState, BattleScene, MenuScene, NamingScene, ShopScene, ShownSide } from '../core/game.ts';
 import { paginate, pageLength, CREATURE_NAME_COLS, MOVE_NAME_COLS } from '../core/text.ts';
 import {
   STARTERS, WALK_FRAMES, starterChoices, BATTLE_INTRO_FRAMES,
   SNARE_THROW_FRAMES, SNARE_PULL_FRAMES, SNARE_WOBBLE_FRAMES, FLASH_FRAMES,
-  bagCount,
+  bagCount, NAME_KEYS, NAME_MAX, NAME_ROWS, PARTY_ACTIONS,
   type SnareThrow,
 } from '../core/game.ts';
 import { itemName, shopStock } from '../core/items.ts';
@@ -640,9 +640,19 @@ function drawListOverlay(
   }
 }
 
-/** Names start at x=24 and run twelve characters; the bar takes what is left of the box. */
-const PARTY_BAR_X = 24 + CREATURE_NAME_COLS * 8 + 2;
-const PARTY_BAR_W = 8 + 144 - 4 - PARTY_BAR_X - 2;
+/**
+ * The party list: two lines an animal, six animals, the whole screen.
+ *
+ *   ▶Winter         Lv12
+ *    [=======  ] PSN 31/40
+ *
+ * It used to be a name and a bar - no level, no numbers - so the only way to
+ * learn how hurt anything was, or how strong, was to start a fight with it.
+ * The box is the full width of the text box so that a twelve-letter name and
+ * "Lv100" both fit on one row with air between them.
+ */
+const PARTY_BOX = { x: gb.TEXTBOX_X, y: 4, w: gb.TEXTBOX_W, h: 136 };
+const PARTY_ROW_H = 19;
 
 function drawPartyOverlay(
   ctx: CanvasRenderingContext2D,
@@ -650,28 +660,43 @@ function drawPartyOverlay(
   party: readonly Feral[],
   cursor: number,
   title: string,
+  moving = -1,
 ): void {
-  const rows = party.map((f) => creatureLabel(f));
-  drawListOverlay(ctx, title, rows, cursor, (i, _x, y) => {
+  const box = PARTY_BOX;
+  gb.drawBox(ctx, box.x, box.y, box.w, box.h);
+  gb.drawText(ctx, box.x + 2, box.y + 4, title, 3);
+  const right = box.x + box.w - 4;
+  for (let i = 0; i < party.length && i < 6; i++) {
     const f = party[i];
-    if (!f) return;
-    const sp = content.dex.species(f.species);
-    // The bar starts after a full twelve-letter name. It used to start after
-    // nine, so "Stripeling" was written straight across its own health bar.
-    gb.drawHpBar(ctx, PARTY_BAR_X, y + 1, f.hp, maxHp(sp, f), PARTY_BAR_W);
-  });
+    if (!f) continue;
+    const y = box.y + 16 + i * PARTY_ROW_H;
+    // The animal picked up to be moved keeps a mark of its own while the
+    // cursor goes looking for where to put it.
+    if (i === cursor) gb.drawText(ctx, box.x + 2, y, gb.CURSOR_GLYPH, 3);
+    else if (i === moving) gb.drawText(ctx, box.x + 2, y, gb.ADVANCE_PROMPT, 3);
+    gb.drawText(ctx, box.x + 10, y, creatureLabel(f), 3);
+    const level = `Lv${f.level}`;
+    gb.drawText(ctx, right - gb.measureText(level), y, level, 3);
+
+    const max = maxHp(content.dex.species(f.species), f);
+    gb.drawHpBar(ctx, box.x + 10, y + 11, f.hp, max, 48);
+    if (f.status) gb.drawText(ctx, box.x + 64, y + 10, STATUS_TAG[f.status], 3);
+    const hp = `${f.hp}/${max}`;
+    gb.drawText(ctx, right - gb.measureText(hp), y + 10, hp, 3);
+  }
 }
 
 function drawBagOverlay(
   ctx: CanvasRenderingContext2D,
   bag: readonly { item: string; count: number }[],
   cursor: number,
+  title = 'BAG',
 ): void {
   // Names come from the item table, which holds them to twelve characters so
   // the count always has the end of the row to itself. The raw id was drawn
   // before, and "strong poultice" ran straight through its own count.
   const rows = bag.map((s) => itemName(s.item));
-  drawListOverlay(ctx, 'BAG', rows, cursor, (i, x, y) => {
+  drawListOverlay(ctx, title, rows, cursor, (i, x, y) => {
     const s = bag[i];
     if (!s) return;
     gb.drawText(ctx, x + 48 - gb.measureText(`x${s.count}`), y, `x${s.count}`, 3);
@@ -895,7 +920,7 @@ function drawBattle(ctx: CanvasRenderingContext2D, content: Content, state: Game
   // of both status boxes and half-letters of a name showed round the edges.
   if (scene.sub === 'forceSwitch' || scene.sub === 'party') {
     clearScreen(ctx, 0);
-    drawPartyOverlay(ctx, content, battle.player.party, scene.partyCursor, scene.sub === 'forceSwitch' ? 'SEND OUT WHO?' : 'PARTY');
+    drawPartyOverlay(ctx, content, battle.player.party, scene.partyCursor, scene.sub === 'forceSwitch' ? ' SEND OUT WHO?' : ' PARTY');
     return;
   }
   if (scene.sub === 'bag') {
@@ -918,6 +943,24 @@ function drawBattle(ctx: CanvasRenderingContext2D, content: Content, state: Game
 // ---------------------------------------------------------------------------
 // Menu (the pause menu)
 // ---------------------------------------------------------------------------
+
+/**
+ * What the top row of the party list says. It is the list's only spare row, so
+ * it does four jobs: the heading, the row of things you can do to the animal
+ * under the cursor, the question a half-finished action is asking, and the
+ * game's answer to the last press.
+ */
+export function partyHeading(scene: {
+  readonly act: number; readonly moving: number; readonly using: string; readonly note: string;
+}): string {
+  if (scene.act >= 0) {
+    return PARTY_ACTIONS.map((a, i) => `${i === scene.act ? gb.CURSOR_GLYPH : ' '}${a}`).join(' ');
+  }
+  if (scene.note !== '') return ` ${scene.note}`;
+  if (scene.moving >= 0) return ' MOVE TO WHERE?';
+  if (scene.using !== '') return ' USE ON WHO?';
+  return ' PARTY';
+}
 
 /** Mirrors game.ts's private MENU_ROOT — the cursor math there assumes this order. */
 const MENU_ROOT = ['PARTY', 'BAG', 'DEX', 'SAVE', 'BACK'] as const;
@@ -942,15 +985,83 @@ function drawMenu(ctx: CanvasRenderingContext2D, content: Content, state: GameSt
   }
 
   if (scene.sub === 'party') {
-    drawPartyOverlay(ctx, content, state.player.party, scene.subCursor, 'PARTY');
+    drawPartyOverlay(ctx, content, state.player.party, scene.subCursor, partyHeading(scene), scene.moving);
     return;
   }
   if (scene.sub === 'bag') {
-    drawBagOverlay(ctx, state.player.bag, scene.subCursor);
+    drawBagOverlay(ctx, state.player.bag, scene.subCursor, scene.note === '' ? 'BAG' : scene.note);
     return;
   }
   // 'dex' and the unreachable 'save' sub share a simple placeholder box.
   drawListOverlay(ctx, scene.sub.toUpperCase(), ['Coming soon.'], -1);
+}
+
+// ---------------------------------------------------------------------------
+// Naming
+// ---------------------------------------------------------------------------
+
+const NAME_GRID = { x: gb.TEXTBOX_X, y: 48, w: gb.TEXTBOX_W, h: 92 };
+/** Letters sit sixteen pixels apart, with the cursor in the gap before each. */
+const NAME_CELL_W = 16;
+const NAME_ROW_H = 18;
+/** The four keys under the letters, three characters each. */
+const NAME_KEY_W = 36;
+
+/** What the case key is labelled: the case it will switch TO. */
+export function caseKeyLabel(lower: boolean): string {
+  return lower ? 'ABC' : 'abc';
+}
+
+function drawNaming(ctx: CanvasRenderingContext2D, content: Content, state: GameState, scene: NamingScene): void {
+  clearScreen(ctx, 0);
+  const p = state.player;
+  const target = scene.where === 'party' ? p.party[scene.index] : p.box[scene.index];
+  if (!target) return;
+  const sp = content.dex.species(target.species);
+  const px = creaturePixels(content, target.species);
+
+  if (scene.asking) {
+    // The animal you just caught, on its own, and one question about it.
+    fillEllipse(ctx, 56, 78, 26, 6, 1);
+    gb.drawSprite(ctx, px, 56 - SPRITE_SIZE / 2, 78 - SPRITE_SIZE, 1, false);
+    const yn = { x: 112, y: 52, w: 44, h: 34 };
+    gb.drawBox(ctx, yn.x, yn.y, yn.w, yn.h);
+    for (const [i, label] of ['YES', 'NO'].entries()) {
+      const y = yn.y + 6 + i * 13;
+      if (i === scene.choice) gb.drawText(ctx, yn.x + 4, y, gb.CURSOR_GLYPH, 3);
+      gb.drawText(ctx, yn.x + 14, y, label, 3);
+    }
+    gb.drawTextBox(ctx, ['Give it a name?', `It is a ${sp.name}.`], 999, false);
+    return;
+  }
+
+  // Top: the animal, small, and the name as typed so far. Unfilled places are
+  // dots, so the limit can be seen before it is hit.
+  const scale = 0.6;
+  fillEllipse(ctx, 26, 42, 18, 4, 1);
+  gb.drawSprite(ctx, px, Math.round(26 - (SPRITE_SIZE * scale) / 2), Math.round(42 - SPRITE_SIZE * scale), scale, false);
+  gb.drawText(ctx, 56, 10, `${sp.name}?`, 3);
+  gb.drawText(ctx, 56, 26, scene.text + '.'.repeat(Math.max(0, NAME_MAX - scene.text.length)), 3);
+
+  const box = NAME_GRID;
+  gb.drawBox(ctx, box.x, box.y, box.w, box.h);
+  for (let r = 0; r < NAME_ROWS.length; r++) {
+    const row = NAME_ROWS[r] ?? '';
+    const y = box.y + 8 + r * NAME_ROW_H;
+    for (let c = 0; c < row.length; c++) {
+      const x = box.x + 10 + c * NAME_CELL_W;
+      if (r === scene.row && c === scene.col) gb.drawText(ctx, x - 8, y, gb.CURSOR_GLYPH, 3);
+      const ch = row[c] ?? '';
+      gb.drawText(ctx, x, y, scene.lower ? ch.toLowerCase() : ch, 3);
+    }
+  }
+  const keyY = box.y + 8 + 3 * NAME_ROW_H + 6;
+  for (let k = 0; k < NAME_KEYS.length; k++) {
+    const x = box.x + 10 + k * NAME_KEY_W;
+    if (scene.row === 3 && k === scene.col) gb.drawText(ctx, x - 8, keyY, gb.CURSOR_GLYPH, 3);
+    const key = NAME_KEYS[k] ?? '';
+    gb.drawText(ctx, x, keyY, key === 'case' ? caseKeyLabel(scene.lower) : key, 3);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1062,6 +1173,9 @@ export function draw(
       return;
     case 'shop':
       drawShop(ctx, content, state, state.scene);
+      return;
+    case 'naming':
+      drawNaming(ctx, content, state, state.scene);
       return;
     case 'gameover':
       drawGameOver(ctx);

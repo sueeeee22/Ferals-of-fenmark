@@ -237,10 +237,12 @@ export function createAudio(content: Content): Audio {
       f.snaring = scene.snare !== null;
       f.snareFrames = scene.snare === null ? -1 : scene.snare.frames;
     } else if (scene.kind === 'menu') {
-      f.cursor = scene.cursor * 100 + scene.subCursor;
+      f.cursor = scene.cursor * 1000 + scene.subCursor * 10 + (scene.act + 1);
       f.sub = scene.sub;
     } else if (scene.kind === 'shop') {
       f.cursor = scene.cursor * 100 + scene.qty;
+    } else if (scene.kind === 'naming') {
+      f.cursor = scene.row * 1000 + scene.col * 10 + scene.choice;
     } else if (scene.kind === 'overworld') {
       f.hop = scene.walk.hop;
     }

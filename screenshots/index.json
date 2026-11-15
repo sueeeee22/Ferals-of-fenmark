@@ -172,65 +172,101 @@
     },
     {
       "n": 19,
-      "name": "battle-snare",
-      "scene": "battle/main",
+      "name": "menu-poultice",
+      "scene": "menu/party",
       "files": [
-        "19-battle-snare-gb.png",
-        "19-battle-snare-phone.png"
+        "19-menu-poultice-gb.png",
+        "19-menu-poultice-phone.png"
       ]
     },
     {
       "n": 20,
-      "name": "save-confirm",
-      "scene": "dialogue",
+      "name": "battle-snare",
+      "scene": "battle/main",
       "files": [
-        "20-save-confirm-gb.png",
-        "20-save-confirm-phone.png"
+        "20-battle-snare-gb.png",
+        "20-battle-snare-phone.png"
       ]
     },
     {
       "n": 21,
-      "name": "lodge-heal",
+      "name": "save-confirm",
       "scene": "dialogue",
       "files": [
-        "21-lodge-heal-gb.png",
-        "21-lodge-heal-phone.png"
+        "21-save-confirm-gb.png",
+        "21-save-confirm-phone.png"
       ]
     },
     {
       "n": 22,
-      "name": "battle-party",
-      "scene": "battle/party",
+      "name": "lodge-heal",
+      "scene": "dialogue",
       "files": [
-        "22-battle-party-gb.png",
-        "22-battle-party-phone.png"
+        "22-lodge-heal-gb.png",
+        "22-lodge-heal-phone.png"
       ]
     },
     {
       "n": 23,
-      "name": "menu-party-two",
-      "scene": "menu/party",
+      "name": "name-ask",
+      "scene": "naming",
       "files": [
-        "23-menu-party-two-gb.png",
-        "23-menu-party-two-phone.png"
+        "23-name-ask-gb.png",
+        "23-name-ask-phone.png"
       ]
     },
     {
       "n": 24,
-      "name": "battle-trainer",
-      "scene": "battle/main",
+      "name": "name-grid",
+      "scene": "naming",
       "files": [
-        "24-battle-trainer-gb.png",
-        "24-battle-trainer-phone.png"
+        "24-name-grid-gb.png",
+        "24-name-grid-phone.png"
       ]
     },
     {
       "n": 25,
+      "name": "battle-party",
+      "scene": "battle/party",
+      "files": [
+        "25-battle-party-gb.png",
+        "25-battle-party-phone.png"
+      ]
+    },
+    {
+      "n": 26,
+      "name": "menu-party-two",
+      "scene": "menu/party",
+      "files": [
+        "26-menu-party-two-gb.png",
+        "26-menu-party-two-phone.png"
+      ]
+    },
+    {
+      "n": 27,
+      "name": "menu-party-moved",
+      "scene": "menu/party",
+      "files": [
+        "27-menu-party-moved-gb.png",
+        "27-menu-party-moved-phone.png"
+      ]
+    },
+    {
+      "n": 28,
+      "name": "battle-trainer",
+      "scene": "battle/main",
+      "files": [
+        "28-battle-trainer-gb.png",
+        "28-battle-trainer-phone.png"
+      ]
+    },
+    {
+      "n": 29,
       "name": "town-second",
       "scene": "overworld",
       "files": [
-        "25-town-second-gb.png",
-        "25-town-second-phone.png"
+        "29-town-second-gb.png",
+        "29-town-second-phone.png"
       ]
     }
   ]
