@@ -103,6 +103,8 @@ export interface TrainerDef {
 export interface Content {
   readonly world: World;
   readonly dex: Dex;
+  /** Every species id, in Dex order: number 1 first. */
+  readonly speciesIds: readonly string[];
   dialogue(key: string): readonly string[];
   trainer(id: string): TrainerDef;
 }
@@ -124,6 +126,13 @@ export interface PlayerState {
   facing: Dir;
   party: Feral[];
   box: Feral[];
+  /**
+   * The Dex: species ids met in a fight, and species ids owned at some point.
+   * Everything in `caught` is also in `seen`. Saves from before the Dex have
+   * neither; `restore` fills them in from the animals the save does hold.
+   */
+  seen: string[];
+  caught: string[];
   bag: ItemStack[];
   money: number;
   badges: string[];
@@ -327,7 +336,12 @@ export interface MenuScene {
   using: string;
   /** The game's answer to the last press, shown where the heading goes. */
   note: string;
+  /** Dex: true while one animal's page is open over the list. */
+  entry: boolean;
 }
+
+/** How many of the Dex list are on screen at once. */
+export const DEX_ROWS = 8;
 
 /** What can be done to an animal from the party list. */
 export const PARTY_ACTIONS = ['MOVE', 'NAME', 'BACK'] as const;
@@ -465,6 +479,8 @@ export function newGame(seed: number | string): GameState {
       facing: 'down',
       party: [],
       box: [],
+      seen: [],
+      caught: [],
       bag: [{ item: 'snare', count: 5 }, { item: 'poultice', count: 3 }],
       money: 3000,
       badges: [],
@@ -541,6 +557,17 @@ function currentMap(content: Content, p: PlayerState): GameMap {
   return content.world.map(p.mapId);
 }
 
+/** Record a species as met. Called when an animal is shown across a fight. */
+function markSeen(p: PlayerState, speciesId: string): void {
+  if (!p.seen.includes(speciesId)) p.seen.push(speciesId);
+}
+
+/** Record a species as owned: a catch, a starter, or what one of yours became. */
+function markCaught(p: PlayerState, speciesId: string): void {
+  markSeen(p, speciesId);
+  if (!p.caught.includes(speciesId)) p.caught.push(speciesId);
+}
+
 export function partyAlive(p: PlayerState): boolean {
   return p.party.some((f) => f.hp > 0);
 }
@@ -597,6 +624,7 @@ export function checkEvolutions(content: Content, p: PlayerState): string[] {
     const next = content.dex.species(f.species);
     if (wasNamedForSpecies) f.nickname = next.name;
     f.hp += maxHp(next, f) - before;
+    markCaught(p, next.id);
     evolved.push(next.name);
   }
   return evolved;
@@ -898,6 +926,7 @@ function makeBattleScene(
   opening: string,
 ): BattleScene {
   state.lastText = '';
+  markSeen(state.player, activeOf(battle.enemy).species);
   const scene: BattleScene = {
     kind: 'battle',
     battle,
@@ -1041,6 +1070,7 @@ export function chooseStarter(content: Content, state: GameState, starter: Start
   p.starter = starter;
   p.rivalStarter = RIVAL_PICK[starter] ?? 'baloo_pup';
   p.party.push(makeFeral(content.dex, starter, 5, rng, p.name));
+  markCaught(p, starter);
   setFlag(p, 'has_starter');
   state.rngState = rng.state;
   enterOverworld(state);
@@ -1263,6 +1293,8 @@ function tellNext(content: Content, state: GameState, scene: BattleScene, rng: R
 
     const msg = battleMessage(scene, ev);
     showEvent(scene, ev);
+    // A trainer's next animal counts as met when it walks on, not before.
+    if (ev.t === 'switch' && ev.side === 'enemy') markSeen(state.player, ev.species);
     if (msg === null) continue;
 
     // The one who got hit is the one who flinches, and only for a real hit -
@@ -1528,6 +1560,7 @@ function endBattle(content: Content, state: GameState, scene: BattleScene, rng: 
   if (outcome === 'caught' && scene.battle.caught) {
     const caught = scene.battle.caught;
     caught.originalTrainer = p.name;
+    markCaught(p, caught.species);
     if (p.party.length < 6) {
       p.party.push(caught);
       caughtAt = { where: 'party', index: p.party.length - 1 };
@@ -1594,7 +1627,7 @@ function endBattle(content: Content, state: GameState, scene: BattleScene, rng: 
 const MENU_ROOT = ['PARTY', 'BAG', 'DEX', 'SAVE', 'BACK'] as const;
 
 function openMenu(sub: MenuScene['sub'], cursor: number, subCursor: number): MenuScene {
-  return { kind: 'menu', cursor, sub, subCursor, act: -1, moving: -1, using: '', note: '' };
+  return { kind: 'menu', cursor, sub, subCursor, act: -1, moving: -1, using: '', note: '', entry: false };
 }
 
 function stepMenu(content: Content, state: GameState, scene: MenuScene, b: Buttons): void {
@@ -1616,11 +1649,34 @@ function stepMenu(content: Content, state: GameState, scene: MenuScene, b: Butto
     scene.moving = -1;
     scene.using = '';
     scene.note = '';
+    scene.entry = false;
     return;
   }
 
   if (scene.sub === 'party') {
     stepMenuParty(content, state, scene, b);
+    return;
+  }
+
+  if (scene.sub === 'dex') {
+    // One animal's page is open: any of A or B closes it.
+    if (scene.entry) {
+      if (pressed(state, b, 'a') || pressed(state, b, 'b')) scene.entry = false;
+      return;
+    }
+    const n = content.speciesIds.length;
+    if (pressed(state, b, 'b')) { scene.sub = 'root'; return; }
+    if (n === 0) return;
+    if (pressed(state, b, 'down')) scene.subCursor = (scene.subCursor + 1) % n;
+    if (pressed(state, b, 'up')) scene.subCursor = (scene.subCursor + n - 1) % n;
+    // A hundred and fifty-three rows is a long way to walk one at a time.
+    if (pressed(state, b, 'right')) scene.subCursor = Math.min(n - 1, scene.subCursor + DEX_ROWS);
+    if (pressed(state, b, 'left')) scene.subCursor = Math.max(0, scene.subCursor - DEX_ROWS);
+    if (pressed(state, b, 'a')) {
+      const id = content.speciesIds[scene.subCursor];
+      // An animal never met has no page: its row is a number and a blank.
+      if (id !== undefined && state.player.seen.includes(id)) scene.entry = true;
+    }
     return;
   }
 

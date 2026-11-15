@@ -59,6 +59,8 @@ class Bot {
   reorders = 0;
   /** Animals left with a kennelhand and collected again. */
   boxTrips = 0;
+  /** Times the Dex was opened and an owned animal's page read. */
+  dexLooks = 0;
   /** Tiles crossed at a run (B held) and at a walk. */
   ranTiles = 0;
   walkedTiles = 0;
@@ -970,6 +972,42 @@ class Bot {
     this.boxTrips++;
   }
 
+  /**
+   * Open the Dex from the pause menu, find the lead animal in the list and open
+   * its page. Along the way, check the Dex against what the bot knows it has
+   * done: it owns everything it is carrying, and has met everything it owns.
+   */
+  checkDex(): void {
+    const p = this.state.player;
+    const carried = [...p.party, ...p.box].map((f) => f.species);
+    for (const id of carried) {
+      if (!p.caught.includes(id)) throw new Error(`carrying a ${id} that the Dex does not list as owned`);
+    }
+    for (const id of p.caught) {
+      if (!p.seen.includes(id)) throw new Error(`the Dex lists ${id} as owned but not as met`);
+    }
+    const lead = p.party[0];
+    if (!lead) return;
+    if (this.scene.kind !== 'overworld') this.settle();
+    this.press('start');
+    this.press('down');
+    this.press('down'); // DEX is the third entry
+    this.press('a');
+    const sc = this.scene;
+    if (sc.kind !== 'menu' || sc.sub !== 'dex') { this.settle(); return; }
+    const at = this.content.speciesIds.indexOf(lead.species);
+    for (let g = 0; sc.subCursor !== at && g < 200; g++) {
+      this.press(at - sc.subCursor >= 8 ? 'right' : at > sc.subCursor ? 'down' : 'up');
+    }
+    this.press('a');
+    if (!sc.entry) throw new Error(`the Dex would not open the page of ${lead.species}, which is leading the party`);
+    this.dexLooks++;
+    this.press('b');
+    this.press('b');
+    this.press('b');
+    this.settle();
+  }
+
   /** Save, serialize, throw the state away, reload it. Mid-run, as a player would. */
   saveAndReload(): void {
     if (this.scene.kind !== 'overworld') this.settle();
@@ -1016,6 +1054,7 @@ interface RunResult {
   named: number;
   reorders: number;
   boxTrips: number;
+  dex: string;
   seconds: number;
 }
 
@@ -1042,6 +1081,7 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
     named: bot.named,
     reorders: bot.reorders,
     boxTrips: bot.boxTrips,
+    dex: `${bot.state.player.seen.length}/${bot.state.player.caught.length}`,
     seconds: (performance.now() - t0) / 1000,
   });
 
@@ -1116,6 +1156,7 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
       bot.saveAndReload();
       // Every other gym, with an animal left in the kennel box across the save.
       if (i % 2 === 0) bot.boxRoundTrip();
+      else bot.checkDex();
     }
 
     if (bot.state.player.badges.length < gyms.length) {
@@ -1171,6 +1212,15 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
     if (won && bot.shopVisits === 0) return bail('reached the Champion without ever buying anything');
     if (won && bot.named === 0) return bail('reached the Champion without ever naming a catch');
     if (won && bot.boxTrips === 0) return bail('reached the Champion without ever using the kennel box');
+    if (won && bot.dexLooks === 0) return bail('reached the Champion without ever opening the Dex');
+    {
+      // Fights against trainers show animals that cannot be caught, so by the
+      // end far more has been met than owned. If not, nothing is being recorded.
+      const p = bot.state.player;
+      if (won && p.seen.length <= p.caught.length) {
+        return bail(`the Dex ends with ${p.seen.length} met and ${p.caught.length} owned; trainers alone should have shown more`);
+      }
+    }
     if (won && (bot.ranTiles === 0 || bot.walkedTiles === 0)) {
       return bail(`ran ${bot.ranTiles} tiles and walked ${bot.walkedTiles}: both paces should have been used`);
     }
@@ -1187,6 +1237,7 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
       named: bot.named,
       reorders: bot.reorders,
       boxTrips: bot.boxTrips,
+      dex: `${bot.state.player.seen.length}/${bot.state.player.caught.length}`,
       seconds: (performance.now() - t0) / 1000,
     };
   } catch (err) {
@@ -1222,10 +1273,10 @@ for (const starter of STARTERS) {
   if (!r.ok) fail(`${starter}: ${r.reason} (badges ${r.badges}, levels ${r.partyLevels.join('/')})`);
 }
 
-console.log('\n  STARTER       RESULT     BADGES  SAVES  SHOPS  SPENT   NAMED  MOVES  BOX  PARTY LEVELS');
+console.log('\n  STARTER       RESULT     BADGES  SAVES  SHOPS  SPENT   NAMED  MOVES  BOX  DEX seen/own  PARTY LEVELS');
 for (const r of results) {
   console.log(
-    `  ${r.starter.padEnd(14)}${(r.ok ? 'CHAMPION' : 'FAILED').padEnd(11)}${String(r.badges).padEnd(8)}${String(r.saves).padEnd(7)}${String(r.shopVisits).padEnd(7)}${String(r.spent).padEnd(8)}${String(r.named).padEnd(7)}${String(r.reorders).padEnd(7)}${String(r.boxTrips).padEnd(5)}${r.partyLevels.join('/')}`,
+    `  ${r.starter.padEnd(14)}${(r.ok ? 'CHAMPION' : 'FAILED').padEnd(11)}${String(r.badges).padEnd(8)}${String(r.saves).padEnd(7)}${String(r.shopVisits).padEnd(7)}${String(r.spent).padEnd(8)}${String(r.named).padEnd(7)}${String(r.reorders).padEnd(7)}${String(r.boxTrips).padEnd(5)}${r.dex.padEnd(14)}${r.partyLevels.join('/')}`,
   );
 }
 

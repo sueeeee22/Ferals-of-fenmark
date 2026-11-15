@@ -61,6 +61,7 @@ const world: World = {
   map: (id) => content.world.map(id),
   species: (id) => content.dex.species(id),
   starters: STARTERS,
+  speciesIds: content.speciesIds,
 };
 
 const tally = new Tally();
@@ -1075,6 +1076,49 @@ async function tour(): Promise<void> {
       const back = await st.see();
       tally.check('words', back.seen.party.map((m) => m.name).join(',') === order, () =>
         `moving it back should restore ${order}; the party is ${back.seen.party.map((m) => m.name).join(',')}`);
+      await st.press('b', 2);
+
+      // --- The Dex: the list, an animal she owns, and one she has only met ----------
+      await st.press('start');
+      await st.press('down', 2);
+      await st.press('a');
+      const dex = await checkpoint('dex-list', { scene: 'menu', sub: 'dex' });
+      const owns = new Set(dex.seen.party.map((m) => m.species));
+      tally.check('words', [...owns].every((id) => dex.seen.caughtIds.includes(id)), () =>
+        `the Dex says she owns ${dex.seen.caughtIds.join(', ')} but her party is ${[...owns].join(', ')}`);
+      const dexTo = async (index: number): Promise<void> => {
+        for (let guard = 0; guard < 60; guard++) {
+          const now = await st.see();
+          if (now.seen.sub !== 'dex' || now.seen.subCursor === index) return;
+          inspect(tally, 'the Dex, scrolling', now, world);
+          const gap = index - now.seen.subCursor;
+          await st.press(gap >= 8 ? 'right' : gap > 0 ? 'down' : gap <= -8 ? 'left' : 'up');
+        }
+      };
+      const ownedAt = content.speciesIds.findIndex((id) => dex.seen.caughtIds.includes(id));
+      await dexTo(ownedAt);
+      await st.press('a');
+      const page = await checkpoint('dex-entry', { scene: 'menu', sub: 'dex' });
+      tally.check('label', page.seen.entry, () => 'pressing A on an owned animal in the Dex did not open its page');
+      await st.press('b');
+      const metAt = content.speciesIds.findIndex((id) => dex.seen.seenIds.includes(id) && !dex.seen.caughtIds.includes(id));
+      if (metAt >= 0) {
+        await dexTo(metAt);
+        await st.press('a');
+        await checkpoint('dex-seen', { scene: 'menu', sub: 'dex' });
+        await st.press('b');
+      } else {
+        tourGaps.push('every animal met so far is also owned, so the Dex page of a met-but-unowned animal was not seen');
+      }
+      // One she has never met has no page to open.
+      const unmetAt = content.speciesIds.findIndex((id) => !dex.seen.seenIds.includes(id));
+      if (unmetAt >= 0) {
+        await dexTo(unmetAt);
+        await st.press('a');
+        const still = await st.see();
+        inspect(tally, 'the Dex, A on an animal never met', still, world);
+        tally.check('label', !still.seen.entry, () => 'the Dex opened a page for an animal that has never been met');
+      }
       await st.press('b', 2);
 
       // --- The kennel box: leave one, look for it, take it back ---------------------

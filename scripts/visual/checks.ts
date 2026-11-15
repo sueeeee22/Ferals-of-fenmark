@@ -15,7 +15,7 @@ import { paginate, pageLength, wrapText } from '../../src/core/text.ts';
 import { Tile, tileAt, visibleNpcs, type GameMap } from '../../src/core/world.ts';
 import type { Species } from '../../src/core/creature.ts';
 import { itemName, shopStock } from '../../src/core/items.ts';
-import { BOX_MAX, BOX_ROWS, boxScroll, NAME_KEYS, NAME_MAX, NAME_ROWS, PARTY_ACTIONS } from '../../src/core/game.ts';
+import { BOX_MAX, BOX_ROWS, boxScroll, DEX_ROWS, NAME_KEYS, NAME_MAX, NAME_ROWS, PARTY_ACTIONS } from '../../src/core/game.ts';
 import type { SeenFeral } from '../../src/observe.ts';
 import type { Seen, Sight } from './stage.ts';
 import {
@@ -252,6 +252,8 @@ export interface World {
   map(id: string): GameMap;
   species(id: string): Species;
   readonly starters: readonly string[];
+  /** Every species id in Dex order. */
+  readonly speciesIds: readonly string[];
 }
 
 /** The game's bottom text box: full width, low on the screen. */
@@ -527,6 +529,62 @@ function barVerdict(bar: Bar | null, hp: number, max: number): string | null {
     return `the bar is ${bar.fill}px of ${bar.track} full, but ${hp}/${max} health is ${want}px`;
   }
   return null;
+}
+
+const pad3 = (n: number): string => String(n).padStart(3, '0');
+
+/**
+ * The Dex. The list counts what has been met and owned, names the animals that
+ * have been met and no others, and marks the ones owned. A page shows the
+ * animal, and tells all of its entry if it is owned and none of it if not.
+ */
+function inspectDex(t: Tally, where: string, s: Sight, lay: Layout, world: World): void {
+  const seen = s.seen;
+  const ids = world.speciesIds;
+  const f = s.frame;
+
+  if (seen.entry) {
+    const id = ids[seen.subCursor];
+    if (id === undefined) return;
+    const sp = world.species(id);
+    const owned = seen.caughtIds.includes(id);
+    const head = rowsOf(readText(f, { x: 56, y: 0, w: f.w - 56, h: 44 })).map((r) => r.text);
+    t.check('words', head.includes(asDrawn(`No.${pad3(sp.dex)}`)), () => `${where}: the page should be numbered ${pad3(sp.dex)}; beside the picture it reads ${quote(head.join(' / '))}`);
+    t.check('words', head.includes(asDrawn(sp.name)), () => `${where}: the page should name ${quote(sp.name)}; beside the picture it reads ${quote(head.join(' / '))}`);
+    const types = sp.types.join('/');
+    t.check('words', head.includes(asDrawn(types)) === owned, () =>
+      `${where}: ${sp.name} is ${owned ? 'owned, so its typing should be shown' : 'not owned, so its typing should be hidden'}; beside the picture it reads ${quote(head.join(' / '))}`);
+    const animal = squash(rowsOf(readText(f, { x: 0, y: 50, w: f.w, h: 22 })).map((r) => r.text).join(''));
+    t.check('words', animal === (owned ? squash(asDrawn(sp.animal)) : ''), () =>
+      `${where}: under the picture should read ${quote(owned ? sp.animal : '')}; it reads ${quote(animal)}`);
+    const box = lay.boxes.find((b) => b.y >= 60 && b.w >= 140);
+    if (!t.check('words', box !== undefined, () => `${where}: the page has no entry box`) || box === undefined) return;
+    const told = squash(rowsOf(lay.read(box)).map((r) => r.text).join(''));
+    const want = owned ? sp.dexEntry : 'Seen. Never held. Catch one and this page fills in.';
+    t.check('words', told === squash(asDrawn(want)), () => `${where}: the entry should read ${quote(want)}; the screen reads ${quote(told)}`);
+    const blob = findBlobs(f, 0, lay.boxes, { x: 0, y: 0, w: 56, h: 52 }).filter((b) => b.area >= 80).sort((a, b) => b.area - a.area)[0];
+    const verdict = spriteVerdict(blob);
+    t.check('sprites', verdict === null, () => `${where}: ${sp.name}'s picture: ${verdict}`);
+    return;
+  }
+
+  const box = [...lay.boxes].sort((a, b) => b.w * b.h - a.w * a.h)[0];
+  if (!t.check('words', box !== undefined, () => `${where}: the Dex is open but nothing is on screen`) || box === undefined) return;
+  const rows = rowsOf(lay.read(box)).map((r) => r.text);
+  const heading = `SEEN ${seen.seenIds.length} OWN ${seen.caughtIds.length}`;
+  t.check('words', squash(rows[0] ?? '') === squash(heading), () => `${where}: the top of the Dex should read ${quote(heading)}; it reads ${quote(rows[0] ?? '')}`);
+  const top = boxScroll(seen.subCursor, ids.length);
+  for (let i = top; i < Math.min(ids.length, top + DEX_ROWS); i++) {
+    const id = ids[i];
+    if (id === undefined) continue;
+    const sp = world.species(id);
+    const met = seen.seenIds.includes(id);
+    const owned = seen.caughtIds.includes(id);
+    const want = `${i === seen.subCursor ? '▶' : ''}${pad3(sp.dex)}${met ? asDrawn(sp.name) : '-----'}${owned ? '●' : ''}`;
+    const got = rows[1 + i - top] ?? '';
+    t.check('words', squash(got) === squash(want), () =>
+      `${where}: row ${i - top + 1} of the Dex should read ${quote(want)} (${met ? (owned ? 'owned' : 'met') : 'never met'}); it reads ${quote(got)}`);
+  }
 }
 
 function inspectMenu(t: Tally, where: string, s: Sight, lay: Layout): void {
@@ -918,7 +976,8 @@ export function inspect(t: Tally, where: string, s: Sight, world: World): Layout
       inspectActors(t, where, s, lay, world);
       break;
     case 'menu':
-      inspectMenu(t, where, s, lay);
+      if (s.seen.sub === 'dex') inspectDex(t, where, s, lay, world);
+      else inspectMenu(t, where, s, lay);
       if (s.seen.sub === 'root') inspectActors(t, where, s, lay, world);
       break;
     case 'shop':

@@ -97,6 +97,7 @@ export async function loadContent(): Promise<LoadedContent | null> {
         return m;
       },
     },
+    speciesIds: [...speciesList].sort((a, b) => a.dex - b.dex).map((x) => x.id),
     dialogue(key: string): readonly string[] {
       const v = dialogueRec[key];
       if (Array.isArray(v) && v.every((x) => typeof x === 'string')) return v;

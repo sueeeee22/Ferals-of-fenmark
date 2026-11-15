@@ -355,6 +355,7 @@ const dialogueTable = realDialogue ?? PLACEHOLDER_DIALOGUE;
 export const content: Content = {
   world: realWorld ?? buildPlaceholderWorld(),
   dex: buildDex(realSpecies ?? PLACEHOLDER_SPECIES, MOVE_LIST),
+  speciesIds: [...(realSpecies ?? PLACEHOLDER_SPECIES)].sort((a, b) => a.dex - b.dex).map((s) => s.id),
   dialogue(key: string): readonly string[] {
     const lines = dialogueTable[key];
     return lines && lines.length > 0 ? lines : [];

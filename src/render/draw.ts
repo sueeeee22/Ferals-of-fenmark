@@ -17,7 +17,7 @@ import { paginate, pageLength, CREATURE_NAME_COLS, MOVE_NAME_COLS } from '../cor
 import {
   STARTERS, WALK_FRAMES, starterChoices, BATTLE_INTRO_FRAMES,
   SNARE_THROW_FRAMES, SNARE_PULL_FRAMES, SNARE_WOBBLE_FRAMES, FLASH_FRAMES,
-  bagCount, boxScroll, BOX_MAX, BOX_ROWS, NAME_KEYS, NAME_MAX, NAME_ROWS, PARTY_ACTIONS,
+  bagCount, boxScroll, BOX_MAX, BOX_ROWS, DEX_ROWS, NAME_KEYS, NAME_MAX, NAME_ROWS, PARTY_ACTIONS,
   type SnareThrow,
 } from '../core/game.ts';
 import { itemName, shopStock } from '../core/items.ts';
@@ -992,9 +992,90 @@ function drawMenu(ctx: CanvasRenderingContext2D, content: Content, state: GameSt
     drawBagOverlay(ctx, state.player.bag, scene.subCursor, scene.note === '' ? 'BAG' : scene.note);
     return;
   }
-  // 'dex' and the unreachable 'save' sub share a simple placeholder box.
-  drawListOverlay(ctx, scene.sub.toUpperCase(), ['Coming soon.'], -1);
+  drawDex(ctx, content, state, scene);
 }
+
+// ---------------------------------------------------------------------------
+// The Dex
+// ---------------------------------------------------------------------------
+
+/** The mark beside an animal you have owned. */
+export const OWNED_GLYPH = '●';
+/** What stands in for the name of an animal never met. */
+export const DEX_UNSEEN = '-----';
+
+export function dexNumber(n: number): string {
+  return String(n).padStart(3, '0');
+}
+
+/**
+ * The list: every animal in the game by number. One you have met has its name;
+ * one you have owned has the snare mark as well; one you have not met is a
+ * number and a blank, so the size of what is left is always in view.
+ */
+function drawDex(ctx: CanvasRenderingContext2D, content: Content, state: GameState, scene: MenuScene): void {
+  const p = state.player;
+  const ids = content.speciesIds;
+  if (scene.entry) {
+    const id = ids[scene.subCursor];
+    if (id !== undefined) {
+      drawDexEntry(ctx, content, id, p.caught.includes(id));
+      return;
+    }
+  }
+  const box = PARTY_BOX;
+  gb.drawBox(ctx, box.x, box.y, box.w, box.h);
+  gb.drawText(ctx, box.x + 10, box.y + 4, `SEEN ${p.seen.length}  OWN ${p.caught.length}`, 3);
+  const top = boxScroll(scene.subCursor, ids.length);
+  for (let row = 0; row < DEX_ROWS; row++) {
+    const i = top + row;
+    const id = ids[i];
+    if (id === undefined) break;
+    const sp = content.dex.species(id);
+    const y = box.y + 18 + row * BOX_ROW_H;
+    if (i === scene.subCursor) gb.drawText(ctx, box.x + 2, y, gb.CURSOR_GLYPH, 3);
+    gb.drawText(ctx, box.x + 10, y, dexNumber(sp.dex), 3);
+    gb.drawText(ctx, box.x + 38, y, p.seen.includes(id) ? nameLabel(sp.name) : DEX_UNSEEN, 3);
+    if (p.caught.includes(id)) gb.drawText(ctx, box.x + box.w - 12, y, OWNED_GLYPH, 3);
+  }
+  gb.drawText(ctx, box.x + 10, box.y + box.h - 12, 'LEFT/RIGHT: PAGE', 3);
+}
+
+/** How wide the Dex page's column beside the picture is, in characters. */
+const DEX_SIDE_COLS = 12;
+
+/**
+ * One animal's page. Met but never owned shows the picture, the number and the
+ * name and admits it knows nothing else; owning one fills in what it really is,
+ * its typing and its entry.
+ */
+function drawDexEntry(ctx: CanvasRenderingContext2D, content: Content, id: string, owned: boolean): void {
+  clearScreen(ctx, 0);
+  const sp = content.dex.species(id);
+  const scale = 0.7;
+  fillEllipse(ctx, 28, 47, 20, 4, 1);
+  gb.drawSprite(ctx, creaturePixels(content, id), Math.round(28 - (SPRITE_SIZE * scale) / 2), Math.round(47 - SPRITE_SIZE * scale), scale, false);
+
+  const sideX = LOGICAL_W - 4 - DEX_SIDE_COLS * 8;
+  gb.drawText(ctx, sideX, 6, `No.${dexNumber(sp.dex)}`, 3);
+  gb.drawText(ctx, sideX, 18, nameLabel(sp.name), 3);
+  if (owned) gb.drawText(ctx, sideX, 30, sp.types.join('/'), 3);
+
+  // What it actually is, in the world outside Fenmark. Two rows at most.
+  const left = gb.TEXTBOX_X + gb.TEXTBOX_PAD;
+  if (owned) {
+    const animal = gb.wrapText(sp.animal, TEXT_COLS).slice(0, 2);
+    for (let i = 0; i < animal.length; i++) gb.drawText(ctx, left, 52 + i * 10, animal[i] ?? '', 3);
+  }
+
+  const box = { x: gb.TEXTBOX_X, y: 73, w: gb.TEXTBOX_W, h: 67 };
+  gb.drawBox(ctx, box.x, box.y, box.w, box.h);
+  const rows = gb.wrapText(owned ? sp.dexEntry : DEX_UNOWNED_TEXT, TEXT_COLS);
+  for (let i = 0; i < rows.length && i < 6; i++) gb.drawText(ctx, left, box.y + 4 + i * 10, rows[i] ?? '', 3);
+}
+
+/** The page of an animal met and never owned. */
+export const DEX_UNOWNED_TEXT = 'Seen. Never held. Catch one and this page fills in.';
 
 // ---------------------------------------------------------------------------
 // The kennel box

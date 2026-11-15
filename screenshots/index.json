@@ -253,38 +253,65 @@
     },
     {
       "n": 28,
-      "name": "box-party",
-      "scene": "box",
+      "name": "dex-list",
+      "scene": "menu/dex",
       "files": [
-        "28-box-party-gb.png",
-        "28-box-party-phone.png"
+        "28-dex-list-gb.png",
+        "28-dex-list-phone.png"
       ]
     },
     {
       "n": 29,
-      "name": "box-stored",
-      "scene": "box",
+      "name": "dex-entry",
+      "scene": "menu/dex",
       "files": [
-        "29-box-stored-gb.png",
-        "29-box-stored-phone.png"
+        "29-dex-entry-gb.png",
+        "29-dex-entry-phone.png"
       ]
     },
     {
       "n": 30,
-      "name": "battle-trainer",
-      "scene": "battle/main",
+      "name": "dex-seen",
+      "scene": "menu/dex",
       "files": [
-        "30-battle-trainer-gb.png",
-        "30-battle-trainer-phone.png"
+        "30-dex-seen-gb.png",
+        "30-dex-seen-phone.png"
       ]
     },
     {
       "n": 31,
+      "name": "box-party",
+      "scene": "box",
+      "files": [
+        "31-box-party-gb.png",
+        "31-box-party-phone.png"
+      ]
+    },
+    {
+      "n": 32,
+      "name": "box-stored",
+      "scene": "box",
+      "files": [
+        "32-box-stored-gb.png",
+        "32-box-stored-phone.png"
+      ]
+    },
+    {
+      "n": 33,
+      "name": "battle-trainer",
+      "scene": "battle/main",
+      "files": [
+        "33-battle-trainer-gb.png",
+        "33-battle-trainer-phone.png"
+      ]
+    },
+    {
+      "n": 34,
       "name": "town-second",
       "scene": "overworld",
       "files": [
-        "31-town-second-gb.png",
-        "31-town-second-phone.png"
+        "34-town-second-gb.png",
+        "34-town-second-phone.png"
       ]
     }
   ]

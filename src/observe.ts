@@ -105,6 +105,10 @@ export interface Observation {
   readonly act: number;
   readonly moving: number;
   readonly using: string;
+  /** The Dex: species ids met and owned, and whether one animal's page is open. */
+  readonly seenIds: readonly string[];
+  readonly caughtIds: readonly string[];
+  readonly entry: boolean;
   /** The naming screen, when it is up. */
   readonly naming: SeenNaming | null;
   readonly battle: SeenBattle | null;
@@ -163,6 +167,7 @@ export function observe(content: Content, s: GameState): Observation {
   let using = '';
   let naming: SeenNaming | null = null;
   let side = '';
+  let entry = false;
   let battle: SeenBattle | null = null;
 
   switch (sc.kind) {
@@ -183,6 +188,7 @@ export function observe(content: Content, s: GameState): Observation {
       moving = sc.moving;
       using = sc.using;
       note = sc.note;
+      entry = sc.entry;
       break;
     case 'naming': {
       const who = sc.where === 'party' ? p.party[sc.index] : p.box[sc.index];
@@ -275,6 +281,9 @@ export function observe(content: Content, s: GameState): Observation {
     act,
     moving,
     using,
+    seenIds: p.seen.slice(),
+    caughtIds: p.caught.slice(),
+    entry,
     naming,
     battle,
   };

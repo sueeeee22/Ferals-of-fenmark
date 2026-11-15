@@ -73,19 +73,36 @@ function migrate(file: SaveFile): SaveFile | null {
   return { ...file, version: SAVE_VERSION };
 }
 
+/**
+ * Fill in anything a save from an older build does not have.
+ *
+ * The Dex lists arrived after saves already existed. A save without them is
+ * given the species it demonstrably owns - everything in the party and the box
+ * - so an existing player opens the Dex to their own animals rather than to a
+ * blank page, or a crash.
+ */
+function withDefaults(player: PlayerState): PlayerState {
+  const loose: Partial<PlayerState> = player;
+  const owned = [...new Set([...player.party, ...(loose.box ?? [])].map((f) => f.species))];
+  const caught = Array.isArray(loose.caught) ? loose.caught : owned;
+  const seen = Array.isArray(loose.seen) ? loose.seen : [...caught];
+  return { ...player, box: loose.box ?? [], seen, caught };
+}
+
 /** Rebuild a playable state from a save. Always resumes standing in the overworld. */
 export function restore(file: SaveFile): GameState {
+  const player = withDefaults(file.player);
   return {
     frame: file.frame,
     rngState: file.rngState,
     scene: {
       kind: 'overworld',
       walk: {
-        progress: 0, span: WALK_FRAMES, dir: file.player.facing, hop: false,
-        fromX: file.player.x, fromY: file.player.y,
+        progress: 0, span: WALK_FRAMES, dir: player.facing, hop: false,
+        fromX: player.x, fromY: player.y,
       },
     },
-    player: file.player,
+    player,
     prev: NO_BUTTONS,
     saveRequested: false,
     lastText: '',
