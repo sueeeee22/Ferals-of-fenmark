@@ -90,7 +90,7 @@ const MUTANTS: readonly Mutant[] = [
     id: 'identical-starters',
     bug: 'Winter and Baloo were the same picture',
     rule: 'starters',
-    until: 'starter-plato',
+    until: 'overworld-house',
     edits: [{
       file: DRAW,
       find: '  const sp = content.dex.species(speciesId);\n  const px = spriteFor(',
