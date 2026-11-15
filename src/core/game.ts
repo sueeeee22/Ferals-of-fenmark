@@ -703,6 +703,12 @@ function stepOverworld(
     if (walk.progress <= walk.span) return;
 
     walk.progress = 0;
+    // Where this step began, kept for the one case that has to undo it: a
+    // locked door. The re-anchor below overwrites `from`, and the refusal used
+    // to "step back" to the overwritten value - that is, nowhere - so she was
+    // left standing in the doorway she had just been told would not open.
+    const cameFromX = walk.fromX;
+    const cameFromY = walk.fromY;
     // Re-anchor the interpolation to where we actually ARE. `fromX/fromY` still
     // held the tile we left, and a render with progress 0 lerps to t=0 - which
     // drew the player a WHOLE TILE BACKWARDS for one frame at the end of every
@@ -717,8 +723,10 @@ function stepOverworld(
     const warp = warpAt(map, p.x, p.y);
     if (warp) {
       if (warp.requiresFlag !== undefined && !hasFlag(p, warp.requiresFlag)) {
-        p.x = walk.fromX;
-        p.y = walk.fromY;
+        p.x = cameFromX;
+        p.y = cameFromY;
+        walk.fromX = p.x;
+        walk.fromY = p.y;
         sayRaw(state, [warp.blockedText ?? 'It will not open.']);
         return;
       }
