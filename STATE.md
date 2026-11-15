@@ -27,32 +27,39 @@ Branch: `claude/ferals-fenmark-rpg-ga42yt`. Push there, never elsewhere.
 |---|----------|--------|-------|
 | 1 | `gauntlet:types` | **PASS** | strict tsc, eslint, zero `any`, core purity invariants |
 | 2 | `gauntlet:schema` | **PASS** | 153 species, 96 moves, 0 orphan moves, starter spread 0.0% |
-| 3 | `gauntlet:sim` | **FAIL — 27** | was 89+, then 38; all structural failures fixed |
-| 4 | `gauntlet:curve` | **FAIL — 8** | was 24, then 15 |
+| 3 | `gauntlet:sim` | **PASS** | was 89+, then 38, then 27; see BLOCKERS.md items 1, 2 and 6 |
+| 4 | `gauntlet:curve` | **PASS** | was 24, then 15, then 3 (gym 8) |
 | 5 | `gauntlet:playthrough` | **PASS** | all three starters reach the Champion, on 4 seeds |
 | 6 | `gauntlet:visual` | **PASS** | 20 rules read off the real screen, 23 checkpoints, ~75s |
 | 7 | `gauntlet:tone` | **PASS** | 96 keys, 325 boxes, 1 warning |
 | 8 | `gauntlet:ship` | **PASS** | real build, served from the Pages subpath, driven in a browser |
 
 `gauntlet:sim` headline numbers, current run:
-- median battle length **6 turns** (p10 3, p90 12) — was **1**
-- **0/10000** battles hit the turn cap — was 1
-- max `resolveTurn` time under the 5ms ceiling
-- starter triangle correct and decisive: Winter > Plato > Baloo > Winter
-- remaining 27 failures are balance, not structure — see `BLOCKERS.md`
+- median battle length **6 turns** (p10 4, p90 10)
+- every type wins **46-55%** of its fights (was 34-68%); every build 48-52% (was 33-63%)
+- every status move **44-61%** (four were under 25%)
+- starter triangle decisive AND even: Winter > Plato 87%, Plato > Baloo 91%,
+  Baloo > Winter 81%; each starter 45-53% across both its matchups
+
+`gauntlet:curve`: gym 8 at intended level 68% / 88% / 96% (was 18 / 54 / 46);
+Champion 86% / 84% / 76%.
 
 `gauntlet:playthrough`, current run (~4 min for all three):
 
 | starter | result | badges | saves | party levels |
 |---------|--------|--------|-------|--------------|
-| `winter_pup` | CHAMPION | 8 | 9 | 77/78/79/79 |
-| `baloo_pup`  | CHAMPION | 8 | 9 | 77/79/79/79 |
+| `winter_pup` | CHAMPION | 8 | 9 | 66/70/71/71 |
+| `baloo_pup`  | CHAMPION | 8 | 9 | 73/75/76/76 |
 | `plato_pup`  | CHAMPION | 8 | 9 | 76/78/80/80 |
 
-Re-checked on three further seeds via `PT_SEED=alpha npm run gauntlet:playthrough`
-(and `beta`, `gamma`): **12 of 12 runs reach the Champion**, finishing at levels
-66-83 with a full party of four every time. The default seed is fixed so the gate
-is reproducible; `PT_SEED` exists so a pass can be distinguished from a lucky run.
+The numbers on the two balance gates sit close to their limits in three places
+(legendary wolf 74% against a 75% ceiling, Winter at gym 8 68% against a 65% floor,
+squirrel pup 34% against 25%). They are deterministic, so they hold until the data
+changes - but any balance edit should expect to re-tune those three first.
+
+(Before the Phase 2 rebalance this was re-checked on three further seeds via
+`PT_SEED=alpha npm run gauntlet:playthrough`, 12 of 12 runs. It has NOT been
+re-checked on other seeds since - worth doing before trusting it as more than one run.)
 
 ---
 
@@ -135,9 +142,7 @@ The game is a static site: no server, no database, no login, **77KB gzipped**.
 ## Next steps, in order
 
 1. ~~Write `gauntlet:visual`.~~ Done - see ROADMAP.md Phase 1.
-2. **Fix the 8 `gauntlet:curve` failures.** Most are the OPPOSITE of too hard - gyms
-   beatable while well under level, because the guaranteed type counters make an
-   underlevelled team viable. Elite Four #2 and #4 are the remaining "too hard" ones.
+2. ~~Fix `gauntlet:sim` and `gauntlet:curve`.~~ Done - see ROADMAP.md Phase 2.
 3. **Audio.** Nothing exists. The brief asks for chiptune via WebAudio.
 4. Overworld player/NPC sprites: authored pixel art instead of procedural humanoids.
 5. `BLOCKERS.md` items 1 and 2 (status moves, starter parity).

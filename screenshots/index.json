@@ -181,38 +181,20 @@
     },
     {
       "n": 20,
-      "name": "battle-party",
-      "scene": "battle/party",
+      "name": "battle-trainer",
+      "scene": "battle/main",
       "files": [
-        "20-battle-party-gb.png",
-        "20-battle-party-phone.png"
+        "20-battle-trainer-gb.png",
+        "20-battle-trainer-phone.png"
       ]
     },
     {
       "n": 21,
-      "name": "menu-party-two",
-      "scene": "menu/party",
-      "files": [
-        "21-menu-party-two-gb.png",
-        "21-menu-party-two-phone.png"
-      ]
-    },
-    {
-      "n": 22,
-      "name": "battle-trainer",
-      "scene": "battle/main",
-      "files": [
-        "22-battle-trainer-gb.png",
-        "22-battle-trainer-phone.png"
-      ]
-    },
-    {
-      "n": 23,
       "name": "town-second",
       "scene": "overworld",
       "files": [
-        "23-town-second-gb.png",
-        "23-town-second-phone.png"
+        "21-town-second-gb.png",
+        "21-town-second-phone.png"
       ]
     }
   ]

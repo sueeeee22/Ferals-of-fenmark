@@ -379,8 +379,12 @@ const LINES: readonly LineSpec[] = [
 ];
 
 const LEGENDARIES: readonly LineSpec[] = [
-  { key: 'legend_wolf', family: 'canid', types: ['Fang', 'Crown'], legendary: true, stages: [
-    S('Fenrisarn', 'Dire Wolf', 'bruiser', 'The wolf the first houses swore their oaths to. Every treaty since has been a footnote.'),
+  // Maw/Crown, not Fang/Crown. Fang/Crown has exactly one weakness, to the
+  // rarest type in the game, and doubles against two thirds of the roster: at
+  // the very bottom of the legendary stat band it still won 84% of its fights.
+  // A dire wolf is a bone-crusher anyway, and Maw brings Tide and Gloom with it.
+  { key: 'legend_wolf', family: 'canid', types: ['Maw', 'Crown'], legendary: true, stages: [
+    S('Fenrisarn', 'Dire Wolf', 'allrounder', 'The wolf the first houses swore their oaths to. Every treaty since has been a footnote.'),
   ] },
   { key: 'legend_bear', family: 'ursid', types: ['Maw', 'Frost'], legendary: true, stages: [
     S('Hoargrendel', 'Cave Bear', 'bulwark', 'Woke once, took a season, and went back to sleep. The Sable line dates itself from that.'),

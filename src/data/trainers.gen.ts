@@ -913,23 +913,23 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "team": [
       {
         "species": "porcupine_adult",
-        "level": 60
+        "level": 56
       },
       {
         "species": "seaeagle_adult",
-        "level": 60
+        "level": 56
       },
       {
         "species": "squirrel_adult",
-        "level": 60
+        "level": 56
       },
       {
         "species": "porcupine_apex",
-        "level": 60
+        "level": 58
       },
       {
         "species": "redfox_apex",
-        "level": 60
+        "level": 58
       },
       {
         "species": "baloo_apex",

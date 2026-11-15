@@ -875,6 +875,38 @@ function pickEnemySwitch(dex: Dex, state: BattleState): number {
 }
 
 /**
+ * Would this status move do nothing useful right now?
+ *
+ * The AI only ever asked whether the target already had a status condition, so
+ * it kept lowering a defence that was already on the floor, tried to burn
+ * animals that cannot be burned, and healed at full health - whole turns thrown
+ * away, every fight. gauntlet:sim saw it as status moves that "won" 8-15% of
+ * the battles they were used in.
+ */
+function statusMoveIsWasted(dex: Dex, mv: Move, side: Side, foe: Side): boolean {
+  const eff = mv.effect;
+  if (!eff) return true;
+  const user = activeOf(side);
+  const target = activeOf(foe);
+  if (eff.status !== undefined) {
+    return target.status !== null || isImmuneToStatus(dex, target, eff.status);
+  }
+  if (eff.heal !== undefined) {
+    return user.hp > maxHp(dex.species(user.species), user) * 0.55;
+  }
+  if (eff.stages !== undefined) {
+    // Two steps is where the returns fall away; past that it is a wasted turn.
+    const stages = (eff.targetsSelf === true ? side : foe).stages;
+    return Object.entries(eff.stages).every(([k, delta]) => {
+      if (k === 'hp' || typeof delta !== 'number' || delta === 0) return true;
+      const at = stages[k as Exclude<StatKey, 'hp'>];
+      return delta > 0 ? at >= 2 : at <= -2;
+    });
+  }
+  return false;
+}
+
+/**
  * Enemy move choice. Level 0 is random; higher levels weight by expected damage
  * and, at gym-leader level, actually use their status moves at the right moment.
  */
@@ -897,35 +929,46 @@ export function chooseAiAction(
   const targetSp = dex.species(target.species);
   const userSp = dex.species(f.species);
 
-  const scored = usable.map(({ m, i }) => {
-    const mv = dex.move(m.move);
-    let score: number;
-    if (mv.category === 'status') {
-      // Status is worth a lot on a healthy target and nearly nothing on a dying one.
-      const hpFrac = target.hp / Math.max(1, maxHp(targetSp, target));
-      const alreadyStatused = target.status !== null && (mv.effect?.status !== undefined);
-      score = alreadyStatused ? 1 : 18 * hpFrac;
-      if (state.aiLevel < 2) score *= 0.5;
-    } else {
-      const mult = typeMultiplier(mv.type, targetSp.types);
-      const physical = mv.category === 'physical';
-      const atk = statOf(userSp, f, physical ? 'atk' : 'spa');
-      const def = statOf(targetSp, target, physical ? 'def' : 'spd');
-      const est = computeDamage({
-        attackerLevel: f.level,
-        attack: atk,
-        defense: def,
-        power: mv.power,
-        stabMult: stab(mv.type, userSp.types),
-        typeMult: mult,
-        critical: false,
-        burned: physical && f.status === 'burn',
-        roll: 0.92,
-      });
-      score = est.damage * (mv.accuracy >= 100 ? 1 : mv.accuracy / 100);
-      // Reward a lethal hit outright — good trainers take the kill.
-      if (state.aiLevel >= 2 && est.damage >= target.hp) score *= 3;
-    }
+  const damageScore = (mv: Move): number => {
+    const mult = typeMultiplier(mv.type, targetSp.types);
+    const physical = mv.category === 'physical';
+    const atk = statOf(userSp, f, physical ? 'atk' : 'spa');
+    const def = statOf(targetSp, target, physical ? 'def' : 'spd');
+    const est = computeDamage({
+      attackerLevel: f.level,
+      attack: atk,
+      defense: def,
+      power: mv.power,
+      stabMult: stab(mv.type, userSp.types),
+      typeMult: mult,
+      critical: false,
+      burned: physical && f.status === 'burn',
+      roll: 0.92,
+    });
+    const score = est.damage * (mv.accuracy >= 100 ? 1 : mv.accuracy / 100);
+    // Reward a lethal hit outright — good trainers take the kill.
+    return state.aiLevel >= 2 && est.damage >= target.hp ? score * 3 : score;
+  };
+
+  const moves = usable.map(({ m, i }) => ({ i, mv: dex.move(m.move) }));
+  const bestDamage = Math.max(0, ...moves.filter((x) => x.mv.category !== 'status').map((x) => damageScore(x.mv)));
+
+  const scored = moves.map(({ i, mv }) => {
+    if (mv.category !== 'status') return { i, score: damageScore(mv) };
+    if (statusMoveIsWasted(dex, mv, side, foe)) return { i, score: 0.1 };
+    /*
+     * A status move is weighed AGAINST THE DAMAGE ON OFFER, not on a fixed
+     * scale. It used to be worth a flat 18, which meant two wrong things: at
+     * level 5, where a hit does six, it was the only move a trainer wanted; at
+     * level 60 it was never chosen; and in between it was chosen mostly when
+     * the user's attacks were resisted - that is, in fights already being
+     * lost, which is why gauntlet:sim scored status moves as losing ones.
+     * Worth three quarters of the best hit on a fresh target, falling away as
+     * the target does: an opening move, not a finisher.
+     */
+    const hpFrac = target.hp / Math.max(1, maxHp(targetSp, target));
+    let score = bestDamage > 0 ? bestDamage * 0.75 * hpFrac : 18 * hpFrac;
+    if (state.aiLevel < 2) score *= 0.5;
     return { i, score };
   });
 

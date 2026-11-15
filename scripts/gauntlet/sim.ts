@@ -10,6 +10,7 @@
  *
  * Exit 0 or the roster is not balanced enough to ship.
  */
+import { writeFileSync } from 'node:fs';
 import { Rng } from '../../src/core/rng.ts';
 import { TYPES } from '../../src/core/types.ts';
 import type { FeralType } from '../../src/core/types.ts';
@@ -245,6 +246,9 @@ const STARTERS: readonly { readonly key: string; readonly id: string }[] = [
 const STARTER_BATTLES_PER_PAIR = 2000;
 const STARTER_WIN_LO = 0.42;
 const STARTER_WIN_HI = 0.58;
+/** Winter > Plato > Baloo > Winter. Each edge must be won at least this often. */
+const TRIANGLE: readonly (readonly [string, string])[] = [['Winter', 'Plato'], ['Plato', 'Baloo'], ['Baloo', 'Winter']];
+const STARTER_EDGE_MIN = 0.6;
 
 const WARMUP_BATTLES = 50;
 
@@ -352,6 +356,15 @@ async function main(): Promise<void> {
     c: speciesStats.get(sp.id) ?? { uses: 0, wins: 0 },
   })).sort((x, y) => winRate(x.c) - winRate(y.c));
   const qualifyingSpecies = speciesRows.filter((r) => r.c.uses >= MIN_SPECIES_SAMPLE);
+  // `SIM_DUMP=<file>` writes every species' result, for whoever is tuning. The
+  // report below only names the ten at each end.
+  const dumpTo = process.env['SIM_DUMP'];
+  if (dumpTo !== undefined) {
+    writeFileSync(dumpTo, `${JSON.stringify(speciesRows.map((r) => ({
+      id: r.sp.id, name: r.sp.name, stage: r.sp.legendary === true ? 'legendary' : r.sp.stage,
+      types: r.sp.types, archetype: r.sp.archetype, battles: r.c.uses, win: Number(winRate(r.c).toFixed(3)),
+    })), null, 1)}\n`);
+  }
   console.log(
     `  ${qualifyingSpecies.length}/${SPECIES_LIST.length} species reached the >=${MIN_SPECIES_SAMPLE}-battle sample and were judged.`,
   );
@@ -472,9 +485,36 @@ async function main(): Promise<void> {
       directedWinRate.set(`${x.key}->${y.key}`, rate);
       directedWinRate.set(`${y.key}->${x.key}`, 1 - rate);
       console.log(`  ${x.key} vs ${y.key}: ${pct(rate)} / ${pct(1 - rate)}  (${counted} decisive battles)`);
-      if (rate < STARTER_WIN_LO || rate > STARTER_WIN_HI) {
+    }
+
+    /*
+     * What is asserted, and why it is not "every pairing is close to 50/50".
+     *
+     * The starters are a triangle on purpose: the rival takes the one that
+     * beats yours (RIVAL_PICK in core/game.ts), which only means something if
+     * one starter really does beat another. Holding each PAIRING to 42-58%
+     * would require deleting that. BLOCKERS.md item 2 records the decision to
+     * assert the two things that actually matter instead - the edit was lost
+     * when this file was overwritten, and is restored here:
+     *
+     *   1. every edge of the triangle points the designed way, decisively;
+     *   2. across both of its matchups, no starter is the better pick.
+     */
+    for (const [winner, loser] of TRIANGLE) {
+      const rate = directedWinRate.get(`${winner}->${loser}`) ?? 0;
+      if (rate < STARTER_EDGE_MIN) {
         fail(
-          `starter pairing ${x.key} vs ${y.key}: ${x.key}'s win rate ${pct(rate)} is outside ${pct(STARTER_WIN_LO)}-${pct(STARTER_WIN_HI)}`,
+          `starter triangle: ${winner} should beat ${loser} decisively (>= ${pct(STARTER_EDGE_MIN)}), wins ${pct(rate)}`,
+        );
+      }
+    }
+    for (const row of STARTERS) {
+      const others = STARTERS.filter((o) => o.key !== row.key);
+      const overall = others.reduce((sum, o) => sum + (directedWinRate.get(`${row.key}->${o.key}`) ?? 0), 0) / others.length;
+      console.log(`  ${row.key} across both matchups: ${pct(overall)}`);
+      if (overall < STARTER_WIN_LO || overall > STARTER_WIN_HI) {
+        fail(
+          `starter parity: ${row.key} wins ${pct(overall)} across both matchups, outside ${pct(STARTER_WIN_LO)}-${pct(STARTER_WIN_HI)} - one starter is the right answer`,
         );
       }
     }

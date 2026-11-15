@@ -24,6 +24,64 @@ import type { FeralType } from '../../src/core/types.ts';
 const BST: Readonly<Record<Stage, number>> = { pup: 262, adult: 392, apex: 522 };
 const BST_LEGENDARY = 618;
 
+/**
+ * What a type's matchups are worth, paid for in raw stats.
+ *
+ * The type chart is even on paper - every type hits three others hard - but the
+ * ROSTER is not: 47 species are Fang and 52 are Claw, against 15-20 for most of
+ * the rest. So a type whose strong matchups are the common types wins far more
+ * than one whose strong matchups are rare. Maw hits Fang and Claw for double,
+ * which is two thirds of everything it meets; Crown hits Fang and Maw and
+ * resists both. gauntlet:sim had them winning 61% and 68% of all their fights,
+ * with Hearth (strong against three uncommon types, useless against Crown) at
+ * 34%. This is the same trade Gen 1 makes with Dragon: a great typing on a
+ * creature with less under the hood.
+ *
+ * Fractions of the stat total, summed over a creature's types. Starters are
+ * exempt; their totals are pinned equal further down.
+ */
+const TYPE_HANDICAP: Readonly<Partial<Record<FeralType, number>>> = {
+  Maw: -0.1,
+  Crown: -0.1,
+  Feral: -0.02,
+  Claw: 0.02,
+  Hearth: 0.03,
+  Gloom: 0.02,
+};
+
+/**
+ * Individual lines the general rules still leave outside the sim's band. Kept
+ * short on purpose: every entry here is a creature being patched rather than a
+ * cause being fixed, so the reason is written beside each.
+ */
+const LINE_TUNING: Readonly<Record<string, number>> = {
+  // Claw/Tide takes four times damage from Frost AND Thorn, on a defensive
+  // build with little attack. The typing is the animal; the stats can give.
+  seaotter: 0.08,
+  // Crown on a bruiser's build, with a legendary's stats behind it.
+  legend_wolf: -0.09,
+  // Maw/Frost on the heaviest defensive build in the game.
+  legend_bear: -0.06,
+  // Maw/Thorn hits Fang, Claw, Frost, Tide and Hearth for double between its
+  // two types, on a bruiser's build.
+  boar: -0.04,
+  // Claw/Gloom is weak to five types, three of them common.
+  blackcat: 0.07,
+  // Claw/Thorn on a slow defensive build with almost no attack as a pup. Only
+  // the pup: grown, its quills do the work.
+  porcupine_pup: 0.06,
+  // Claw/Frost: Frost's resistances, undone by Claw's four weaknesses.
+  snowleopard: 0.06,
+  // Fang/Gloom, and the pup drew the lowest stat roll in the game.
+  redfox: 0.04,
+  // Maw/Gloom bruiser: the best of Maw's offence with Gloom covering its gaps.
+  komodo: -0.04,
+};
+
+/** The least a creature of each stage may total. gauntlet:schema's bands start 10 below these. */
+const BST_FLOOR: Readonly<Record<Stage, number>> = { pup: 200, adult: 330, apex: 460 };
+const BST_FLOOR_LEGENDARY = 570;
+
 /** Deterministic per-species BST wobble, so a stage is a band and not a flat line. */
 const BST_JITTER = 26;
 
@@ -36,11 +94,11 @@ const BST_JITTER = 26;
  * its battles run 10-20 turns. The floor on def/spd/hp below is what buys that.
  */
 const WEIGHTS: Readonly<Record<Archetype, Readonly<Record<StatKey, number>>>> = {
-  bruiser: { hp: 0.19, atk: 0.24, def: 0.17, spa: 0.11, spd: 0.14, spe: 0.15 },
+  bruiser: { hp: 0.19, atk: 0.21, def: 0.16, spa: 0.12, spd: 0.15, spe: 0.17 },
   skirmisher: { hp: 0.16, atk: 0.22, def: 0.14, spa: 0.13, spd: 0.13, spe: 0.22 },
   bulwark: { hp: 0.2, atk: 0.16, def: 0.24, spa: 0.12, spd: 0.17, spe: 0.11 },
   channeler: { hp: 0.16, atk: 0.12, def: 0.14, spa: 0.25, spd: 0.16, spe: 0.17 },
-  warden: { hp: 0.21, atk: 0.14, def: 0.16, spa: 0.14, spd: 0.22, spe: 0.13 },
+  warden: { hp: 0.21, atk: 0.17, def: 0.2, spa: 0.11, spd: 0.18, spe: 0.13 },
   allrounder: { hp: 0.17, atk: 0.17, def: 0.17, spa: 0.16, spd: 0.16, spe: 0.17 },
 };
 
@@ -111,27 +169,75 @@ const STAT_KEYS: readonly StatKey[] = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
  */
 const STARTER_LINES = ['winter', 'baloo', 'plato'];
 const STARTER_BST: Readonly<Record<Stage, number>> = { pup: 270, adult: 400, apex: 542 };
+/** The spread all three starters are built on: a physical all-rounder. */
+const STARTER_SPREAD: Readonly<Record<StatKey, number>> = {
+  hp: 0.18, atk: 0.21, def: 0.17, spa: 0.1, spd: 0.16, spe: 0.18,
+};
+/** How much of its own archetype each starter keeps on top of that. */
+const STARTER_ROLE = 1 / 6;
+
+/**
+ * A creature's attacking budget goes into the stat its own moves use.
+ *
+ * A channeler spends a quarter of its stats on special attack and an eighth on
+ * attack. That is only worth anything if it can learn special moves, and just
+ * seven of the ninety-six moves are special: four Tide, one each for Frost,
+ * Ember and Gloom. Twenty species are channelers, and most are cats, foxes and
+ * corvids whose types have none at all - so they attacked with their worst
+ * stat. gauntlet:sim had them as nine of the ten weakest animals in the game
+ * (Templemouth won 9.7% of its fights) and it dragged Hearth and Gloom, where
+ * they cluster, to the bottom of the type table.
+ *
+ * Where a creature's types offer fewer than MIN_SPECIAL_MOVES, the two attack
+ * weights are swapped: same role, same total, spent where it can be used.
+ */
+const MIN_SPECIAL_MOVES = 3;
+
+function investInUsableAttack(
+  entry: RosterEntry,
+  w: Readonly<Record<StatKey, number>>,
+): Readonly<Record<StatKey, number>> {
+  if (w.spa <= w.atk) return w;
+  const special = entry.types
+    .flatMap((t) => byType.get(t) ?? [])
+    .filter((m) => m.category === 'special' && m.power > 0).length;
+  if (special >= MIN_SPECIAL_MOVES) return w;
+  return { ...w, atk: w.spa, spa: w.atk };
+}
 
 function makeStats(entry: RosterEntry): BaseStats {
   const isStarter = STARTER_LINES.some((k) => entry.id.startsWith(`${k}_`));
   const stageBase = entry.legendary ? BST_LEGENDARY : BST[entry.stage];
+  // Legendaries have a band of their own and are tuned by hand below it.
+  const handicap = entry.legendary
+    ? 0
+    : entry.types.reduce((sum, t) => sum + (TYPE_HANDICAP[t] ?? 0), 0);
+  // A whole line by its name, or one stage of it by its full id.
+  const tuned = LINE_TUNING[entry.id] ?? LINE_TUNING[entry.id.replace(/_(pup|adult|apex)$/, '')] ?? 0;
+  // Handicaps stack for a dual type (Maw/Crown is -20%), which can carry a
+  // creature clean out of its stage: a grown muskox came out weaker than the
+  // band allows an adult to be. The floor is the stage's own, a little inside
+  // what gauntlet:schema enforces.
+  const floor = entry.legendary ? BST_FLOOR_LEGENDARY : BST_FLOOR[entry.stage];
   const total = isStarter
     ? STARTER_BST[entry.stage]
-    : Math.round(stageBase + jitter(entry.id, 'bst') * BST_JITTER);
+    : Math.max(floor, Math.round((stageBase + jitter(entry.id, 'bst') * BST_JITTER) * (1 + handicap + tuned)));
   /*
-   * Starters keep their ROLE but not their tempo extremes.
+   * Starters share ONE stat spread, with only a trace of their role left in it.
    *
-   * With full archetype weights, Winter (skirmisher, 0.22 speed) simply acted
-   * first every turn and the type triangle could not offset it: sim measured
-   * Winter aggregating 66% and Baloo 39% even after BST parity. Blending each
-   * starter halfway toward allrounder keeps Winter fast, Baloo heavy and Plato
-   * balanced, while compressing the tempo gap that made one pick correct.
+   * The three matchups are built identically - each starter hits the next for
+   * double and takes half back - so with equal stats the triangle is even by
+   * construction and no starter is the right answer. Every time their spreads
+   * were allowed to differ it stopped being even: Winter's speed made it win
+   * 98% against Plato but lose only 71% to Baloo, so across both matchups
+   * Winter won 63% and Baloo 38%. Halving the difference (the previous attempt)
+   * was not enough. A sixth of it is what is left: Winter is still a touch
+   * faster and Baloo a touch heavier, and it no longer decides anything.
    */
-  const archetypeWeights = WEIGHTS[entry.archetype];
-  const flat = WEIGHTS.allrounder;
+  const archetypeWeights = investInUsableAttack(entry, WEIGHTS[entry.archetype]);
   const w: Record<StatKey, number> = isStarter
     ? (Object.fromEntries(
-        STAT_KEYS.map((k) => [k, (archetypeWeights[k] + flat[k]) / 2]),
+        STAT_KEYS.map((k) => [k, STARTER_SPREAD[k] + (archetypeWeights[k] - STARTER_SPREAD[k]) * STARTER_ROLE]),
       ) as Record<StatKey, number>)
     : archetypeWeights;
 
@@ -166,18 +272,14 @@ for (const mv of MOVE_LIST) {
   byType.set(mv.type, [...list, mv]);
 }
 
-/** Prefers the attacking stat the archetype actually invested in. */
-function prefersSpecial(archetype: Archetype): boolean {
-  return archetype === 'channeler' || archetype === 'warden';
-}
-
 function buildLearnset(entry: RosterEntry, base: BaseStats): LearnEntry[] {
   const pool = entry.types.flatMap((t) => byType.get(t) ?? []);
   if (pool.length === 0) {
     throw new Error(`no moves available for ${entry.id} (types ${entry.types.join('/')})`);
   }
 
-  const special = prefersSpecial(entry.archetype) || base.spa > base.atk;
+  // Decided by the stats it actually has - see investInUsableAttack.
+  const special = base.spa > base.atk;
   const used = new Set<string>();
   const out: LearnEntry[] = [];
 

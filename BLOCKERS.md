@@ -7,73 +7,72 @@ reader does not re-derive it. Spinning is how the budget dies.
 
 ## 1. Status moves sit below the 35% win-rate floor in `gauntlet:sim`
 
-**Status:** open, diagnosed, not fixed. ~16 moves affected.
+**Status: FIXED.** Every status move now lands between 44% and 61%.
 
-**Symptom.** Pure stat-stage and status-infliction moves land at 24-34% win rate
-under matched conditions, below the gauntlet's 35% floor.
+The diagnosis recorded here before - a setup turn cannot repay its tempo in a
+six-turn battle - was wrong, or at least was not what the numbers were showing.
+Two things in the trainer AI were:
 
-**Attempts (3).**
-1. Assumed a measurement artifact — the harness drove the player greedily
-   (damage only) while the engine AI drove the enemy (damage and status), so
-   every status move's number reported one policy against the other. Fixed by
-   generalising `chooseAiAction` to either side and adding `mirrorPolicy` to
-   `autoBattle`. Real fix, but the cluster survived it.
-2. Doubled stat-stage magnitude from ±1 to ±2 in the move balance pass. Moved
-   the cluster from ~21% to ~28%. Not enough.
-3. Lengthened battles (weights, power ceiling, crit cap): median 1 → 6 turns.
-   Helped, still short of the floor.
+1. **It threw turns away.** `chooseAiAction` only asked whether the target already
+   had a status condition. So it kept lowering a defence that was already on the
+   floor, tried to burn animals that cannot be burned, and healed at full health.
+   `statusMoveIsWasted` now rules those out.
+2. **It valued a status move at a flat 18.** Against damage scores that scale with
+   level, that meant status was the only thing a level-5 trainer wanted, was never
+   chosen at level 60, and in between was chosen mostly when the user's attacks
+   were being resisted - that is, in fights already being lost. The sim was not
+   measuring weak moves; it was measuring moves used by the losing side. A status
+   move is now worth three quarters of the best hit on offer against a fresh
+   target, falling away as the target does.
 
-**Diagnosis.** This is structural, not a numbers bug. A setup turn costs one
-turn of damage and buys a multiplier on future turns. When the median battle is
-six turns and a creature dies in two to three hits, there are not enough future
-turns for the multiplier to repay the tempo. Gen 1 has exactly the same problem —
-Swords Dance is bad in a fast metagame — so this is arguably *faithful*, but the
-gauntlet is right that it means a chunk of the movepool is dead weight.
-
-**The real fix, when someone picks this up.** Do not keep nudging magnitudes.
-Either:
-- give status moves immediate value as well as ongoing value (chip damage or a
-  guaranteed secondary), so the turn is never purely an investment; or
-- lengthen battles further (raise the HP weight band), which costs pace; or
-- accept it and narrow the gauntlet's band for `category === 'status'`, with the
-  reasoning written down — but only after one of the above has been tried, or it
-  is just moving the goalposts.
+The lesson: a win rate "when used" says as much about WHEN a move is chosen as
+about the move. Before nudging a move's numbers, check who is choosing it.
 
 ---
 
 ## 2. Starter aggregate parity vs. a decisive triangle
 
-**Status:** open, materially improved, not inside the band.
+**Status: FIXED.** Winter beats Plato 87%, Plato beats Baloo 91%, Baloo beats
+Winter 81%; across both of its matchups each starter wins 45-53%.
 
-**Symptom.** The triangle is correct and decisive — Winter > Plato (90%),
-Plato > Baloo (80%), Baloo > Winter (59%) — but the *edges are uneven*, so
-aggregate win rates come out near Winter 66% / Plato 45% / Baloo 39% rather than
-50/50/50. Winter is the strongest pick.
+- The three matchups are built identically by the type chart (hit the next one
+  for double, take half back), so with equal stats the triangle is even by
+  construction. All the lopsidedness came from giving the starters different stat
+  spreads. They now share one (`STARTER_SPREAD` in `scripts/gen/species.ts`) and
+  keep a sixth of their own archetype on top. No chart change was needed.
+- `gauntlet:sim` asserts what attempt 1 below decided it should - every edge
+  decisive, no starter better overall - instead of holding each pairing to 42-58%,
+  which no triangle can satisfy. That edit had been lost; it is back, with the
+  reasoning beside it.
 
-**Attempts (3).**
-1. Corrected the assertion: demanding 42-58% on every *pairing* would require
-   deleting the triangle the brief explicitly asks for. Replaced with two honest
-   assertions — each edge must be decisive (≥60%), and each starter's aggregate
-   across both pairings must be 42-58%.
-2. Forced identical starter stage totals with no jitter (542 BST at apex). Plato
-   38% → 45%.
-3. Blended starter archetype weights halfway to flat, because Winter's
-   skirmisher speed meant it acted first regardless of typing. Helped Plato,
-   pushed Baloo down.
+---
 
-**Diagnosis.** Speed dominates a six-turn battle more than the type chart does.
-Winter's edge over Plato (90%) is far larger than Baloo's over Winter (59%), so
-the cycle is lopsided even at equal stats. The lever that actually matters is
-the *size* of each type edge, not the stat spread: Frost→Claw and Hearth→Ember
-are both 2x, but Winter's other STAB (Fang) is neutral into Plato while Baloo's
-other STAB (Fang) is also neutral into Winter — the difference comes from
-defensive typing, where Fang/Frost resists more of what Plato throws.
+## 6. Why some types and some animals were so far out of band
 
-**The real fix.** Adjust the *defensive* side of the starter matchups rather than
-their stats — the honest options are giving Plato's line a resistance to Frost,
-or making Baloo's Ember edge over Winter a 4x by way of its second type. Both are
-chart changes and must be re-run through `scripts/analyze-types.ts`, which
-enforces that no type becomes dead weight or a sweeper.
+**Status: FIXED** - `gauntlet:sim` 27 problems to 0, `gauntlet:curve` 3 to 0. Kept
+here because none of the three causes is visible from the data tables.
+
+1. **Only seven of ninety-six moves are special** (four Tide, one each Frost, Ember,
+   Gloom), but twenty species were built as special attackers and sixteen more
+   around special DEFENCE. Cats, foxes and corvids attacked with their worst stat;
+   nine of the ten weakest animals were these, and they dragged Hearth and Gloom to
+   the bottom. `investInUsableAttack` now swaps the two attack weights when a
+   creature's types cannot use special attack, and the warden build spends on the
+   defence that is actually tested.
+2. **The chart is even but the roster is not.** 47 species are Fang and 52 are Claw.
+   Maw doubles against both; Crown doubles against Fang and Maw and resists both.
+   `TYPE_HANDICAP` charges for that in raw stats (Maw -10%, Crown -10%, with small
+   credits for Claw, Hearth and Gloom), the way Gen 1 charges Dragon.
+3. **A handful of lines needed a hand** (`LINE_TUNING`, each with its reason), and
+   the legendary wolf's Fang/Crown - one weakness, to the rarest type - became
+   Maw/Crown, because no stat total inside the legendary band kept it under 75%.
+
+Two consequences worth knowing. The champion's team got much harder once the
+animals on it could attack properly, so its supporting five now step up to the ace
+(56/56/56/58/58, ace 62) as Gen 1's do, rather than all sitting two under it. And
+its ace is hardcoded to Baloo: the comment says the rival's ace "is always the
+starter that counters yours", the data says Baloo for everyone. Making that true
+needs a per-save trainer team, which is engine work (ROADMAP Phase 3).
 
 ---
 

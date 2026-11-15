@@ -647,8 +647,14 @@ trainers.push({
   name: 'Cass',
   title: 'who took the crown first',
   team: [
-    ...pick(3, 'champion', all((r) => r.stage === 'adult', legalAt(60))).map((r) => ({ species: r.id, level: 60 })),
-    ...pick(2, 'champion_apex', all((r) => r.stage === 'apex', legalAt(60))).map((r) => ({ species: r.id, level: 60 })),
+    // Levels step up to the ace, as Gen 1's champion's do (59 to 65). All five
+    // used to sit at 60, two under the ace. That was only comfortable because
+    // several of the animals picked here were among the ones attacking with
+    // their worst stat (see investInUsableAttack in species.ts); once those
+    // were fixed, the same team at the same levels beat every starter about a
+    // third of the time.
+    ...pick(3, 'champion', all((r) => r.stage === 'adult', legalAt(60))).map((r) => ({ species: r.id, level: 56 })),
+    ...pick(2, 'champion_apex', all((r) => r.stage === 'apex', legalAt(60))).map((r) => ({ species: r.id, level: 58 })),
     // The rival's ace is always the starter that counters yours.
     { species: 'baloo_apex', level: 62 },
   ],
