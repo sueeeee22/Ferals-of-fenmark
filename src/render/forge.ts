@@ -2357,6 +2357,178 @@ const POSES: Readonly<Record<string, Pose>> = {
       b.nose(-18.6, 23.6);
     };
   },
+
+  // Coiled, with the head up out of the pile and the zigzag down its back. It
+  // was a lizard with legs before this, which an adder would take personally.
+  adder: (b) => {
+    b.cv(11, 3.6, 19, 3.4, 21.5, 9, 1.8, 0.7, L, Part.Tail);
+    b.el(1.5, 4.2, 13.5, 4.2, L);
+    b.el(1, 9.6, 10.5, 3.9, L);
+    b.cv(-5, 10.5, -13.5, 17, -7.5, 23.5, 3.3, 2.7, L);
+    b.el(-9.5, 25.4, 4.6, 3.1, L, Part.Head);
+    b.tp(-11, 25, -14.6, 24.2, 2.4, 1.6, L, Part.Muzzle);
+    return () => {
+      // The coils, parted from each other.
+      b.arc(-10.5, 7.2, 2, 5.4, 13, 7.4, 0.35, 0.35, 3);
+      b.arc(-7.5, 12.4, -3, 10.6, 1, 13.2, 0.35, 0.35, 3);
+      // The zigzag: one run along each coil and up the neck.
+      for (let i = 0; i < 9; i++) {
+        const x = -10 + i * 2.8;
+        b.line(x, 3 + (i % 2) * 2, x + 2.8, 3 + ((i + 1) % 2) * 2, 0.7, 0.7, D);
+      }
+      for (let i = 0; i < 6; i++) {
+        const x = -5.5 + i * 2.6;
+        b.line(x, 8.8 + (i % 2) * 1.8, x + 2.6, 8.8 + ((i + 1) % 2) * 1.8, 0.6, 0.6, D);
+      }
+      b.arc(-6, 12, -13, 17, -8, 22.6, 0.7, 0.7, D);
+      b.eye(-10.4, 26.2, true);
+    };
+  },
+
+  // Flat to the ground, a duck's bill on one end and a paddle on the other.
+  platypus: (b) => {
+    b.el(17.5, 6.5, 6.4, 3.2, D, Part.Tail);
+    b.el(-5, 1.4, 3.8, 1.5, L, Part.Foot);
+    b.el(10, 1.4, 3.8, 1.5, L, Part.Foot);
+    b.el(2, 9, 14, 7, D);
+    b.el(-11, 10, 6.4, 5.8, D, Part.Head);
+    b.el(-18.4, 8.4, 5, 2, L, Part.Muzzle);
+    b.el(-8.5, 1.4, 4, 1.5, L, Part.Foot);
+    b.el(7, 1.4, 4, 1.5, L, Part.Foot);
+    return () => {
+      b.under(0.26, L, [Part.Body]);
+      b.line(13, 7.6, 23, 7, 0.3, 0.3, L);
+      b.line(13.5, 5.4, 22.6, 5, 0.3, 0.3, L);
+      b.eye(-12.6, 11.4);
+      b.dot(-21.4, 9, 3);
+      b.dot(-20, 9, 3);
+    };
+  },
+
+  // Armoured from the nose to the end of a tail as long as the rest of it,
+  // walking with its back up.
+  pangolin: (b) => {
+    b.cv(5, 11, 16, 13.5, 22.5, 2.6, 6.2, 1.5, L, Part.Tail);
+    b.tp(-5, 6, -5.5, 1.6, 2, 1.8, D, Part.Leg);
+    b.tp(6, 6, 6, 1.6, 2.2, 1.9, D, Part.Leg);
+    b.el(-0.5, 11.5, 10.5, 8, L);
+    b.tp(-8, 10, -19.5, 5.4, 4.6, 1.5, L, Part.Head);
+    b.tp(-8.5, 6, -9, 1.6, 2.3, 2, D, Part.Leg);
+    b.el(-10.2, 1.3, 2.8, 1.3, D, Part.Foot);
+    b.tp(9, 6, 9.5, 1.6, 2.5, 2.1, D, Part.Leg);
+    b.el(8.4, 1.3, 3, 1.3, D, Part.Foot);
+    return () => {
+      // Scales: a net of dark lines over everything but the face and the feet.
+      b.wash(D, (part, x, y) => (part === Part.Body || part === Part.Tail)
+        && (Math.abs(((x + y) % 4 + 4) % 4) < 1 || Math.abs(((x - y) % 4 + 4) % 4) < 1));
+      b.under(0.2, D, [Part.Body]);
+      b.eye(-13.4, 8.6, true);
+      b.nose(-20.4, 5.2);
+    };
+  },
+
+  // Sat up with something in its hands, under a tail bigger than it is.
+  squirrel: (b) => {
+    b.cv(8, 4, 21.5, 7, 15.5, 22, 3.8, 5.6, D, Part.Tail);
+    b.el(12, 25.5, 5.6, 5, D, Part.Tail);
+    b.el(4, 5.6, 6.2, 5.2, L);
+    b.el(1.5, 10, 6.4, 7.4, L);
+    b.el(-4, 19, 5.2, 4.7, L, Part.Head);
+    b.tp(-7, 18, -10, 17.2, 2.4, 1.6, L, Part.Muzzle);
+    b.tp(-2.6, 22.6, -1.8, 27, 1.5, 0.5, D, Part.Ear);
+    b.tp(-6, 22.6, -7, 26.4, 1.4, 0.5, D, Part.Ear);
+    b.tp(-2.5, 12.6, -8, 13, 1.6, 1.3, L, Part.Leg);
+    b.el(-9.6, 13.4, 2.2, 2.4, D, Part.Extra);
+    b.el(-1.5, 1.4, 4.6, 1.5, L, Part.Foot);
+    return () => {
+      b.arc(10, 6, 20, 9, 16, 21, 1.2, 2.4, L);
+      b.mark(12.6, 25.6, 2.6, 2.2, L);
+      b.wash(D, (part, x) => part === Part.Body && x > 4.4);
+      b.eye(-5.6, 19.8);
+      b.nose(-11.2, 17.4);
+    };
+  },
+
+  // Upright and pear-shaped, on a tail like a paddle, with the teeth.
+  beaver: (b) => {
+    b.el(16, 3.2, 7.6, 2.9, L, Part.Tail);
+    b.el(2, 7, 11, 7, D);
+    b.el(0, 13, 9, 8.6, D);
+    b.el(-7.5, 21, 6.6, 6, D, Part.Head);
+    b.el(-12.6, 19.4, 3.5, 3.1, D, Part.Muzzle);
+    b.el(-4, 26.6, 1.5, 1.4, D, Part.Ear);
+    b.tp(-6.5, 14, -11, 11.6, 1.8, 1.5, D, Part.Leg);
+    b.el(-4, 1.4, 5.2, 1.5, D, Part.Foot);
+    return () => {
+      b.under(0.28, L, [Part.Body]);
+      b.wash(D, (part, x, y) => part === Part.Tail
+        && (Math.abs(((x + y) % 3 + 3) % 3) < 0.8 || Math.abs(((x - y) % 3 + 3) % 3) < 0.8));
+      b.eye(-8.6, 22.4);
+      b.nose(-15.4, 20.2);
+      b.dot(-14.4, 17.6, 1);
+      b.dot(-13.4, 17.6, 1);
+      b.dot(-14.4, 16.6, 1);
+      b.dot(-13.4, 16.6, 1);
+    };
+  },
+
+  // A ball of spines with a small polite face at the front of it.
+  hedgehog: (b) => {
+    for (let i = 0; i <= 12; i++) {
+      const a = (Math.PI * (8 + i * 12.5)) / 180;
+      const cx = 3 + Math.cos(a) * 11.5;
+      const cy = 8 + Math.sin(a) * 8.6;
+      b.tp(cx, cy, 3 + Math.cos(a) * 14.6, 8 + Math.sin(a) * 11.6, 1.5, 0.4, D, Part.Extra);
+    }
+    b.el(3, 8, 12, 8.8, D);
+    b.el(-9, 6, 5.6, 4.6, L, Part.Head);
+    b.tp(-12, 5.6, -17, 4.6, 2.6, 1.3, L, Part.Muzzle);
+    b.el(-6.6, 10.6, 1.6, 1.6, L, Part.Ear);
+    b.el(-6, 1.3, 2.6, 1.3, L, Part.Foot);
+    b.el(8, 1.3, 2.8, 1.3, L, Part.Foot);
+    return () => {
+      // Quills: pale flecks in rows, leaning back.
+      b.wash(L, (part, x, y) => part === Part.Body && x > -4
+        && Math.abs(((x + y * 1.5) % 4 + 4) % 4) < 0.9 && Math.floor(y / 1.3) % 2 === 0);
+      b.eye(-10.4, 7);
+      b.nose(-18, 4.6);
+    };
+  },
+
+  // All shoulder: a wedge of bristle on thin legs, head low, tusks up. The
+  // piglet has the stripes they are born with and lose.
+  boar: (b, stage) => {
+    b.tp(17, 15.5, 21.5, 11.5, 0.9, 0.6, D, Part.Tail);
+    b.tp(-4, 8, -4.5, 1.6, 1.6, 1.3, D, Part.Leg);
+    b.tp(10, 8, 10.5, 1.6, 1.6, 1.3, D, Part.Leg);
+    for (let i = 0; i < 8; i++) {
+      const x = -10 + i * 3;
+      b.tp(x, 21 - i * 0.55, x + 1.6, 25.4 - i * 0.75, 1.5, 0.4, D, Part.Extra);
+    }
+    b.el(5, 13.6, 13, 7.6, D);
+    b.el(-5, 15.2, 9, 8.6, D);
+    b.tp(-9.5, 14.4, -20, 9, 6.6, 3.1, D, Part.Head);
+    b.tp(-7.5, 21.4, -5.6, 25.4, 2.1, 0.7, D, Part.Ear);
+    b.tp(-8, 8, -8.5, 1.6, 1.9, 1.5, D, Part.Leg);
+    b.el(-9.4, 1.3, 2.4, 1.2, D, Part.Foot);
+    b.tp(13.5, 8, 14, 1.6, 2, 1.5, D, Part.Leg);
+    b.el(13, 1.3, 2.5, 1.2, D, Part.Foot);
+    return () => {
+      if (stage === 'pup') {
+        b.line(-3, 18.4, 15, 16.6, 0.7, 0.7, L);
+        b.line(-3, 14.6, 16, 13, 0.7, 0.7, L);
+        b.line(-2, 11, 15, 9.8, 0.7, 0.7, L);
+      } else {
+        b.under(0.22, L, [Part.Body]);
+        // Tusks.
+        b.dot(-17, 8.6, 1);
+        b.dot(-17, 9.6, 1);
+        b.dot(-16.4, 10.6, 1);
+      }
+      b.eye(-13.6, 13.6);
+      b.nose(-22.4, 8.8);
+    };
+  },
 };
 
 export function forgeSprite(params: ForgeParams, seed: number, view: SpriteView = 'front'): Pixels {
