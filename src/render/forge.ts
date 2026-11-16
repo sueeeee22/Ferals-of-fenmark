@@ -116,6 +116,8 @@ export interface ForgeParams {
   readonly coat: 1 | 2;
   /** Extra apex-form flourishes: antlers, crest, longer fur. 0 for pups. */
   readonly majesty: number;
+  /** The evolution line, for the animals that are drawn by hand. See POSES. */
+  readonly line?: string;
 }
 
 /** Family skeletons: the proportions that make a silhouette read as its animal. */
@@ -336,7 +338,7 @@ export function paramsFor(
   // is the most specific and therefore wins.
   const line = LINE_TUNING[lineOf(id)];
   const tuned = STARTER_TUNING[id];
-  return { ...params, ...(line ?? {}), ...(tuned ?? {}), family };
+  return { ...params, ...(line ?? {}), ...(tuned ?? {}), family, line: lineOf(id) };
 }
 
 // ---------------------------------------------------------------------------
@@ -1991,6 +1993,372 @@ function drawManeOver(px: Pixels, p: ForgeParams, g: Geom): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Posed animals
+// ---------------------------------------------------------------------------
+//
+// A family skeleton gives every member of the family the same stance, and for
+// some animals the stance IS the animal: a sea otter floats on its back with
+// its dinner on its chest, a meerkat stands sentry, a skunk carries its tail
+// like a flag. Stretching the weasel tube could not say any of that - the whole
+// family came out as the same low log - so these are drawn one at a time.
+//
+// Coordinates are in "design units": x to the right of the middle of the frame,
+// y UP from the ground, for an animal facing left. The brush scales them by
+// stage, so a pup is the same drawing made smaller.
+//
+// A pose fills its silhouette, and returns the function that inks the inside
+// once the outline has been traced: markings, eye, nose.
+
+type PoseStage = 'pup' | 'adult' | 'apex';
+
+interface Brush {
+  el(x: number, y: number, rx: number, ry: number, v: number, part?: number): void;
+  tp(x0: number, y0: number, x1: number, y1: number, r0: number, r1: number, v: number, part?: number): void;
+  cv(
+    x0: number, y0: number, cx: number, cy: number, x1: number, y1: number,
+    r0: number, r1: number, v: number, part?: number,
+  ): void;
+  /** Sink the animal in water: nothing is drawn below this height. */
+  cutBelow(y: number): void;
+  /** Interior marks. These only ever paint over coat, never outline or air. */
+  mark(x: number, y: number, rx: number, ry: number, v: number): void;
+  line(x0: number, y0: number, x1: number, y1: number, r0: number, r1: number, v: number): void;
+  arc(
+    x0: number, y0: number, cx: number, cy: number, x1: number, y1: number,
+    r0: number, r1: number, v: number,
+  ): void;
+  /** Paint the lowest `frac` of every column of the given parts: bellies, throats. */
+  under(frac: number, v: number, parts: readonly number[]): void;
+  /** Paint the highest `frac` of every column of the given parts: mantles, capes. */
+  over(frac: number, v: number, parts: readonly number[]): void;
+  /** Paint coat wherever the test passes. x and y are in design units. */
+  wash(v: number, where: (part: number, x: number, y: number) => boolean): void;
+  dot(x: number, y: number, v: number): void;
+  /** `bare` leaves out the pale patch round the eye, for an eye set in a dark mask. */
+  eye(x: number, y: number, bare?: boolean): void;
+  nose(x: number, y: number): void;
+  /** A water line under a floating animal, from x0 to x1 at height y. */
+  water(y: number, x0: number, x1: number): void;
+  /** Lower everything drawn from here on by this many units. */
+  sink(dy: number): void;
+}
+
+function makeBrush(px: Pixels, k: number, fierce: boolean): Brush {
+  let sunk = 0;
+  const X = (x: number): number => CXA + x * k;
+  const Y = (y: number): number => GROUND - (y - sunk) * k;
+  const inPart = (part: number | undefined, fn: () => void): void => {
+    asPart(part ?? Part.Body, fn);
+  };
+  const columns = (parts: readonly number[], fn: (x: number, ys: number[]) => void): void => {
+    for (let x = 0; x < S; x++) {
+      const ys: number[] = [];
+      for (let y = 0; y < S; y++) {
+        const cur = get(px, x, y);
+        if (cur === 0 || cur === 3) continue;
+        if (parts.includes(partAt(x, y))) ys.push(y);
+      }
+      if (ys.length > 0) fn(x, ys);
+    }
+  };
+  // Marks must not re-tag the part they are painted on, or a later `under` or
+  // `wash` would see the marking instead of the limb under it.
+  const keepParts = (fn: () => void): void => {
+    const saved = partBuf;
+    partBuf = null;
+    try { fn(); } finally { partBuf = saved; }
+  };
+  return {
+    el: (x, y, rx, ry, v, part) => { inPart(part, () => { ellipse(px, X(x), Y(y), rx * k, ry * k, v); }); },
+    tp: (x0, y0, x1, y1, r0, r1, v, part) => {
+      inPart(part, () => { taper(px, X(x0), Y(y0), X(x1), Y(y1), r0 * k, r1 * k, v); });
+    },
+    cv: (x0, y0, cx, cy, x1, y1, r0, r1, v, part) => {
+      inPart(part, () => { curve(px, X(x0), Y(y0), X(cx), Y(cy), X(x1), Y(y1), r0 * k, r1 * k, v); });
+    },
+    cutBelow: (y) => {
+      for (let yy = Math.round(Y(y)) + 1; yy < S; yy++) {
+        for (let xx = 0; xx < S; xx++) {
+          px[yy * S + xx] = 0;
+          if (partBuf !== null) partBuf[yy * S + xx] = Part.None;
+        }
+      }
+    },
+    mark: (x, y, rx, ry, v) => { keepParts(() => { ellipse2(px, X(x), Y(y), rx * k, ry * k, v); }); },
+    line: (x0, y0, x1, y1, r0, r1, v) => {
+      keepParts(() => { inkTaper(px, X(x0), Y(y0), X(x1), Y(y1), r0 * k, r1 * k, v); });
+    },
+    arc: (x0, y0, cx, cy, x1, y1, r0, r1, v) => {
+      keepParts(() => { inkCurve(px, X(x0), Y(y0), X(cx), Y(cy), X(x1), Y(y1), r0 * k, r1 * k, v); });
+    },
+    under: (frac, v, parts) => {
+      columns(parts, (x, ys) => {
+        const n = Math.round(ys.length * frac);
+        keepParts(() => { for (const y of ys.slice(ys.length - n)) put(px, x, y, v); });
+      });
+    },
+    over: (frac, v, parts) => {
+      columns(parts, (x, ys) => {
+        const n = Math.round(ys.length * frac);
+        keepParts(() => { for (const y of ys.slice(0, n)) put(px, x, y, v); });
+      });
+    },
+    wash: (v, where) => {
+      for (let y = 0; y < S; y++) {
+        for (let x = 0; x < S; x++) {
+          const cur = get(px, x, y);
+          if (cur === 0 || cur === 3) continue;
+          if (where(partAt(x, y), (x - CXA) / k, (GROUND - y) / k + sunk)) keepParts(() => { put(px, x, y, v); });
+        }
+      }
+    },
+    sink: (dy) => { sunk = dy; },
+    dot: (x, y, v) => { keepParts(() => { put(px, Math.round(X(x)), Math.round(Y(y)), v); }); },
+    eye: (x, y, bare = false) => {
+      keepParts(() => {
+        const ex = X(x);
+        const ey = Y(y);
+        const er = bare ? 1.2 : 1.45;
+        if (!bare) ellipse2(px, ex, ey, er * 1.5, er * 1.35, 1);
+        ellipse(px, ex, ey, er, er * 1.1, 3);
+        put(px, Math.round(ex - 0.5), Math.round(ey - 0.6), 1);
+        if (fierce) {
+          for (let i = 0; i < 5; i++) put(px, Math.round(ex - 2 + i), Math.round(ey - er - 1 - i * 0.45), 3);
+        }
+      });
+    },
+    nose: (x, y) => { keepParts(() => { ellipse(px, X(x), Y(y), 1.6, 1.25, 3); }); },
+    water: (y, x0, x1) => {
+      keepParts(() => {
+        const row = Math.round(Y(y)) + 1;
+        const from = Math.max(SIDE_MARGIN, Math.round(X(x0)));
+        const to = Math.min(S - 1 - SIDE_MARGIN, Math.round(X(x1)));
+        for (let x = from; x <= to; x++) {
+          // The surface: a dark line the animal sits in, broken into ripples
+          // where it runs out past the body, and a paler broken line under it.
+          const under = get(px, x, row - 1) !== 0;
+          if (under || (x + row) % 4 !== 0) put(px, x, row, under ? 3 : 2);
+          if ((x + 2) % 6 < 4) put(px, x, row + 2, 1);
+          if (x % 6 === 1) put(px, x, row + 1, 2);
+        }
+      });
+    },
+  };
+}
+
+type Pose = (b: Brush, stage: PoseStage) => () => void;
+
+const L = 1;
+const D = 2;
+
+const POSES: Readonly<Record<string, Pose>> = {
+  // On its back in the water, feet up, head up, dinner on its chest. Dark
+  // animal, pale head. The adult has a clam; the apex has wrapped itself in
+  // kelp so the tide cannot take it anywhere while it eats.
+  seaotter: (b, stage) => {
+    // Low in the frame: it is IN the water, and the water is on the ground.
+    b.sink(3.5);
+    b.tp(15, 8.5, 23, 7.5, 3.2, 1.9, D, Part.Tail);
+    b.tp(11.5, 13, 13.5, 19.5, 2.2, 2.9, D, Part.Foot);
+    b.tp(16.5, 11.5, 20, 17, 2.2, 2.9, D, Part.Foot);
+    b.el(1, 10.5, 15.5, 6.6, D);
+    b.el(-15, 15, 6.6, 6.2, L, Part.Head);
+    b.el(-19, 13.8, 3.6, 3, L, Part.Muzzle);
+    b.el(-19.6, 20.2, 1.4, 1.4, D, Part.Ear);
+    b.el(-10.4, 20.8, 1.4, 1.4, D, Part.Ear);
+    b.tp(-7.5, 15, -5.6, 19, 1.9, 1.7, D, Part.Leg);
+    b.tp(-0.5, 15.5, -1.6, 19, 1.9, 1.7, D, Part.Leg);
+    if (stage !== 'pup') b.el(-3.6, 20.6, 3.8, 2.5, L, Part.Extra);
+    b.cutBelow(5);
+    return () => {
+      b.mark(-7.5, 10.5, 4.5, 3.4, L);
+      if (stage !== 'pup') {
+        b.line(-5.6, 22.2, -4.6, 19, 0.3, 0.3, D);
+        b.line(-2.6, 22.4, -2.8, 19, 0.3, 0.3, D);
+      }
+      if (stage === 'apex') {
+        b.line(3, 16.5, 8, 5, 0.9, 0.9, L);
+        b.line(7.5, 16.5, 12, 5, 0.6, 0.6, L);
+      }
+      b.eye(-15.4, 16.6);
+      b.nose(-21, 14.6);
+      b.line(-18, 12.2, -15, 11.6, 0.3, 0.3, D);
+      b.water(5, -23, 23.5);
+    };
+  },
+
+  // Sleek and long, head up, on short legs, with the tail of something that
+  // swims for a living. Dark above, pale from the chin to the belly.
+  riverotter: (b) => {
+    b.cv(11, 10, 18, 7, 23, 1.6, 4.2, 1.2, D, Part.Tail);
+    b.tp(-6, 8, -6.5, 1.6, 1.8, 1.6, D, Part.Leg);
+    b.el(-7.6, 1.3, 2.4, 1.2, D, Part.Foot);
+    b.tp(8, 8, 8, 1.6, 2, 1.7, D, Part.Leg);
+    b.el(7, 1.3, 2.6, 1.2, D, Part.Foot);
+    b.cv(12.5, 10, 2, 15.5, -10, 11.5, 5.2, 4.8, D);
+    b.tp(-10, 12, -15, 18.5, 4.5, 3.9, D);
+    b.el(-17, 20.5, 4.9, 4.1, D, Part.Head);
+    b.el(-21, 19.4, 2.9, 2.5, D, Part.Muzzle);
+    b.el(-14.6, 24.2, 1.3, 1.2, D, Part.Ear);
+    b.tp(-10, 8, -10.5, 1.6, 2.1, 1.8, D, Part.Leg);
+    b.el(-11.8, 1.3, 2.9, 1.3, D, Part.Foot);
+    b.tp(12, 8, 12.5, 1.6, 2.5, 2, D, Part.Leg);
+    b.el(11.4, 1.3, 3.1, 1.3, D, Part.Foot);
+    return () => {
+      b.under(0.38, L, [Part.Body, Part.Muzzle]);
+      b.mark(-20, 18.4, 3.4, 1.8, L);
+      b.eye(-17.6, 21.4);
+      b.nose(-23.2, 20);
+    };
+  },
+
+  // Broad, low and grey, on black legs, with the face: white, and a black bar
+  // from the nose through the eye to the ear.
+  badger: (b) => {
+    b.el(15.5, 8.5, 3, 2.6, L, Part.Tail);
+    b.tp(-5, 6, -5, 1.6, 2.3, 2.1, D, Part.Leg);
+    b.el(-6.2, 1.3, 2.9, 1.3, D, Part.Foot);
+    b.tp(7.5, 6, 7.5, 1.6, 2.3, 2.1, D, Part.Leg);
+    b.el(6.4, 1.3, 2.9, 1.3, D, Part.Foot);
+    b.el(3, 10, 13.5, 7.4, L);
+    b.el(-6, 9.6, 7.4, 6.6, L);
+    b.tp(-11, 10.4, -21, 7.2, 5.4, 2.3, L, Part.Head);
+    b.el(-9.2, 15.4, 1.7, 1.6, D, Part.Ear);
+    b.tp(-9, 6, -9, 1.6, 2.7, 2.4, D, Part.Leg);
+    b.el(-10.4, 1.3, 3.3, 1.4, D, Part.Foot);
+    b.tp(11.5, 6, 11.5, 1.6, 2.9, 2.5, D, Part.Leg);
+    b.el(10.2, 1.3, 3.5, 1.4, D, Part.Foot);
+    return () => {
+      b.under(0.3, D, [Part.Body]);
+      b.line(-20, 8.2, -9.5, 13.2, 0.8, 1.7, D);
+      b.eye(-14.8, 10.9, true);
+      b.nose(-22.4, 7.4);
+    };
+  },
+
+  // The same build, worn the other way up: a pale mantle from the crown to the
+  // tail over a black animal, cut straight along its side.
+  honeybadger: (b) => {
+    b.tp(13, 9.5, 19.5, 13, 2.7, 1.7, D, Part.Tail);
+    b.tp(-5, 6, -5, 1.6, 2.3, 2.1, D, Part.Leg);
+    b.el(-6.2, 1.3, 2.9, 1.3, D, Part.Foot);
+    b.tp(7.5, 6, 7.5, 1.6, 2.3, 2.1, D, Part.Leg);
+    b.el(6.4, 1.3, 2.9, 1.3, D, Part.Foot);
+    b.el(2, 9.8, 13.5, 6.8, D);
+    b.el(-7, 10.2, 7.2, 6.4, D);
+    b.tp(-11, 11.2, -19, 9.2, 5.5, 3.6, D, Part.Head);
+    b.tp(-9, 6, -9, 1.6, 2.7, 2.4, D, Part.Leg);
+    b.el(-10.4, 1.3, 3.3, 1.4, D, Part.Foot);
+    b.tp(11.5, 6, 11.5, 1.6, 2.9, 2.5, D, Part.Leg);
+    b.el(10.2, 1.3, 3.5, 1.4, D, Part.Foot);
+    return () => {
+      b.over(0.44, L, [Part.Body, Part.Head, Part.Tail]);
+      b.eye(-16.6, 10.4);
+      b.nose(-22.4, 9.4);
+    };
+  },
+
+  // A small black animal under an enormous warning: the plume goes up and
+  // over, and the white stripe runs from the forehead to the end of it.
+  skunk: (b) => {
+    b.cv(11, 10, 23, 16, 16, 29, 3.6, 5.2, D, Part.Tail);
+    b.el(12.5, 31, 5.6, 4.6, D, Part.Tail);
+    b.tp(-4, 6, -4, 1.6, 1.8, 1.6, D, Part.Leg);
+    b.el(-5, 1.3, 2.4, 1.2, D, Part.Foot);
+    b.tp(7, 6, 7, 1.6, 1.9, 1.7, D, Part.Leg);
+    b.el(6, 1.3, 2.5, 1.2, D, Part.Foot);
+    b.el(2.5, 9, 11.5, 6.2, D);
+    b.tp(-7.5, 10, -17, 7.4, 4.8, 2, D, Part.Head);
+    b.el(-7.4, 14.6, 1.5, 1.5, D, Part.Ear);
+    b.tp(-7.5, 6, -7.5, 1.6, 2.1, 1.8, D, Part.Leg);
+    b.el(-8.7, 1.3, 2.8, 1.3, D, Part.Foot);
+    b.tp(10.5, 6, 10.5, 1.6, 2.3, 2, D, Part.Leg);
+    b.el(9.4, 1.3, 3, 1.3, D, Part.Foot);
+    return () => {
+      b.over(0.34, L, [Part.Body]);
+      b.arc(11, 11, 22.5, 16, 16, 29, 1.5, 2.6, L);
+      b.mark(12.5, 31.4, 3.4, 2.6, L);
+      b.line(-16, 8.6, -8, 12.6, 0.5, 0.9, L);
+      b.eye(-12.2, 9, false);
+      b.nose(-18.4, 7.4);
+    };
+  },
+
+  // Hunched over whatever it has found, in a mask, with a ringed tail.
+  raccoon: (b) => {
+    b.cv(10, 10, 19, 8, 22, 18.5, 3.5, 2.8, L, Part.Tail);
+    b.tp(-4, 6, -4.5, 1.6, 1.9, 1.7, D, Part.Leg);
+    b.el(-5.6, 1.3, 2.5, 1.2, D, Part.Foot);
+    b.tp(6.5, 6, 6.5, 1.6, 2, 1.8, D, Part.Leg);
+    b.el(5.4, 1.3, 2.6, 1.2, D, Part.Foot);
+    b.el(2.5, 11.5, 11, 8.6, L);
+    b.el(-11, 14.5, 6.6, 5.7, L, Part.Head);
+    b.tp(-13, 13, -19, 11.4, 3, 1.9, L, Part.Muzzle);
+    b.tp(-14.5, 19, -15.5, 22.2, 1.9, 0.8, D, Part.Ear);
+    b.tp(-7.5, 19.5, -6.8, 22.6, 1.9, 0.8, D, Part.Ear);
+    b.tp(-7, 6.5, -8, 1.6, 2.1, 1.8, L, Part.Leg);
+    b.el(-9.2, 1.3, 2.9, 1.3, D, Part.Foot);
+    b.tp(9.5, 6.5, 9.5, 1.6, 2.4, 2, L, Part.Leg);
+    b.el(8.4, 1.3, 3.1, 1.3, D, Part.Foot);
+    return () => {
+      b.under(0.3, D, [Part.Body]);
+      b.wash(D, (part, x, y) => part === Part.Tail && Math.floor((x * 0.5 + y) / 2.4) % 2 === 0);
+      b.mark(-12.6, 15, 5, 2, D);
+      b.eye(-13.4, 15.2, true);
+      b.nose(-20.4, 11.6);
+    };
+  },
+
+  // On sentry: bolt upright on its hind feet, propped on its tail, arms hung
+  // in front of it, staring at something that is probably nothing.
+  meerkat: (b) => {
+    b.cv(4, 5, 12, 6.5, 19, 1.4, 1.7, 1, L, Part.Tail);
+    b.el(2.8, 6.2, 5.8, 5.6, L);
+    b.tp(-0.5, 21, -3, 15, 1.5, 1.2, L, Part.Leg);
+    b.tp(2, 8, -1, 24.5, 5.2, 4.1, L);
+    b.el(-2, 30.5, 4.7, 4.3, L, Part.Head);
+    b.tp(-4, 29.6, -9.6, 28.4, 2.5, 1.4, L, Part.Muzzle);
+    b.el(1.6, 32.4, 1.4, 1.7, D, Part.Ear);
+    b.tp(-3.8, 21.5, -6.8, 15.5, 1.6, 1.3, L, Part.Leg);
+    b.el(-2, 1.3, 4.4, 1.4, L, Part.Foot);
+    return () => {
+      // The back is the far edge of the body; it is darker and it is banded.
+      b.wash(D, (part, x, y) => part === Part.Body && y > 3 && x > 3.4 - (y - 8) * 0.18);
+      b.wash(L, (part, x, y) => part === Part.Body && y > 9 && y < 24 && x > 2.6 - (y - 8) * 0.18
+        && Math.floor(y / 1.6) % 2 === 0);
+      b.wash(D, (part, x) => part === Part.Tail && x > 15);
+      b.mark(-3.8, 31, 2.3, 1.8, D);
+      b.eye(-3.8, 31, true);
+      b.nose(-10.6, 28.6);
+    };
+  },
+
+  // A yard of spine with a head on the end of it, reared up to look. Brown
+  // above, white below, and a tail that ends in black whatever the season.
+  stoat: (b) => {
+    b.cv(12, 6.5, 18, 5, 22, 11.5, 1.7, 1.4, D, Part.Tail);
+    b.tp(-3, 11, -4.5, 1.8, 1.5, 1.3, L, Part.Leg);
+    b.el(-5.5, 1.3, 2.2, 1.1, L, Part.Foot);
+    b.el(9, 6.6, 5.3, 5.2, D);
+    b.el(7, 1.4, 4.2, 1.4, L, Part.Foot);
+    b.cv(10, 8.5, 3, 18, -6, 13.5, 4.1, 3.5, D);
+    b.tp(-6, 13.5, -10.5, 22.5, 3.3, 2.9, D);
+    b.el(-12, 25, 3.9, 3.3, D, Part.Head);
+    b.tp(-13.5, 24.4, -17.6, 23.4, 2.1, 1.3, D, Part.Muzzle);
+    b.el(-9.6, 27.8, 1.5, 1.5, D, Part.Ear);
+    b.tp(-6, 11.5, -8, 1.8, 1.7, 1.4, L, Part.Leg);
+    b.el(-9.2, 1.3, 2.4, 1.1, L, Part.Foot);
+    return () => {
+      b.under(0.42, L, [Part.Body, Part.Muzzle]);
+      b.under(0.3, L, [Part.Head]);
+      b.wash(3, (part, x, y) => part === Part.Tail && y > 8.6 && x > 19);
+      b.eye(-12.6, 25.6);
+      b.nose(-18.6, 23.6);
+    };
+  },
+};
+
 export function forgeSprite(params: ForgeParams, seed: number, view: SpriteView = 'front'): Pixels {
   const px = new Uint8Array(S * S);
   const rnd = mulberry(seed ^ 0x5bf03635);
@@ -2012,6 +2380,20 @@ export function forgeSprite(params: ForgeParams, seed: number, view: SpriteView 
     shade(px, params, g, rnd, 'back');
     partBuf = null;
     detailBack(px, params, g);
+    return px;
+  }
+
+  const pose = params.line === undefined ? undefined : POSES[params.line];
+  if (pose !== undefined) {
+    const stage: PoseStage = params.majesty >= 0.5 ? 'apex' : params.majesty > 0 ? 'adult' : 'pup';
+    const k = stage === 'apex' ? 1.04 : stage === 'adult' ? 0.92 : 0.78;
+    partBuf = new Uint8Array(S * S);
+    curPart = Part.Body;
+    const brush = makeBrush(px, k, stage === 'apex');
+    const ink = pose(brush, stage);
+    outline(px);
+    ink();
+    partBuf = null;
     return px;
   }
 
