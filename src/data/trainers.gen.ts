@@ -2,6 +2,41 @@
 import type { TrainerDef } from '../core/game.ts';
 
 export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
+  "rival_crown": {
+    "id": "rival_crown",
+    "name": "Cass",
+    "title": "who came for the chair",
+    "team": [
+      {
+        "species": "blackcat_apex",
+        "level": 68
+      },
+      {
+        "species": "collie_adult",
+        "level": 68
+      },
+      {
+        "species": "meerkat",
+        "level": 68
+      },
+      {
+        "species": "arcticfox_adult",
+        "level": 68
+      },
+      {
+        "species": "badger_apex",
+        "level": 68
+      },
+      {
+        "species": "baloo_apex",
+        "level": 70
+      }
+    ],
+    "aiLevel": 3,
+    "prize": 9000,
+    "introKey": "rival_crown",
+    "defeatKey": "rival_crown_defeat"
+  },
   "route1_trainer1": {
     "id": "route1_trainer1",
     "name": "Fenwalker",

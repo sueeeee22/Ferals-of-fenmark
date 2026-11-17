@@ -15,7 +15,7 @@
 import type { Content, GameState, BattleScene, BoxScene, MenuScene, NamingScene, ShopScene, ShownSide } from '../core/game.ts';
 import { paginate, pageLength, CREATURE_NAME_COLS, MOVE_NAME_COLS } from '../core/text.ts';
 import {
-  STARTERS, WALK_FRAMES, starterChoices, BATTLE_INTRO_FRAMES,
+  STARTERS, WALK_FRAMES, starterChoices, BATTLE_INTRO_FRAMES, HALL_HOLD_TICKS,
   SNARE_THROW_FRAMES, SNARE_PULL_FRAMES, SNARE_WOBBLE_FRAMES, FLASH_FRAMES,
   bagCount, boxScroll, BOX_MAX, BOX_ROWS, DEX_ROWS, NAME_KEYS, NAME_MAX, NAME_ROWS, PARTY_ACTIONS,
   type SnareThrow,
@@ -337,6 +337,12 @@ function drawWorldBackground(
     const sx = cam.originX + npc.x * TILE_SIZE;
     const sy = cam.originY + npc.y * TILE_SIZE;
     if (sx < -TILE_SIZE || sy < -TILE_SIZE || sx > LOGICAL_W || sy > LOGICAL_H) continue;
+    if (npc.kind === 'beast' && npc.species !== undefined) {
+      // Not a person: the animal itself, small, and breathing.
+      const bob = Math.floor(state.frame / 30) % 2;
+      gb.drawSprite(ctx, creaturePixels(content, npc.species), sx - 3, sy - 7 + bob, 0.4);
+      continue;
+    }
     gb.drawActor(ctx, npc.sprite, idleFacing(npc.id, npc.kind, npc.facing, state.frame), 0, 0, sx, sy);
   }
 
@@ -1369,21 +1375,27 @@ function drawHallOfFame(ctx: CanvasRenderingContext2D, content: Content, state: 
   if (state.scene.kind !== 'hallOfFame') return;
   clearScreen(ctx, 0);
   const title = 'HALL OF FAME';
-  gb.drawText(ctx, (LOGICAL_W - gb.measureText(title)) / 2, 12, title, 3);
+  gb.drawText(ctx, (LOGICAL_W - gb.measureText(title)) / 2, 8, title, 3);
+  // One animal a line: picture, name, level. They used to stand three abreast
+  // with the names underneath, and a twelve-letter name is twice as wide as
+  // the column it was given, so every name was written across its neighbour.
   const party = state.player.party.slice(0, 6);
   for (let i = 0; i < party.length; i++) {
     const f = party[i];
     if (!f) continue;
-    const col = i % 3;
-    const row = Math.floor(i / 3);
-    const x = 12 + col * 48;
-    const y = 28 + row * 56;
-    gb.drawSprite(ctx, creaturePixels(content, f.species), x, y, 0.6);
-    gb.drawText(ctx, x, y + 40, creatureLabel(f), 3);
+    const y = 24 + i * 17;
+    gb.drawSprite(ctx, creaturePixels(content, f.species), 6, y - 2, 0.3);
+    gb.drawText(ctx, 28, y + 4, creatureLabel(f), 3);
+    // Just the number: a twelve-letter name and "Lv100" do not both fit.
+    const level = String(f.level);
+    gb.drawText(ctx, LOGICAL_W - 8 - gb.measureText(level), y + 4, level, 3);
   }
-  if (Math.floor(state.frame / 30) % 2 === 0) {
-    const prompt = 'THE END';
-    gb.drawText(ctx, (LOGICAL_W - gb.measureText(prompt)) / 2, LOGICAL_H - 16, prompt, 3);
+  // It is not the end. Once the Hall has held long enough to be looked at, it
+  // says how to go on.
+  const ready = state.scene.ticks >= HALL_HOLD_TICKS;
+  if (!ready || Math.floor(state.frame / 30) % 2 === 0) {
+    const prompt = ready ? 'PRESS A' : 'CROWNED';
+    gb.drawText(ctx, (LOGICAL_W - gb.measureText(prompt)) / 2, LOGICAL_H - 12, prompt, 3);
   }
 }
 

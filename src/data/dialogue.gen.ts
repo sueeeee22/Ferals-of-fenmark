@@ -445,6 +445,56 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   ],
 
   // -------------------------------------------------------------------------
+  // After the crown. The game puts you back at your own gate, and this is
+  // what is waiting there.
+  // -------------------------------------------------------------------------
+  crown_petitions: [
+    "THE WARDEN OF THE CROSS-FEN: Majesty. Don't get up. I can't either. It's the collarbone.",
+    "Three petitions came with that crown. Nobody mentioned those at Ostmere. They never do.",
+    "One. Something on the Orrin road takes a sheep a night, whole, and leaves the shepherd.",
+    "Lady Orrin wishes it noted that the thing has taste.",
+    "Two. A wolf walks the Halloway road after dark. Twelve hundred spears have stopped counting it.",
+    "Three. A bear the size of a toll house is asleep on the Whitlow road. Mourne has filed it.",
+    "No house will go near any of them. That's what a crown is for, apparently. I did ask.",
+  ],
+  crown_petitions_done: [
+    "THE WARDEN: Three petitions, three answers, and nobody had to form a committee.",
+    "The houses are furious. Nineteen years they've had a king, and never once a result.",
+    "Dara sends her regards and a towel. I'm to say the towel is not a metaphor. It is one.",
+  ],
+  beast_eagle: [
+    "A shadow as wide as the road. It has a sheep. It is not going to share the sheep.",
+    "The Haast eagle looks you over the way Margit Kell looks over an unpaid account.",
+    "TABITHA: Thirty years breeding animals and I have never once been sized up as a meal. Come on, then.",
+  ],
+  beast_wolf: [
+    "It is sitting in the middle of the road with its feet together, like something with an appointment.",
+    "TABITHA: Look at the shoulder on that. Look at the set of the head. Nobody bred that. Nobody could.",
+    "It stands up. It keeps standing up for longer than a wolf should.",
+  ],
+  beast_bear: [
+    "The Whitlow road has a hill in it that was not there in the spring. The hill is breathing.",
+    "It opens one eye. The eye has seen kings come and go, and was not impressed by those either.",
+    "TABITHA: Forty-four years old, Queen of Fenmark, and about to wake a cave bear on purpose.",
+  ],
+  rival_crown: [
+    "CASS: Don't. I know what the Hall says. 'Cass didn't come.' I've read it four times.",
+    "I came for the chair. That's all. It's a good chair and I sent it in a weak moment.",
+    "TABITHA: You sent it with no note.",
+    "CASS: The chair was the note. You've had nineteen years to learn my handwriting.",
+    "Marlow kept this gate thirty years. Somebody has to stand at it. I hear the pay is insulting.",
+    "Fight me for it. I win, I take the chair. You win, I take the broom. Either way I'm not sorry.",
+  ],
+  rival_crown_defeat: [
+    "CASS: Fine. The broom, then. Give it here. No, the other end. I do know how a broom works.",
+    "This isn't an apology. It's a job. I want that written down by somebody who can spell.",
+  ],
+  rival_crown_after: [
+    "CASS: Gate's swept. Your cat watched me do it and found three places I'd missed.",
+    "I'm not staying. I'm just not leaving yet. Those are different, and you know they are.",
+  ],
+
+  // -------------------------------------------------------------------------
   // Services
   // -------------------------------------------------------------------------
   lodge_heal: [

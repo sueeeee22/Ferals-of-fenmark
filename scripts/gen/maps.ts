@@ -590,6 +590,22 @@ function buildRoute(
 // Assemble the world
 // ===========================================================================
 
+/** Cass's team at a level: the starter that beats yours, and company. See CASS below. */
+function cassTeam(tid: string, level: number, size: number): { species: string; level: number }[] {
+  const own = ['baloo_apex', 'baloo_adult', 'baloo_pup']
+    .map((sid) => BY_ID.get(sid))
+    .find((r) => r !== undefined && minLevelFor(r) <= level);
+  const support = Math.max(2, level - 2);
+  // Past the early roads she is not carrying anything unfinished: a level-48
+  // terrier pup is legal, and it is also not a threat.
+  const grown = (r: RosterEntry): boolean => support < 22 || r.stage !== 'pup';
+  const others = pick(size - 1, tid, all(legalAt(support), stageCapAt(support), grown));
+  return [
+    ...others.map((r) => ({ species: r.id, level: support })),
+    { species: own?.id ?? 'baloo_pup', level },
+  ];
+}
+
 // Tabitha's house, where the game opens.
 const house = addMap({
   id: 'fenmark_house', name: 'Astacio House', width: 9, height: 9,
@@ -606,10 +622,59 @@ house.warps.push({ x: 4, y: 8, toMap: 'fenmark', toX: 9, toY: 5 });
 const home = buildTown('fenmark', 'Fenmark', { lodge: true, shop: true, southTo: 'route_1', music: 'home' });
 home.warps.push({ x: 9, y: 4, toMap: 'fenmark_house', toX: 4, toY: 7 });
 set(home, 9, 4, Tile.Door);
+// Cass is in the yard until you have a badge. After that she is on the road.
 home.npcs.push({
   id: 'fenmark_rival', kind: 'talker', x: 11, y: 6, facing: 'left',
-  sprite: 'rival', name: 'Cass', sight: 0, dialogue: 'rival_intro',
+  sprite: 'rival', name: 'Cass', sight: 0, dialogue: 'rival_intro', hiddenByFlag: 'beat_gym1',
 });
+
+/*
+ * AFTER THE CROWN. Beating March used to end on a screen that said THE END
+ * until the tab was closed. The game now puts you back at your own gate with
+ * the crown on, and these are what there is to do about it:
+ *
+ *  - The Warden of the Cross-Fen is waiting in the yard with three petitions
+ *    nobody mentioned at Ostmere: three animals no house will go near.
+ *  - Those three are the legendaries, which could not be met anywhere. Each
+ *    stands on a road, once, and is fought by walking up to it.
+ *  - Cass comes for the chair.
+ *
+ * Everything here appears on the `champion` flag, which the reducer sets when
+ * March goes down.
+ */
+home.npcs.push({
+  id: 'fenmark_warden', kind: 'talker', x: 8, y: 6, facing: 'right',
+  sprite: 'guard', name: 'The Warden', sight: 0, dialogue: 'crown_petitions',
+  requiresFlag: 'champion', hiddenByFlag: 'beasts_done',
+});
+home.npcs.push({
+  id: 'fenmark_warden_done', kind: 'talker', x: 8, y: 6, facing: 'right',
+  sprite: 'guard', name: 'The Warden', sight: 0, dialogue: 'crown_petitions_done',
+  requiresFlag: 'beasts_done',
+});
+trainers.push({
+  id: 'rival_crown',
+  name: 'Cass',
+  title: 'who came for the chair',
+  team: cassTeam('rival_crown', 70, 6),
+  aiLevel: 3,
+  prize: 9000,
+  introKey: 'rival_crown',
+  defeatKey: 'rival_crown_defeat',
+});
+home.npcs.push({
+  id: 'fenmark_cass_crown', kind: 'rival', x: 11, y: 6, facing: 'left',
+  sprite: 'rival', name: 'Cass', sight: 0,
+  dialogue: 'rival_crown', team: 'rival_crown', flag: 'beat_rival_crown',
+  requiresFlag: 'champion',
+});
+
+const BEASTS: ReadonlyArray<readonly [string, string, string, number]> = [
+  // road, the animal, the block of the script that announces it, its level
+  ['route_3', 'legend_bird', 'beast_eagle', 65],
+  ['route_5', 'legend_wolf', 'beast_wolf', 66],
+  ['route_7', 'legend_bear', 'beast_bear', 68],
+];
 
 // The spine: route -> gym town -> route -> gym town ...
 const towns = ['fenmark', ...GYMS.map((g) => g.town), 'cross_fen'];
@@ -650,21 +715,6 @@ for (let i = 0; i < GYMS.length; i++) {
  * and she leaves when it is over (`hiddenByFlag`): Cass does not wait about to
  * be talked to.
  */
-function cassTeam(tid: string, level: number, size: number): { species: string; level: number }[] {
-  const own = ['baloo_apex', 'baloo_adult', 'baloo_pup']
-    .map((sid) => BY_ID.get(sid))
-    .find((r) => r !== undefined && minLevelFor(r) <= level);
-  const support = Math.max(2, level - 2);
-  // Past the early roads she is not carrying anything unfinished: a level-48
-  // terrier pup is legal, and it is also not a threat.
-  const grown = (r: RosterEntry): boolean => support < 22 || r.stage !== 'pup';
-  const others = pick(size - 1, tid, all(legalAt(support), stageCapAt(support), grown));
-  return [
-    ...others.map((r) => ({ species: r.id, level: support })),
-    { species: own?.id ?? 'baloo_pup', level },
-  ];
-}
-
 function addCass(
   m: Built, key: string, at: readonly [number, number], sight: number,
   level: number, size: number, aiLevel: number,
@@ -700,6 +750,17 @@ buildRoute('route_9', 'The Cross-Fen Road', 9, 'brackhall', 'cross_fen', routeLe
   flag: 'beat_gym8',
   text: 'The Cross-Fen takes eight badges or it takes nothing.',
 });
+
+for (const [routeId, species, key, level] of BEASTS) {
+  const road = maps.find((mm) => mm.id === routeId);
+  // Up in the corner of the route, off the road, where nothing else is.
+  road?.npcs.push({
+    id: `${routeId}_beast`, kind: 'beast', x: 3, y: 2, facing: 'down',
+    sprite: species, name: 'Something', sight: 0, dialogue: key,
+    species, level, flag: `beast_${species}`,
+    requiresFlag: 'champion', hiddenByFlag: `beast_${species}`,
+  });
+}
 
 for (const [routeId, key, level, size, ai] of CASS_ROAD) {
   const road = maps.find((mm) => mm.id === routeId);

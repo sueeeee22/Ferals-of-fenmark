@@ -139,7 +139,7 @@ export interface EncounterTable {
   readonly slots: readonly EncounterSlot[];
 }
 
-export type NpcKind = 'trainer' | 'talker' | 'shop' | 'healer' | 'rival' | 'leader' | 'item' | 'box';
+export type NpcKind = 'trainer' | 'talker' | 'shop' | 'healer' | 'rival' | 'leader' | 'item' | 'box' | 'beast';
 
 export interface NpcDef {
   readonly id: string;
@@ -161,6 +161,13 @@ export interface NpcDef {
   readonly requiresFlag?: string;
   /** NPC disappears once this flag is set. */
   readonly hiddenByFlag?: string;
+  /**
+   * A beast: one particular animal, standing in one particular place, that is
+   * fought when it is walked up to. `sprite` is not used for these - the animal
+   * is drawn as itself.
+   */
+  readonly species?: string;
+  readonly level?: number;
 }
 
 /** A signpost: where it stands and which block of the script is written on it. */

@@ -194,7 +194,10 @@ export type PendingAction =
   | { readonly kind: 'setFlag'; readonly flag: string }
   | { readonly kind: 'shop' }
   | { readonly kind: 'box' }
-  | { readonly kind: 'starterPick' };
+  | { readonly kind: 'starterPick' }
+  | { readonly kind: 'wild'; readonly species: string; readonly level: number; readonly npcFlag: string }
+  | { readonly kind: 'hallOfFame' }
+  | { readonly kind: 'goHome' };
 
 /**
  * A snare in flight. Purely presentational: the catch was decided the moment
@@ -683,7 +686,7 @@ export function step(content: Content, state: GameState, buttons: Buttons): Game
     case 'naming': stepNaming(content, state, state.scene, buttons); break;
     case 'box': stepBox(content, state, state.scene, buttons); break;
     case 'gameover': stepGameOver(content, state, buttons); break;
-    case 'hallOfFame': state.scene.ticks++; break;
+    case 'hallOfFame': stepHallOfFame(content, state, state.scene, buttons); break;
   }
 
   state.rngState = rng.state;
@@ -873,6 +876,18 @@ function interactWithNpc(content: Content, state: GameState, npc: NpcDef): void 
     case 'shop':
       say(state, content, npc.dialogue, { kind: 'shop' });
       return;
+    case 'beast': {
+      // One animal, in one place. Beat it or catch it and it is gone for good;
+      // lose, or run, and it is still there tomorrow.
+      if (npc.species === undefined) {
+        say(state, content, npc.dialogue);
+        return;
+      }
+      say(state, content, npc.dialogue, {
+        kind: 'wild', species: npc.species, level: npc.level ?? 50, npcFlag: npc.flag ?? `beast_${npc.id}`,
+      });
+      return;
+    }
     case 'box':
       say(state, content, npc.dialogue, { kind: 'box' });
       return;
@@ -909,10 +924,11 @@ function beginWildBattle(
   speciesId: string,
   level: number,
   rng: Rng,
+  beastFlag: string | null = null,
 ): void {
   const wild = makeFeral(content.dex, speciesId, level, rng, 'wild');
-  const battle = startBattle(state.player.party, [wild], { kind: 'wild', aiLevel: 1 });
-  state.scene = makeBattleScene(content, state, battle, null, null, `A wild ${wild.nickname} blocks the way.`);
+  const battle = startBattle(state.player.party, [wild], { kind: 'wild', aiLevel: beastFlag === null ? 1 : 3 });
+  state.scene = makeBattleScene(content, state, battle, null, beastFlag, `A wild ${wild.nickname} blocks the way.`);
 }
 
 function beginTrainerBattle(
@@ -1076,7 +1092,50 @@ function runPending(content: Content, state: GameState, action: PendingAction, r
       if (p.starter === '') state.scene = { kind: 'starterPick', cursor: 0 };
       else enterOverworld(state);
       return;
+    case 'wild':
+      beginWildBattle(content, state, action.species, action.level, rng, action.npcFlag);
+      return;
+    case 'hallOfFame':
+      state.scene = { kind: 'hallOfFame', ticks: 0 };
+      return;
+    case 'goHome':
+      // Crowned, and back at her own gate, because that is where the animals
+      // get fed. The game goes on from here: this used to be a screen that
+      // said THE END for as long as the tab stayed open.
+      healParty(content, p);
+      p.mapId = HOME.map;
+      p.x = HOME.x;
+      p.y = HOME.y;
+      p.facing = 'down';
+      p.respawnMap = HOME.lodge;
+      p.respawnX = HOME.lodgeX;
+      p.respawnY = HOME.lodgeY;
+      enterOverworld(state);
+      state.saveRequested = true;
+      return;
   }
+}
+
+/** Where the game puts you once the crown is on: outside your own front door. */
+const HOME = { map: 'fenmark', x: 9, y: 5, lodge: 'fenmark_lodge', lodgeX: 4, lodgeY: 6 } as const;
+
+/** How many beasts the crown's petitions name. */
+const BEASTS_ASKED_FOR = 3;
+
+/** How long the Hall holds before a press is taken: long enough to see it. */
+export const HALL_HOLD_TICKS = 90;
+
+/**
+ * The Hall of Fame. It holds for a moment so a mashed A does not skip it, and
+ * then A reads out what happened to everybody and sends you home.
+ */
+function stepHallOfFame(
+  content: Content, state: GameState, scene: { kind: 'hallOfFame'; ticks: number }, b: Buttons,
+): void {
+  scene.ticks++;
+  if (scene.ticks < HALL_HOLD_TICKS) return;
+  if (!pressed(state, b, 'a') && !pressed(state, b, 'start')) return;
+  say(state, content, 'hall_of_fame', { kind: 'goHome' });
 }
 
 /**
@@ -1621,6 +1680,14 @@ function endBattle(content: Content, state: GameState, scene: BattleScene, rng: 
     if (def.badge !== undefined && !p.badges.includes(def.badge)) p.badges.push(def.badge);
   }
 
+  // A beast that was beaten or caught does not come back. One that was run
+  // from, or that won, is still standing where it was.
+  if ((outcome === 'won' || outcome === 'caught') && scene.trainerId === null && scene.npcFlag !== null) {
+    setFlag(p, scene.npcFlag);
+    // Three of them were asked for. When the third is dealt with, say so.
+    if (p.flags.filter((f) => f.startsWith('beast_')).length >= BEASTS_ASKED_FOR) setFlag(p, 'beasts_done');
+  }
+
   if (outcome === 'lost' || !partyAlive(p)) {
     // Gen 1's blackout: wake up at the last healer, lighter in the pocket.
     p.money = Math.floor(p.money / 2);
@@ -1644,8 +1711,10 @@ function endBattle(content: Content, state: GameState, scene: BattleScene, rng: 
     lines.push(...content.dialogue(def.defeatKey));
     if (def.badge !== undefined) lines.push(`You take the ${(def.badgeName ?? def.badge).toUpperCase()} badge.`);
     if (def.id === 'champion') {
+      // What she says when she loses, THEN the Hall. It used to cut straight
+      // to the Hall and drop every line of this on the floor.
       setFlag(p, 'champion');
-      state.scene = { kind: 'hallOfFame', ticks: 0 };
+      sayRaw(state, lines, { kind: 'hallOfFame' });
       return;
     }
   }
