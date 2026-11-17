@@ -343,7 +343,7 @@ function drawWorldBackground(
       gb.drawSprite(ctx, creaturePixels(content, npc.species), sx - 3, sy - 7 + bob, 0.4);
       continue;
     }
-    gb.drawActor(ctx, npc.sprite, idleFacing(npc.id, npc.kind, npc.facing, state.frame), 0, 0, sx, sy);
+    gb.drawActor(ctx, lookIdFor(npc), idleFacing(npc.id, npc.kind, npc.facing, state.frame), 0, 0, sx, sy);
   }
 
   const pose = walkPose(progress, fromX, fromY);
@@ -358,6 +358,18 @@ function drawWorldBackground(
   gb.drawActor(ctx, 'player', dir, pose.frame, pose.step, playerSx, playerSy);
   drawGrassRoundFeet(ctx, map, cam, state.frame, cam.playerPxX, cam.playerPxY);
   drawAir(ctx, map, cam, state.frame);
+}
+
+/**
+ * Who a person on the map IS, for the purpose of what they look like. Everyone
+ * of a kind used to share one sprite id, so all thirty villagers were the same
+ * villager. Named people (Cass, the house heads, the Table, the Warden) are
+ * keyed by name so they look the same on every map they turn up on; everyone
+ * else by their own id, so no two strangers are twins.
+ */
+function lookIdFor(npc: { readonly id: string; readonly sprite: string; readonly name: string }): string {
+  const named = npc.sprite === 'rival' || npc.sprite === 'leader' || npc.sprite === 'elite' || npc.name === 'The Warden';
+  return named ? `person:${npc.name}` : `npc:${npc.id}`;
 }
 
 /**

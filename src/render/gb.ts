@@ -913,14 +913,30 @@ export function drawSnowflake(ctx: CanvasRenderingContext2D, near: boolean, x: n
 
 // ---------------------------------------------------------------------------
 // Actors — the player and NPCs. Small procedurally-composed 16x16 humanoids;
-// the silhouette (hair/hat/shirt shade) is hashed from the sprite id so every
+// the silhouette (hairstyle, hair and shirt shade) is hashed from who they are so every
 // NPC reads as a distinct person without hand art for each one.
 // ---------------------------------------------------------------------------
 
+/*
+ * Hair, not hats. Every person used to wear the same flat-topped cap, and the
+ * only thing that told two villagers apart was whether the cap was there. Now a
+ * person has a hairstyle and a hair shade, and the men sometimes a beard, all
+ * hashed from who they are, so a road full of people reads as different people.
+ *
+ * A Game Boy has four shades, so "colour" here means: white (grey or fair),
+ * dark (brown) or black. Skin is the light shade, which is why hair never is -
+ * a light-haired face would be one blank shape. White is not 0 in the grid,
+ * because 0 is "nothing here"; it is WHITE and becomes shade 0 when inked.
+ */
+const WHITE = 4;
+
+type HairStyle = 'crop' | 'long' | 'bun' | 'bald' | 'curls' | 'bob' | 'tail';
+
 interface ActorVariant {
-  readonly hair: Shade;
+  readonly hair: number;
   readonly shirt: Shade;
-  readonly hat: boolean;
+  readonly style: HairStyle;
+  readonly beard: boolean;
 }
 
 function hashStr(s: string): number {
@@ -933,24 +949,41 @@ function hashStr(s: string): number {
 }
 
 /*
- * Hair and clothes are only ever the two DARK shades. The light green used to
- * be allowed too, and it is the colour of grass: a villager who drew it for
- * both was an empty outline standing in a field. Cass, the rival, was one of
- * them - the first person the game introduces was a pair of antennae.
+ * Clothes are only ever the two DARK shades. The light green used to be
+ * allowed too, and it is the colour of grass: a villager who drew it was an
+ * empty outline standing in a field. Cass, the rival, was one of them - the
+ * first person the game introduces was a pair of antennae.
  */
-const SHADE_CYCLE: readonly Shade[] = [2, 3];
+const SHIRTS: readonly Shade[] = [2, 3];
+const HAIRS: readonly number[] = [3, 2, WHITE];
+/** `tail` is Tabitha's alone: nobody else in Fenmark wears a ponytail. */
+const STYLES: readonly HairStyle[] = ['crop', 'long', 'bun', 'bald', 'curls', 'bob'];
 
-function variantFor(spriteId: string): ActorVariant {
-  const h = hashStr(spriteId);
-  return {
-    hair: SHADE_CYCLE[h % 2] ?? 3,
-    shirt: SHADE_CYCLE[(h >>> 1) % 2] ?? 2,
-    hat: (h >>> 4) % 2 === 0,
-  };
+/** Named people who must be told apart from everyone else at a glance. */
+const FIXED_LOOKS: Readonly<Record<string, ActorVariant>> = {
+  // Cass: a short brown bob - Tabitha's opposite in every way that shows.
+  'person:Cass': { hair: 2, shirt: 3, style: 'bob', beard: false },
+};
+
+function variantFor(lookId: string): ActorVariant {
+  const fixed = FIXED_LOOKS[lookId];
+  if (fixed) return fixed;
+  const h = hashStr(lookId);
+  const style = STYLES[h % STYLES.length] ?? 'crop';
+  // A beard only on short hair, or it reads as a mask.
+  const beard = (style === 'crop' || style === 'bald') && ((h >>> 9) % 3 === 0);
+  const hair = HAIRS[(h >>> 3) % HAIRS.length] ?? 3;
+  // Hair and shirt in the same shade melt into one blob, so dark hair always
+  // gets the other dark shirt. White hair stands out against either.
+  const shirt: Shade = hair === 3 ? 2 : hair === 2 ? 3 : (SHIRTS[(h >>> 7) % SHIRTS.length] ?? 2);
+  return { hair, shirt, style, beard };
 }
 
-/** Player's own look is fixed rather than hashed — it's the sprite a player stares at all game. */
-const PLAYER_VARIANT: ActorVariant = { hair: 3, shirt: 2, hat: true };
+/**
+ * Tabitha: black hair tied back in a ponytail that swings behind her, which no
+ * one else in the game has, so she is the one you can find in a crowd.
+ */
+const PLAYER_VARIANT: ActorVariant = { hair: 3, shirt: 2, style: 'tail', beard: false };
 
 function outlineActor(g: Uint8Array): void {
   const src = g.slice();
@@ -963,6 +996,136 @@ function outlineActor(g: Uint8Array): void {
       if (n !== 0 && x > 0 && x < TS - 1) setPx(g, x, y, 3);
     }
   }
+}
+
+const SKIN = 1;
+
+/** Hair seen from the front. Drawn after the face, so it may frame it. */
+function hairFront(g: Uint8Array, v: ActorVariant): void {
+  const c = v.hair;
+  switch (v.style) {
+    case 'bald':
+      fillRectG(g, 5, 1, 10, 3, SKIN);
+      fillRectG(g, 4, 2, 4, 4, c);
+      fillRectG(g, 11, 2, 11, 4, c);
+      break;
+    case 'curls':
+      fillRectG(g, 3, 1, 12, 3, c);
+      for (const x of [4, 6, 9, 11]) setPx(g, x, 0, c);
+      fillRectG(g, 3, 4, 3, 6, c);
+      fillRectG(g, 12, 4, 12, 6, c);
+      break;
+    case 'long':
+      fillRectG(g, 4, 1, 11, 3, c);
+      fillRectG(g, 4, 4, 4, 10, c);
+      fillRectG(g, 11, 4, 11, 10, c);
+      break;
+    case 'bob':
+      fillRectG(g, 4, 1, 11, 4, c);
+      fillRectG(g, 4, 5, 4, 7, c);
+      fillRectG(g, 11, 5, 11, 7, c);
+      // A fringe with a parting in it, so the face shows through.
+      setPx(g, 7, 4, SKIN);
+      setPx(g, 8, 4, SKIN);
+      break;
+    case 'bun':
+      fillRectG(g, 4, 1, 11, 3, c);
+      fillRectG(g, 6, 0, 9, 0, c);
+      break;
+    case 'tail':
+      fillRectG(g, 4, 1, 11, 3, c);
+      setPx(g, 5, 4, c);
+      // The tail swings out past her right ear.
+      fillRectG(g, 12, 2, 12, 7, c);
+      setPx(g, 13, 6, c);
+      setPx(g, 13, 7, c);
+      break;
+    case 'crop':
+      fillRectG(g, 4, 1, 11, 3, c);
+      setPx(g, 4, 4, c);
+      setPx(g, 11, 4, c);
+      break;
+  }
+  if (v.beard) fillRectG(g, 5, 6, 10, 6, c);
+}
+
+/** Hair seen from behind: the whole back of the head. */
+function hairBack(g: Uint8Array, v: ActorVariant): void {
+  const c = v.hair;
+  switch (v.style) {
+    case 'bald':
+      fillRectG(g, 4, 1, 11, 6, SKIN);
+      fillRectG(g, 4, 4, 11, 5, c);
+      break;
+    case 'curls':
+      fillRectG(g, 3, 1, 12, 6, c);
+      for (const x of [4, 6, 9, 11]) setPx(g, x, 0, c);
+      break;
+    case 'long':
+      fillRectG(g, 4, 1, 11, 6, c);
+      fillRectG(g, 5, 7, 10, 10, c);
+      break;
+    case 'bob':
+      fillRectG(g, 4, 1, 11, 7, c);
+      break;
+    case 'bun':
+      fillRectG(g, 4, 1, 11, 6, c);
+      fillRectG(g, 6, 0, 9, 0, c);
+      break;
+    case 'tail':
+      fillRectG(g, 4, 1, 11, 5, c);
+      fillRectG(g, 5, 6, 10, 6, SKIN);
+      fillRectG(g, 7, 6, 8, 11, c);
+      break;
+    case 'crop':
+      fillRectG(g, 4, 1, 11, 5, c);
+      fillRectG(g, 5, 6, 10, 6, SKIN);
+      break;
+  }
+}
+
+/**
+ * Hair in profile, facing LEFT (the caller mirrors for right): the face is on
+ * the left, so the back of the head - where long hair and tails fall - is right.
+ */
+function hairSide(g: Uint8Array, v: ActorVariant, flip: (x: number) => number): void {
+  const c = v.hair;
+  const r = (x0: number, y0: number, x1: number, y1: number, s: number): void =>
+    fillRectG(g, flip(x0), y0, flip(x1), y1, s);
+  switch (v.style) {
+    case 'bald':
+      r(5, 1, 10, 2, SKIN);
+      r(9, 3, 10, 4, c);
+      break;
+    case 'curls':
+      r(4, 1, 11, 2, c);
+      for (const x of [5, 7, 10]) setPx(g, flip(x), 0, c);
+      r(9, 3, 11, 5, c);
+      break;
+    case 'long':
+      r(5, 1, 10, 2, c);
+      r(9, 3, 10, 9, c);
+      break;
+    case 'bob':
+      r(5, 1, 10, 3, c);
+      r(9, 4, 10, 6, c);
+      break;
+    case 'bun':
+      r(5, 1, 10, 2, c);
+      r(10, 0, 11, 1, c);
+      break;
+    case 'tail':
+      r(5, 1, 10, 2, c);
+      r(10, 3, 10, 3, c);
+      r(11, 2, 12, 3, c);
+      r(12, 4, 12, 7, c);
+      break;
+    case 'crop':
+      r(5, 1, 10, 2, c);
+      r(10, 3, 10, 3, c);
+      break;
+  }
+  if (v.beard) r(6, 6, 8, 6, c);
 }
 
 /**
@@ -979,30 +1142,30 @@ function humanoidPixels(dir: Dir, frame: number, step: -1 | 0 | 1, v: ActorVaria
   if (dir === 'left' || dir === 'right') {
     const mirror = dir === 'right';
     const flip = (x: number): number => (mirror ? TS - 1 - x : x);
-    fillRectG(g, flip(5), 1, flip(10), 2, v.hair);
-    if (v.hat) fillRectG(g, flip(4), 0, flip(11), 1, v.hair);
-    fillRectG(g, flip(6), 3, flip(9), 6, 1);
-    setPx(g, flip(7), 4, 3);
+    fillRectG(g, flip(6), 3, flip(9), 6, SKIN);
     fillRectG(g, flip(5), 7, flip(10), 11, v.shirt);
     fillRectG(g, flip(6), 12 + leftUp, flip(7), 14 + leftUp, 3);
     fillRectG(g, flip(8), 12 + rightUp, flip(9), 14 + rightUp, 3);
+    hairSide(g, v, flip);
+    setPx(g, flip(7), 4, 3);
     outlineActor(g);
     return g;
   }
 
   const back = dir === 'up';
-  fillRectG(g, 4, 1, 11, back ? 6 : 3, v.hair);
-  if (v.hat) fillRectG(g, 3, 0, 12, 1, v.hair);
-  if (!back) {
-    fillRectG(g, 5, 4, 10, 6, 1);
-    setPx(g, 6, 5, 3);
-    setPx(g, 9, 5, 3);
-  }
   fillRectG(g, 4, 7, 11, 11, v.shirt);
   fillRectG(g, 3, 8, 3, 10, v.shirt);
   fillRectG(g, 12, 8, 12, 10, v.shirt);
   fillRectG(g, 5, 12 + leftUp, 7, 14 + leftUp, 3);
   fillRectG(g, 8, 12 + rightUp, 10, 14 + rightUp, 3);
+  if (back) {
+    hairBack(g, v);
+  } else {
+    fillRectG(g, 5, 4, 10, 6, SKIN);
+    hairFront(g, v);
+    setPx(g, 6, 5, 3);
+    setPx(g, 9, 5, 3);
+  }
   outlineActor(g);
   return g;
 }
@@ -1010,8 +1173,10 @@ function humanoidPixels(dir: Dir, frame: number, step: -1 | 0 | 1, v: ActorVaria
 const actorCanvasCache = new Map<string, HTMLCanvasElement>();
 
 /**
- * Draws the player or an NPC. `frame` is 0 (idle) or 1..3 (mid-stride,
- * matching WalkState.progress buckets); `step` biases which leg leads.
+ * Draws the player or an NPC. `spriteId` is 'player' or a LOOK id - who this
+ * person is (see `lookIdFor` in draw.ts) - which picks their hair and clothes.
+ * `frame` is 0 (idle) or 1..3 (mid-stride, matching WalkState.progress
+ * buckets); `step` biases which leg leads.
  */
 export function drawActor(
   ctx: CanvasRenderingContext2D,
@@ -1032,7 +1197,7 @@ export function drawActor(
       for (let px = 0; px < TS; px++) {
         const v = pixels[py * TS + px] ?? 0;
         if (v === 0) continue;
-        actorCtx.fillStyle = shadeColor(v as Shade);
+        actorCtx.fillStyle = shadeColor((v === WHITE ? 0 : v) as Shade);
         actorCtx.fillRect(px, py, 1, 1);
       }
     }
