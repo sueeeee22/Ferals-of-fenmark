@@ -103,7 +103,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "CASS: Don't. Whatever you're about to say, I've already said it to myself, and better.",
     "Yes. I sold Mourne your route. I sold Kell the flaw in the Astacio deed. Same week, same desk.",
     "I got House Mourne's backing and a seat at Ostmere. You got a barn that isn't yours.",
-    "TABITHA: They killed Odd Marlow at my gate. With his coat half on. Like a warden.",
+    "TABITHA: They killed Odd Marlow at my gate, Cass. Coat half on, the way Brack's people do it.",
     "CASS: I didn't know they'd send Brack's people.",
     "CASS: I'd have done it anyway. I want that on the record with the rest of it.",
     "I'm not sorry. I need that clear, because you'll spend years deciding whether I was.",
@@ -111,9 +111,9 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "Now fight me. You've earned that much, and I've earned considerably worse.",
   ],
   rival_3_defeat: [
-    "CASS: There. Better? No. It doesn't work like that, I checked years ago.",
-    "I'll be at Ostmere. In Mourne grey. Hating the cut and wearing it anyway.",
-    "Don't forgive me. You'll want to, around November. Don't.",
+    "CASS: There. Do you feel better? No. Hitting me doesn't fix it. I checked, years ago.",
+    "I'll be at Ostmere, in Mourne grey, hating the cut and wearing it anyway.",
+    "You'll want to forgive me round about November. Don't.",
   ],
   rival_4: [
     "CASS: New coat. Mourne grey. Sera picked it, so it's a leash with buttons on.",
@@ -123,8 +123,8 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "Or fight me. Same conversation, fewer words, and I don't have to watch your face do that.",
   ],
   rival_4_defeat: [
-    "CASS: Fine! You want it? It was worth it. It was. I've been through the books.",
-    "I go through them most nights. That isn't regret. That's due diligence.",
+    "CASS: Fine! You want the answer? It was worth it. I've been through the books, and it was worth it.",
+    "I go through them most nights. That isn't regret, it's due diligence.",
   ],
   rival_5: [
     "CASS: Sera had me at her table on Thursday. I was seated below the fen wardens. Below them.",
@@ -157,8 +157,8 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "DARA VANTRY: Sit. There. The chair's fine, the stain is older than you are.",
     "Door's barred till the tide turns, so you've got two hours and I have exactly one story.",
     "Drink that. No - the other one. That one's had somebody's tooth in it since Thursday.",
-    "The Warden of the Cross-Fen left my bath at four this morning with a broken collarbone",
-    "and an apology written across his chest. Not by him. I hired a calligrapher, he does weddings.",
+    "The Warden of the Cross-Fen left my bath at four this morning with a broken collarbone.",
+    "He also had an apology written across his chest. Not in his hand: I hired a man who does weddings.",
     "He asked when he could see me again. I told him the Cross-Fen doesn't vote until August.",
     "That's House Vantry, sweetheart. Everything here is politics and a warm towel.",
     "Now hit me with everything you have, before I start talking about my brother.",
@@ -169,11 +169,11 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "Come back Thursday. I'd like one person at my table who isn't counting my votes.",
   ],
   gym1_after: [
-    "TABITHA: So. How was he?",
+    "TABITHA: So. The Warden. How was he?",
     "DARA: He cried. Twice. Once for a good reason.",
     "TABITHA: Dara.",
     "DARA: My twin has been dead eleven weeks and not one soul in this fen will say his name at me.",
-    "So they send wardens instead. Warm ones. It's very thoughtful and it is not working.",
+    "So instead they send me wardens, warm ones, to take my mind off it. It's thoughtful and it isn't working.",
     "Don't look at me like that. Go and win something and shut my door on the way out.",
     "DARA: His name was Aubrey. Ask me in August. I'll be able to do it in August.",
   ],
@@ -185,7 +185,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "MARGIT KELL: Challenge fee is forty crowns. The badge is free. Nobody has ever found that funny.",
     "House Kell holds the tolls, the mint, and four of the eight houses' outstanding debt.",
     "I've read your file. Nine crowns, a bad coat, and an animal you've given a name to.",
-    "Everyone gets around to asking who I'm sleeping with, so: Tuesdays. Dace. He runs a barge.",
+    "Everyone gets round to asking who I sleep with, so: Dace, who runs a barge, on Tuesdays.",
     "He's gone by six and I get my entire Wednesday back. That is what an arrangement is for.",
     "Right. Battle. Try to be interesting - I have the Ottrey ledgers at noon and they're better company.",
   ],
@@ -239,7 +239,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "Then we fight. I don't lose often, and when I do it's deliberate and it's for money.",
   ],
   gym4_defeat: [
-    "PELL: Not deliberate. Not for money. Well. That's a new column in the ledger.",
+    "PELL: That wasn't deliberate and nobody paid me. Well. That's a new column in the ledger.",
     "Bone Badge. And take this - powdered willow, three days, and don't argue dosage with me.",
     "You're the fourth person this year to beat me and the first one still breathing.",
   ],
@@ -254,7 +254,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   // Gym 5 - WREN HALLOWAY, House Halloway. Twelve hundred spears. One unsent line.
   // -------------------------------------------------------------------------
   gym5_intro: [
-    "WREN HALLOWAY: You've come from Orrin. Don't. Whatever it is, don't say it to me.",
+    "WREN HALLOWAY: You've come from Orrin. Don't. Whatever she said about me, I don't want to hear it.",
     "I have held this pass against two armies and one winter that killed better men than both.",
     "I have a letter here. Four lines. Three about drainage, which is a real and serious issue.",
     "The fourth one I crossed out. Twice, so it couldn't be read against the light.",
@@ -264,7 +264,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   ],
   gym5_defeat: [
     "WREN: Clean. You went round my flank like somebody was paying you by the yard. Pass Badge.",
-    "You'll tell Thistle. Everyone tells Thistle. That is fine. That's the system working.",
+    "You'll tell Thistle, because everyone tells Thistle everything. That's fine. It's how the north works.",
     "Tell it exactly as it happened. Don't make me sound brave. It only encourages the county.",
   ],
   gym5_after: [
@@ -281,7 +281,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   // -------------------------------------------------------------------------
   gym6_intro: [
     "LEONORE ASHGROVE: Come in, mind the step, and don't touch Sera's coat. She counts the buttons.",
-    "Yes. Me, Sera Mourne and Hollis Brack. Openly, since the thaw. Ask the question properly.",
+    "Yes, it's true. Me, Sera Mourne and Hollis Brack, all three of us, and openly since the thaw.",
     "Three houses, one arrangement, one vote. Two short of a majority, and nobody sleeps well.",
     "And no, it isn't for the alliance. The alliance is a bonus. Have you actually met Sera?",
     "She files people. She filed me. I have never in my life been so thoroughly flattered.",
@@ -314,9 +314,9 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "I know your route, your money, and both of your habits. Fight me anyway. I'd like to watch.",
   ],
   gym7_defeat: [
-    "SERA: Noted. Amended. Filed.",
+    "SERA: That was not in my notes. I'll amend them tonight and file you somewhere considerably higher.",
     "Mourne Badge. You're now a name three houses will read out loud on Thursday morning.",
-    "For what it's worth, I enjoyed that. I don't say that. Don't repeat it to Leonore.",
+    "For what it's worth, I enjoyed that, and I never say so. Don't repeat it to Leonore.",
   ],
   gym7_after: [
     "SERA: Somebody sold me your route in the spring. Cheap. That should worry you more than me.",
@@ -335,7 +335,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "which of the other seven they'd burn to get it. I'm just rude enough to say so before dessert.",
     "Sera says I'm exactly where she put me. Sera's right. It's my favourite place in Fenmark.",
     "Leonore says she runs us. Also right. That's the trick of letting people think they steer.",
-    "Odd Marlow died at your gate with his coat half on. My people. My money. Not my order.",
+    "Odd Marlow died at your gate with his coat half on. My people, and my money, but not my order.",
     "TABITHA: Does that distinction help either of us?",
     "BRACK: No. But it'll matter to a court, and one of us should be thinking about the court.",
   ],
@@ -357,7 +357,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   elite_1: [
     "RUTH ANSELL: Sit down, love, you're dripping on the flags. There's soup. There's always soup.",
     "I took forty-one heads for Aldous. I remember every name and what each of them wanted for supper.",
-    "Number twelve asked for eggs. In March. I found him eggs. I was late. He was very gracious.",
+    "Number twelve asked for eggs, in March. I found him eggs and was late with the axe. He was very gracious.",
     "Now stand up. I haven't done this in nine years and I've missed it more than is decent.",
   ],
   elite_1_defeat: [
@@ -417,7 +417,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "ISOLDE MARCH: Sit. You've come a very long way and I have read every mile of the reports.",
     "I was chief of staff to Aldous for nineteen years. I ran this country. He named the horses.",
     "When he choked, eight houses spent four days arguing about seating, and I simply carried on.",
-    "That's the coup. There wasn't a coup. There was a Tuesday, and I was already at the desk.",
+    "You'll have heard it called a coup. There was no coup. There was a Tuesday, and I was at the desk.",
     "They call me Champion because 'the woman who never left the building' won't fit on a coin.",
     "You've beaten eight houses and four ghosts. Beat me, and I'll hand you the worst job in Fenmark.",
     "I'd very much like to see you try. Nothing has been difficult in a year and it's making me stupid.",
@@ -449,7 +449,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   // what is waiting there.
   // -------------------------------------------------------------------------
   crown_petitions: [
-    "THE WARDEN OF THE CROSS-FEN: Majesty. Don't get up. I can't either. It's the collarbone.",
+    "THE WARDEN OF THE CROSS-FEN: Majesty. Forgive me if I don't kneel. It's the collarbone.",
     "Three petitions came with that crown. Nobody mentioned those at Ostmere. They never do.",
     "One. Something on the Orrin road takes a sheep a night, whole, and leaves the shepherd.",
     "Lady Orrin wishes it noted that the thing has taste.",
@@ -463,7 +463,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "Dara sends her regards and a towel. I'm to say the towel is not a metaphor. It is one.",
   ],
   beast_eagle: [
-    "A shadow as wide as the road. It has a sheep. It is not going to share the sheep.",
+    "A shadow as wide as the road drops onto a sheep. It is not going to share the sheep.",
     "The Haast eagle looks you over the way Margit Kell looks over an unpaid account.",
     "TABITHA: Thirty years breeding animals and I have never once been sized up as a meal. Come on, then.",
   ],
@@ -486,8 +486,8 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "Fight me for it. I win, I take the chair. You win, I take the broom. Either way I'm not sorry.",
   ],
   rival_crown_defeat: [
-    "CASS: Fine. The broom, then. Give it here. No, the other end. I do know how a broom works.",
-    "This isn't an apology. It's a job. I want that written down by somebody who can spell.",
+    "CASS: Fine, I'll take the broom. Give it here. No, the other end. I do know how a broom works.",
+    "This isn't an apology, it's a job, and I want that written down by somebody who can spell.",
   ],
   rival_crown_after: [
     "CASS: Gate's swept. Your cat watched me do it and found three places I'd missed.",
@@ -500,7 +500,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   // Spoken by a house head who has already lost to you once, after the crown.
   // -------------------------------------------------------------------------
   gym1_again: [
-    "DARA: Majesty. Sit. Not that chair. That one's Aubrey's. There. I said it. It isn't even August.",
+    "DARA: Majesty. Sit anywhere but that chair, it was Aubrey's. Listen to me, saying his name before August.",
     "House Vantry swears to nobody it hasn't beaten or bedded, and you are not my type. Up you get.",
   ],
   gym1_again_defeat: [
@@ -511,25 +511,25 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "Beat me again and I'll take a point off the interest. It is the most affection I have ever put in writing.",
   ],
   gym2_again_defeat: [
-    "MARGIT: One point. Entered. Dace asked after you, so it must be Tuesday. Good day, Majesty.",
+    "MARGIT: One point off the interest, entered in ink. Dace sends his regards, so it must be Tuesday. Good day.",
   ],
   gym3_again: [
-    "THISTLE: He asked. Dinner. I said yes so fast a footman dropped a tray. Humiliating. Perfect.",
+    "THISTLE: Wren finally asked me to dinner. I said yes so fast a footman dropped a tray. Humiliating. Perfect.",
     "I am in a wonderful mood and I must hit something before I become unbearable. You'll do, Majesty.",
   ],
   gym3_again_defeat: [
     "THISTLE: Orrin swears. And tell Wren I lost beautifully. He worries when I win.",
   ],
   gym4_again: [
-    "PELL: Sit. Sleeve up. A crown raises the pulse, the blood, and the number of people who want you opened.",
-    "I'd swear House Pell to you now, but I never sign for a patient I haven't examined. So. Fight me.",
+    "PELL: Sit and roll your sleeve up. A crown raises the pulse, and the number of people who want you opened.",
+    "I'd swear House Pell to you now, but I never sign for a patient I haven't examined. So, fight me.",
   ],
   gym4_again_defeat: [
     "PELL: Sound heart, bad knees, appalling coat. Pell swears. Come back in a month and bring the cat.",
   ],
   gym5_again: [
-    "WREN: I asked her. Dinner. I had it written on my hand in case I lost the words. I lost the words.",
-    "She said yes regardless. I have not sat down since. Fight me. I need one thing today to go to plan.",
+    "WREN: I asked her to dinner. I'd written it on my hand in case I lost the words, and I lost the words.",
+    "She said yes anyway, and I haven't sat down since. Fight me. I need one thing today to go to plan.",
   ],
   gym5_again_defeat: [
     "WREN: Twelve hundred spears, sworn. I'd kneel, but she can see me from the ridge and I'd never hear the end.",
@@ -546,14 +546,14 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "House Mourne swears in writing or not at all. I'll have the fight first. I like a document to be accurate.",
   ],
   gym7_again_defeat: [
-    "SERA: Sworn. Dated. Filed under 'Things I did not arrange.' It is a thin file. Don't tell Leonore.",
+    "SERA: Mourne swears. I've filed it under 'Things I did not arrange'. It's a thin file. Don't tell Leonore.",
   ],
   gym8_again: [
-    "BRACK: Majesty. Eat. I've had the door taken off its hinges for the evening, as a courtesy. Look. No door.",
-    "You still want me dead for Marlow. Good. A queen should want something. Come and take the oath out of me.",
+    "BRACK: Majesty, eat. I've had the door taken off its hinges as a courtesy, so you can stop watching it.",
+    "You still want me dead for Marlow. Good, a queen should want something. Come and take the oath out of me.",
   ],
   gym8_again_defeat: [
-    "BRACK: House Brack swears. I'll see you out myself. Coat on first. Both arms. There. That's manners.",
+    "BRACK: House Brack swears. I'll walk you out myself, and hold your coat while you get both arms in.",
   ],
 
   // -------------------------------------------------------------------------
@@ -688,7 +688,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "My uncle counts them as a single house. My uncle is unpleasant and my uncle is correct.",
   ],
   npc_gossip_4: [
-    "They found the Warden of the Cross-Fen face down in Vantry's herb garden. Smiling. In a towel.",
+    "They found the Warden of the Cross-Fen face down in Vantry's herb garden, smiling, in a towel.",
   ],
   npc_gossip_5: [
     "There's a bucket in Pell's back room and every soul in this town knows whose knee is in it.",
@@ -702,12 +702,12 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "Four men taste the fruit at Ostmere now. Four. For fruit. Somebody draws a wage off that plum.",
   ],
   npc_gossip_8: [
-    "Brack's people never do it at the table. They do it at the door.",
-    "So I've had all my coats taken up. Cost me a fortune. Worth it.",
+    "Brack's people never kill you at the table. They do it at the door, with your coat half on.",
+    "So I've had every coat I own cut loose enough to go on in one move. Cost me a fortune. Worth it.",
   ],
   npc_gossip_9: [
     "Leonore Ashgrove is marrying a farrier and half the Ember Coast has written poems about it.",
-    "Not about her. About his forearms. There's a collected edition.",
+    "Not about her, mind. About his forearms. There's already a collected edition.",
   ],
   npc_gossip_10: [
     "Boyd Tern has turned down a lordship twice. Said the paperwork would interfere with the funerals.",
@@ -815,7 +815,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   ],
   npc_gossip_13_after: [
     "I'd have this written up, but the only calligrapher in the fen is booked through August.",
-    "And it's all chests.",
+    "These days he mostly writes on wardens.",
   ],
   npc_gossip_14_after: [
     "Twice now I've been stopped on a road by somebody with better reasons than mine.",
@@ -888,7 +888,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   ],
   sign_9: [
     "HALLOWAY PASS. Twelve hundred spears. State your business.",
-    "If your business is Lady Orrin, state it faster than he has.",
+    "If your business is Lady Orrin, state it faster than Lord Halloway ever has.",
   ],
   sign_10: [
     "EMBERWICK. Seat of House Ashgrove. Three crests on the gate.",
