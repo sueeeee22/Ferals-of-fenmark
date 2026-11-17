@@ -673,6 +673,164 @@ hall.npcs.push({
 });
 
 // ===========================================================================
+// Scenery
+// ===========================================================================
+//
+// Every town was the same town and every route the same route: grass, a road,
+// three squares of long grass. This pass dresses them AFTER they are built -
+// ponds, flowers, a shore, snow - so that nothing a builder laid down for a
+// reason (roads, doors, grass patches, rocks in sightlines) can be moved by it.
+//
+// Two rules keep it harmless:
+//   1. Only plain Grass is ever replaced, and never the tile somebody stands on.
+//   2. Water is solid. After dressing, everything that could be walked to
+//      before can still be walked to, or the generator stops.
+
+type Biome = 'fen' | 'coast' | 'bloom' | 'ash' | 'mire' | 'snow';
+
+/** What the land looks like, by where it is on the road. */
+const BIOME: Readonly<Record<string, Biome>> = {
+  fenmark: 'fen', route_1: 'fen', harrowfen: 'fen',
+  route_2: 'coast', saltmere: 'coast',
+  route_3: 'ash', ashgrove: 'ash',
+  route_4: 'bloom', briarhold: 'bloom',
+  route_5: 'fen', kestrelbridge: 'fen',
+  route_6: 'mire', blackmourne: 'mire',
+  route_7: 'snow', whitlow: 'snow',
+  route_8: 'ash', brackhall: 'ash',
+  route_9: 'mire', cross_fen: 'mire',
+};
+
+const WALKABLE_SOLID = new Set<number>([
+  Tile.Void, Tile.Water, Tile.Wall, Tile.Tree, Tile.Rock, Tile.House, Tile.Sign,
+  Tile.Counter, Tile.Fence, Tile.CaveWall, Tile.Table,
+]);
+
+function tileOf(m: Built, x: number, y: number): number {
+  if (x < 0 || y < 0 || x >= m.width || y >= m.height) return Tile.Void;
+  return m.tiles[y * m.width + x] ?? Tile.Void;
+}
+
+/** Every tile that can be walked to from the map's first door or exit. */
+function reachable(m: Built): Set<number> {
+  const seen = new Set<number>();
+  const queue: number[] = [];
+  for (const w of m.warps as ReadonlyArray<{ x: number; y: number }>) {
+    queue.push(w.y * m.width + w.x);
+  }
+  while (queue.length > 0) {
+    const at = queue.pop();
+    if (at === undefined || seen.has(at)) continue;
+    const x = at % m.width;
+    const y = Math.floor(at / m.width);
+    if (WALKABLE_SOLID.has(tileOf(m, x, y))) continue;
+    seen.add(at);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= m.width || ny >= m.height) continue;
+      queue.push(ny * m.width + nx);
+    }
+  }
+  return seen;
+}
+
+function dress(m: Built): void {
+  const biome = BIOME[m.id];
+  if (biome === undefined) return;
+  const before = reachable(m);
+  const taken = new Set((m.npcs as ReadonlyArray<{ x: number; y: number }>).map((n) => `${n.x},${n.y}`));
+  const isTown = m.height === 18;
+  const roll = (key: string, n: number): number => hash(`${m.id}:${key}`) % n;
+
+  /** Replace plain grass, and only plain grass. */
+  const lay = (x: number, y: number, t: number): void => {
+    if (tileOf(m, x, y) !== Tile.Grass || taken.has(`${x},${y}`)) return;
+    set(m, x, y, t);
+  };
+
+  /** A pond: a rectangle with its corners knocked off, and a rim if asked. */
+  const pond = (x: number, y: number, w: number, h: number, rim: number | null): void => {
+    if (rim !== null) {
+      for (let j = y - 1; j <= y + h; j++) for (let i = x - 1; i <= x + w; i++) lay(i, j, rim);
+    }
+    for (let j = 0; j < h; j++) {
+      for (let i = 0; i < w; i++) {
+        const corner = (i === 0 || i === w - 1) && (j === 0 || j === h - 1);
+        if (corner && w > 2 && h > 2) continue;
+        const cx = x + i;
+        const cy = y + j;
+        // Water may overwrite its own rim, but nothing else.
+        if (tileOf(m, cx, cy) === rim && rim !== null) set(m, cx, cy, Tile.Grass);
+        lay(cx, cy, Tile.Water);
+      }
+    }
+  };
+
+  /** Flowers scattered through a rectangle: `per` in a hundred of its grass. */
+  const flowers = (x: number, y: number, w: number, h: number, per: number): void => {
+    for (let j = y; j < y + h; j++) {
+      for (let i = x; i < x + w; i++) {
+        if (hash(`${m.id}:f:${i},${j}`) % 100 < per) lay(i, j, Tile.Flower);
+      }
+    }
+  };
+
+  const rim = biome === 'coast' ? Tile.Sand : null;
+  const wet = biome === 'coast' || biome === 'mire';
+
+  if (isTown) {
+    // South of the main road, either side of the gym: a pond on one side.
+    if (biome !== 'ash') {
+      const left = roll('pond', 2) === 0;
+      if (left || wet) pond(2, 13, 4, 3, rim);
+      if (!left || wet) pond(14, 13, 4, 3, rim);
+    }
+    if (biome !== 'snow') {
+      const thick = biome === 'bloom' ? 3 : 1;
+      // Beds along the south of the road, and a drift behind the houses.
+      flowers(1, 10, 6, 1, 45 * thick);
+      flowers(13, 10, 6, 1, 45 * thick);
+      flowers(1, 1, 8, 2, biome === 'ash' ? 6 : 14 * thick);
+      flowers(11, 1, 8, 2, biome === 'ash' ? 6 : 14 * thick);
+      flowers(1, 11, 18, 6, biome === 'bloom' ? 30 : 5);
+    }
+  } else {
+    // Three places a route has room for water. Dry country gets none, wet
+    // country gets two, everywhere else gets one.
+    const spots: ReadonlyArray<readonly [number, number, number, number]> = [
+      [14, 1, 4, 3], [2, 13, 5, 3], [12, 20, 4, 3],
+    ];
+    const first = roll('pond', spots.length);
+    const count = biome === 'ash' ? 0 : wet ? 2 : 1;
+    for (let k = 0; k < count; k++) {
+      const spot = spots[(first + k) % spots.length];
+      if (spot) pond(spot[0], spot[1], spot[2], spot[3], rim);
+    }
+    if (biome !== 'snow') {
+      flowers(1, 1, 18, 22, biome === 'bloom' ? 26 : biome === 'ash' ? 2 : 6);
+    }
+  }
+
+  if (biome === 'snow') {
+    for (let i = 0; i < m.tiles.length; i++) {
+      if (m.tiles[i] === Tile.Grass) m.tiles[i] = Tile.Snow;
+      else if (m.tiles[i] === Tile.TallGrass) m.tiles[i] = Tile.DeepSnow;
+    }
+  }
+
+  const after = reachable(m);
+  for (const at of before) {
+    if (after.has(at) || WALKABLE_SOLID.has(m.tiles[at] ?? Tile.Void)) continue;
+    throw new Error(
+      `scenery: ${m.id} tile (${at % m.width},${Math.floor(at / m.width)}) can no longer be walked to`,
+    );
+  }
+}
+
+for (const m of maps) dress(m);
+
+// ===========================================================================
 // Emit
 // ===========================================================================
 
