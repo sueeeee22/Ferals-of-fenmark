@@ -432,14 +432,57 @@ function tileTallGrass(frame: 0 | 1): Uint8Array {
   return g;
 }
 
-function tileWater(frame: 0 | 1): Uint8Array {
+/** How many frames the water runs through. */
+const WATER_FRAMES = 4;
+
+/** Which sides of a water tile are land. Bits, so they can be the cache key. */
+export const SHORE = { N: 1, E: 2, S: 4, W: 8 } as const;
+
+/**
+ * Water: dark, with pale wavelets that drift sideways a little each frame and
+ * a glint that moves about, and a bank wherever it meets land.
+ *
+ * It was two frames of the same brickwork shifted four pixels, on tiles that
+ * knew nothing about their neighbours - so a pond was a rectangle of carpet.
+ * The bank is what makes it sit IN the ground: a dark lip on every side that
+ * is land, and a line of foam along the top one that comes and goes.
+ */
+function tileWater(frame: number, shore = 0): Uint8Array {
   const g = blankGrid(2);
-  const shift = frame === 0 ? 0 : 4;
-  for (let y = 0; y < TS; y += 4) {
+  const rows: ReadonlyArray<readonly [number, number]> = [[3, 1], [8, 9], [13, 5]];
+  for (const [y, start] of rows) {
+    const x0 = start + frame * 2 + (y === 8 ? frame : 0);
+    for (let i = 0; i < 4; i++) setPx(g, (x0 + i) % TS, y - (i === 1 || i === 2 ? 1 : 0), 1);
+  }
+  // The glint: one bright pixel pair, somewhere different each frame.
+  const gx = [4, 11, 7, 13][frame % WATER_FRAMES] ?? 4;
+  const gy = [10, 5, 14, 2][frame % WATER_FRAMES] ?? 10;
+  setPx(g, gx, gy, 0);
+  setPx(g, gx + 1, gy, 0);
+
+  if (shore & SHORE.N) {
+    fillRectG(g, 0, 0, TS - 1, 0, 3);
+    fillRectG(g, 0, 1, TS - 1, 1, 2);
     for (let x = 0; x < TS; x++) {
-      if ((x + shift) % 8 < 4) setPx(g, x, y + 1, 1);
+      if ((x + frame * 3) % 8 < 5) setPx(g, x, 2, 1);
     }
   }
+  if (shore & SHORE.S) fillRectG(g, 0, TS - 1, TS - 1, TS - 1, 3);
+  if (shore & SHORE.W) fillRectG(g, 0, 0, 0, TS - 1, 3);
+  if (shore & SHORE.E) fillRectG(g, TS - 1, 0, TS - 1, TS - 1, 3);
+  // Where two banks meet, the corner is filled in, so a pond is not a box.
+  const corner = (x: number, y: number, dx: number, dy: number): void => {
+    setPx(g, x, y, 3);
+    setPx(g, x + dx, y, 3);
+    setPx(g, x, y + dy, 3);
+    setPx(g, x + dx, y + dy, 3);
+    setPx(g, x + dx * 2, y, 3);
+    setPx(g, x, y + dy * 2, 3);
+  };
+  if ((shore & SHORE.N) && (shore & SHORE.W)) corner(0, 0, 1, 1);
+  if ((shore & SHORE.N) && (shore & SHORE.E)) corner(TS - 1, 0, -1, 1);
+  if ((shore & SHORE.S) && (shore & SHORE.W)) corner(0, TS - 1, 1, -1);
+  if ((shore & SHORE.S) && (shore & SHORE.E)) corner(TS - 1, TS - 1, -1, -1);
   return g;
 }
 
@@ -596,12 +639,23 @@ function tileDeepSnow(): Uint8Array {
   return g;
 }
 
-function tileFlower(): Uint8Array {
+/**
+ * Flowers: three heads on stems, nodding from one frame to the next. They used
+ * to be four three-pixel dots, which on stippled grass were not visible at all.
+ */
+function tileFlower(frame: 0 | 1): Uint8Array {
   const g = tileGrass();
-  const spots: ReadonlyArray<readonly [number, number]> = [[3, 4], [11, 3], [6, 10], [12, 12]];
-  for (const [x, y] of spots) {
-    circleG(g, x, y, 1, 0);
-    setPx(g, x, y, 3);
+  const heads: ReadonlyArray<readonly [number, number]> = [[4, 4], [11, 7], [6, 11]];
+  for (const [i, [hx, hy]] of heads.entries()) {
+    const x = hx + ((frame + i) % 2 === 0 ? 0 : 1);
+    // Stem first, so the head sits on top of it.
+    setPx(g, hx, hy + 2, 3);
+    setPx(g, hx, hy + 3, 3);
+    setPx(g, x, hy - 1, 0);
+    setPx(g, x - 1, hy, 0);
+    setPx(g, x + 1, hy, 0);
+    setPx(g, x, hy + 1, 0);
+    setPx(g, x, hy, 3);
   }
   return g;
 }
@@ -677,7 +731,7 @@ const TILE_GENERATORS: Readonly<Record<number, () => readonly Uint8Array[]>> = {
   [Tile.Grass]: () => [tileGrass()],
   [Tile.TallGrass]: () => [tileTallGrass(0), tileTallGrass(1)],
   [Tile.Path]: () => [tilePath()],
-  [Tile.Water]: () => [tileWater(0), tileWater(1)],
+  [Tile.Water]: () => [tileWater(0), tileWater(1), tileWater(2), tileWater(3)],
   [Tile.Wall]: () => [tileWall()],
   [Tile.Tree]: () => [tileTree()],
   [Tile.Rock]: () => [tileRock()],
@@ -690,7 +744,7 @@ const TILE_GENERATORS: Readonly<Record<number, () => readonly Uint8Array[]>> = {
   [Tile.Sand]: () => [tileSand()],
   [Tile.Snow]: () => [tileSnow()],
   [Tile.DeepSnow]: () => [tileDeepSnow()],
-  [Tile.Flower]: () => [tileFlower()],
+  [Tile.Flower]: () => [tileFlower(0), tileFlower(1)],
   [Tile.Fence]: () => [tileFence()],
   [Tile.Bridge]: () => [tileBridge()],
   [Tile.CaveFloor]: () => [tileCaveFloor()],
@@ -733,20 +787,128 @@ export function drawTile(
   y: number,
   variant = 0,
 ): void {
-  const frames = tileId === Tile.House
-    ? [tileHouse(variant === 1)]
-    : (TILE_ART[tileId] ?? TILE_ART[Tile.Void]);
-  if (!frames || frames.length === 0) return;
-  const idx = ((frame % frames.length) + frames.length) % frames.length;
+  const stock = TILE_ART[tileId] ?? TILE_ART[Tile.Void];
+  const count = tileId === Tile.House ? 1 : (stock?.length ?? 0);
+  if (count === 0) return;
+  const idx = ((frame % count) + count) % count;
   const key = `${tileId}:${idx}:${variant}`;
   let canvas = tileCanvasCache.get(key);
   if (!canvas) {
-    const pattern = frames[idx];
+    // The house and the water are drawn to suit their neighbours; everything
+    // else comes off the shelf. Built on a cache miss only - this runs for
+    // every tile on screen, every frame.
+    const pattern =
+      tileId === Tile.House ? tileHouse(variant === 1)
+        : tileId === Tile.Water ? tileWater(idx, variant)
+          : stock?.[idx];
     if (!pattern) return;
     canvas = tileToCanvas(pattern);
     tileCanvasCache.set(key, canvas);
   }
   ctx.drawImage(canvas, x, y);
+}
+
+// ---------------------------------------------------------------------------
+// Things that move in the open: grass parting round the player's feet, and
+// whatever is in the air. None of it is game state - the reducer does not know
+// a butterfly exists - so all of it is drawn from the frame counter alone.
+// ---------------------------------------------------------------------------
+
+const overlayCache = new Map<string, HTMLCanvasElement>();
+
+function overlay(key: string, build: () => Uint8Array): HTMLCanvasElement {
+  let canvas = overlayCache.get(key);
+  if (!canvas) {
+    const pattern = build();
+    const made = offscreen(TS, TS);
+    // 255 is "nothing here": an overlay is mostly holes.
+    for (let y = 0; y < TS; y++) {
+      for (let x = 0; x < TS; x++) {
+        const v = pattern[y * TS + x] ?? 255;
+        if (v === 255) continue;
+        made.ctx.fillStyle = shadeColor(v as Shade);
+        made.ctx.fillRect(x, y, 1, 1);
+      }
+    }
+    canvas = made.canvas;
+    overlayCache.set(key, canvas);
+  }
+  return canvas;
+}
+
+function holes(): Uint8Array {
+  const g = new Uint8Array(TS * TS);
+  g.fill(255);
+  return g;
+}
+
+/**
+ * The front of the long grass: the blades that stand between you and whoever
+ * is walking through it. Drawn over an actor's feet, it puts her IN the grass
+ * instead of on a picture of some.
+ */
+export function drawGrassFront(ctx: CanvasRenderingContext2D, frame: number, x: number, y: number): void {
+  const f = ((frame % 2) + 2) % 2;
+  const canvas = overlay(`front:${f}`, () => {
+    const g = holes();
+    const lean = f === 0 ? -1 : 1;
+    for (let i = 0; i < 6; i++) {
+      const bx = 1 + i * 2 + (i % 2);
+      for (let s = 0; s < 5; s++) setPx(g, bx + (s > 3 ? lean : 0), 15 - s, 3);
+      // A little of the ground between the blades, or her feet show through
+      // the gaps and she looks like she is standing on top.
+      for (let s = 0; s < 3; s++) setPx(g, bx + 1, 15 - s, 1);
+    }
+    return g;
+  });
+  ctx.drawImage(canvas, x, y);
+}
+
+/**
+ * The rustle: for a moment after a foot lands in it, the grass is thrown apart
+ * and a few bits of it are in the air. `age` counts from 0.
+ */
+export function drawGrassRustle(ctx: CanvasRenderingContext2D, age: number, x: number, y: number): void {
+  const stage = age < 5 ? 0 : age < 10 ? 1 : 2;
+  const canvas = overlay(`rustle:${stage}`, () => {
+    const g = holes();
+    const spread = stage + 1;
+    // Blades thrown outward from the middle, further each stage.
+    for (const side of [-1, 1] as const) {
+      for (let i = 0; i < 3; i++) {
+        const bx = 8 + side * (2 + i * 2);
+        for (let s = 0; s < 5; s++) setPx(g, bx + side * Math.floor((s * spread) / 3), 14 - s, 3);
+      }
+    }
+    // Bits in the air: up and out, then gone.
+    const lift = 3 + stage * 2;
+    for (const [dx, dy] of [[-5, 0], [4, 1], [-1, 2], [6, -1]] as const) {
+      if (stage === 2 && (dx === -1 || dx === 6)) continue;
+      setPx(g, 8 + dx + Math.sign(dx) * stage, 9 - lift + dy, 3);
+    }
+    return g;
+  });
+  ctx.drawImage(canvas, x, y);
+}
+
+/** A butterfly: four pixels, wings open or shut. */
+export function drawButterfly(ctx: CanvasRenderingContext2D, open: boolean, x: number, y: number): void {
+  ctx.fillStyle = shadeColor(3);
+  ctx.fillRect(x, y, 1, 2);
+  ctx.fillStyle = shadeColor(0);
+  if (open) {
+    ctx.fillRect(x - 2, y - 1, 2, 2);
+    ctx.fillRect(x + 1, y - 1, 2, 2);
+  } else {
+    ctx.fillRect(x - 1, y - 1, 1, 2);
+    ctx.fillRect(x + 1, y - 1, 1, 2);
+  }
+}
+
+/** A snowflake: a dot, or a slightly bigger dot for the ones that are nearer. */
+export function drawSnowflake(ctx: CanvasRenderingContext2D, near: boolean, x: number, y: number): void {
+  ctx.fillStyle = shadeColor(near ? 2 : 1);
+  ctx.fillRect(x, y, near ? 2 : 1, near ? 2 : 1);
 }
 
 // ---------------------------------------------------------------------------

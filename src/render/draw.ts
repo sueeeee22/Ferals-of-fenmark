@@ -158,6 +158,13 @@ function cameraFor(
 
 const ANIM_TICKS = 20;
 
+/** Which sides of the water tile at (tx,ty) are land - see gb.SHORE. */
+function shoreOf(map: GameMap, tx: number, ty: number): number {
+  const land = (x: number, y: number): boolean => tileAt(map, x, y) !== Tile.Water;
+  return (land(tx, ty - 1) ? gb.SHORE.N : 0) | (land(tx + 1, ty) ? gb.SHORE.E : 0)
+    | (land(tx, ty + 1) ? gb.SHORE.S : 0) | (land(tx - 1, ty) ? gb.SHORE.W : 0);
+}
+
 function drawTiles(ctx: CanvasRenderingContext2D, map: GameMap, cam: Camera, frame: number): void {
   const animFrame = Math.floor(frame / ANIM_TICKS);
   const startTx = Math.floor(-cam.originX / TILE_SIZE) - 1;
@@ -170,8 +177,127 @@ function drawTiles(ctx: CanvasRenderingContext2D, map: GameMap, cam: Camera, fra
       // A house tile with another house directly above it is WALL; the top
       // course of the building carries the roof. Without this every tile drew
       // its own little roof and a frontage became texture instead of a wall.
-      const variant = id === Tile.House && tileAt(map, tx, ty - 1) === Tile.House ? 1 : 0;
+      const variant =
+        id === Tile.House ? (tileAt(map, tx, ty - 1) === Tile.House ? 1 : 0)
+          : id === Tile.Water ? shoreOf(map, tx, ty)
+            : 0;
+      // Every tile of a kind is on the same beat, on purpose: the screen gate
+      // finds an undrawn person by comparing her square with a bare square of
+      // the same ground, and that only works while the two are identical.
       gb.drawTile(ctx, id, animFrame, cam.originX + tx * TILE_SIZE, cam.originY + ty * TILE_SIZE, variant);
+    }
+  }
+}
+
+// --- Life ---------------------------------------------------------------------
+//
+// Nothing below is game state. It is all worked out from the frame counter and
+// from where the player was drawn, so the reducer, the save file and the
+// playthrough bot have never heard of any of it.
+
+function hashText(s: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h >>> 0;
+}
+
+const DIRS: readonly Dir[] = ['down', 'left', 'right', 'up'];
+
+/**
+ * Which way somebody with nothing to do is looking. Most of the time, the way
+ * they were put; now and then, for a second, somewhere else. Only for people
+ * who are just standing about - a trainer's facing is a sightline and a
+ * shopkeeper's is a counter, and neither is free to wander.
+ */
+function idleFacing(id: string, kind: string, facing: Dir, frame: number): Dir {
+  if (kind !== 'talker') return facing;
+  const h = hashText(id);
+  const beat = Math.floor((frame + (h % 420)) / 60) % 7;
+  if (beat !== 5) return facing;
+  const other = DIRS[(h >>> 9) % DIRS.length] ?? facing;
+  return other === facing ? (DIRS[((h >>> 9) + 1) % DIRS.length] ?? facing) : other;
+}
+
+/** Where the grass was last stepped into, and when. */
+let rustleX = -1;
+let rustleY = -1;
+let rustleFrom = -1000;
+let rustleMap = '';
+let feetX = -1;
+let feetY = -1;
+
+const RUSTLE_TICKS = 15;
+
+/** The grass round the player's feet: parted where she just stepped, and in front of her legs. */
+function drawGrassRoundFeet(
+  ctx: CanvasRenderingContext2D, map: GameMap, cam: Camera, frame: number, px: number, py: number,
+): void {
+  // The tile her feet are on, from where she was DRAWN - half way through a
+  // step she is between two tiles and the nearer one is the one she is in.
+  const tx = Math.floor((px + TILE_SIZE / 2) / TILE_SIZE);
+  const ty = Math.floor((py + TILE_SIZE / 2) / TILE_SIZE);
+  const inGrass = tileAt(map, tx, ty) === Tile.TallGrass;
+  if (tx !== feetX || ty !== feetY || map.id !== rustleMap) {
+    // Arriving on a map is not stepping into grass, even if that is where the door is.
+    const stepped = map.id === rustleMap && feetX >= 0;
+    feetX = tx;
+    feetY = ty;
+    rustleMap = map.id;
+    if (inGrass && stepped) {
+      rustleX = tx;
+      rustleY = ty;
+      rustleFrom = frame;
+    }
+  }
+  if (inGrass) {
+    gb.drawGrassFront(ctx, Math.floor(frame / ANIM_TICKS), cam.originX + px, cam.originY + py);
+  }
+  const age = frame - rustleFrom;
+  if (age >= 0 && age < RUSTLE_TICKS && tileAt(map, rustleX, rustleY) === Tile.TallGrass) {
+    gb.drawGrassRustle(ctx, age, cam.originX + rustleX * TILE_SIZE, cam.originY + rustleY * TILE_SIZE);
+  }
+}
+
+const airCache = new Map<string, 'flowers' | 'snow' | 'none'>();
+
+function airOf(map: GameMap): 'flowers' | 'snow' | 'none' {
+  const known = airCache.get(map.id);
+  if (known !== undefined) return known;
+  const air = map.indoor ? 'none'
+    : map.tiles.includes(Tile.Snow) ? 'snow'
+      : map.tiles.includes(Tile.Flower) ? 'flowers'
+        : 'none';
+  airCache.set(map.id, air);
+  return air;
+}
+
+/** What is in the air: butterflies where there are flowers, snow where there is snow. */
+function drawAir(ctx: CanvasRenderingContext2D, map: GameMap, cam: Camera, frame: number): void {
+  const air = airOf(map);
+  if (air === 'flowers') {
+    const seed = hashText(map.id);
+    for (let i = 0; i < 3; i++) {
+      // Each one loops round a home of its own, on two speeds that never
+      // quite line up, so it wanders rather than orbits.
+      const hx = ((seed >>> (i * 5)) % (map.width - 4) + 2) * TILE_SIZE;
+      const hy = ((seed >>> (i * 5 + 3)) % (map.height - 4) + 2) * TILE_SIZE;
+      const t = frame + i * 211;
+      const x = hx + Math.round(Math.sin(t / 47) * 26 + Math.sin(t / 13) * 5);
+      const y = hy + Math.round(Math.cos(t / 61) * 18 + Math.sin(t / 9) * 3);
+      gb.drawButterfly(ctx, Math.floor(t / 6) % 2 === 0, cam.originX + x, cam.originY + y);
+    }
+  } else if (air === 'snow') {
+    // Fixed to the screen, not the map: snow falls where you are looking.
+    for (let i = 0; i < 26; i++) {
+      const h = hashText(`flake${i}`);
+      const near = i % 3 === 0;
+      const speed = near ? 0.9 : 0.5;
+      const x = ((h % LOGICAL_W) + Math.round(Math.sin((frame + h) / 40) * 6) + LOGICAL_W) % LOGICAL_W;
+      const y = Math.floor(((h >>> 8) % LOGICAL_H) + frame * speed) % LOGICAL_H;
+      gb.drawSnowflake(ctx, near, x, y);
     }
   }
 }
@@ -211,7 +337,7 @@ function drawWorldBackground(
     const sx = cam.originX + npc.x * TILE_SIZE;
     const sy = cam.originY + npc.y * TILE_SIZE;
     if (sx < -TILE_SIZE || sy < -TILE_SIZE || sx > LOGICAL_W || sy > LOGICAL_H) continue;
-    gb.drawActor(ctx, npc.sprite, npc.facing, 0, 0, sx, sy);
+    gb.drawActor(ctx, npc.sprite, idleFacing(npc.id, npc.kind, npc.facing, state.frame), 0, 0, sx, sy);
   }
 
   const pose = walkPose(progress, fromX, fromY);
@@ -224,6 +350,8 @@ function drawWorldBackground(
   lastCamX = cam.originX;
   lastCamY = cam.originY;
   gb.drawActor(ctx, 'player', dir, pose.frame, pose.step, playerSx, playerSy);
+  drawGrassRoundFeet(ctx, map, cam, state.frame, cam.playerPxX, cam.playerPxY);
+  drawAir(ctx, map, cam, state.frame);
 }
 
 /**
