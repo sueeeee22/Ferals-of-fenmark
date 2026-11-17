@@ -93,5 +93,20 @@ Audio was left alone, as asked.
 - **The screen gate finds an undrawn person by comparing her square with a bare square of the same ground.** A butterfly or a snowflake over either square is a small difference of its own. Every tile of a kind is kept on the same animation beat for the same reason - do not stagger them.
 - **The audio gate and a dev server both want port 5199.** With `vite` running there the gate fails on 404s that are nothing to do with sound.
 
+## Playtest fixes — DONE
+Five things the user found by playing, one commit each, all nine gates passing. What to know before touching them: STATE.md, "Playtest fixes".
+
+- **Battle menu.** FIGHT/BAG/PARTY/RUN is a column; up/down now step one row (they jumped two). No other menu had the mismatch.
+- **Dialogue.** Thirty-nine lines made of clipped fragments rewritten to read on first pass, same voice.
+- **Hair, not hats.** Six hairstyles, three hair shades, beards, per person. Tabitha has the only ponytail; Cass a brown bob.
+- **The catch.** The snare is a closed woven trap; the animal is pulled in, shown inside it while it wobbles, and stays shut in it after the catch.
+- **First-time explanations.** Kinds, snares and controls from Marlow after the starter pick; a hint in the first wild fight; a line at the first lodge, shop and kennel.
+
+**Left open:**
+- No Gen 1-style catching DEMONSTRATION (someone catching an animal in front of you). The explanation is spoken, plus the one-box hint in the first fight.
+- Kinds are explained once, in words. Nothing yet shows the chart, and the first super-effective hit is not pointed out.
+- Side-view faces are small: a bob or long hair leaves a three-pixel face in profile. Readable, not pretty.
+- Signposts and a few one-liners are still deliberately terse. They read on their own, so they were left. If a playtester flags another line, it is a dialogue.gen.ts edit plus `gauntlet:tone`.
+
 ## Phase 5 — Playability polish (effort: medium)
 Phone controls feel, options menu (text speed, music/sfx volume), clearer first ten minutes for a new player. Ask the user to playtest; their reports have found every bug the gates missed.

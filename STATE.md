@@ -359,6 +359,26 @@ ROADMAP.md is the list. Phases 1-3 are done; Phase 4 (content and feel) is next.
   player outside her own door, healed, and asks the shell to save.
 - **The playthrough bot stops at the Hall**, exactly as before. It has never seen the post-game.
 
+## Playtest fixes (after Phase 4)
+
+- **The battle menu is one column, so it navigates as one.** It used to step by two on up/down
+  as if it were Gen 1's 2x2 grid. Left/right also step one row. Every other menu was checked: the
+  starter picker is the only side-by-side one.
+- **People are drawn by LOOK id, not sprite id** (`lookIdFor` in `draw.ts`, `variantFor` in
+  `gb.ts`). Named people (sprite `rival`/`leader`/`elite`, or the Warden) are keyed by name so they
+  match on every map; everyone else by NPC id. White hair is value `WHITE` (4) in the actor grid,
+  because 0 there means "no pixel". Hair is never the light shade - that is skin. The ponytail
+  (`tail`) is Tabitha's alone; Cass is fixed to a brown bob in `FIXED_LOOKS`.
+- **The snare is a closed trap, and a caught animal stays in it.** `ShownSide.trapped` is set
+  when a throw that holds is launched; the battle screen then draws the locked trap (with the
+  animal's shape inside) instead of the animal, so "X is yours now." is never said over an animal
+  standing on the field. `SNARE_PULL_FRAMES` grew to 34 to fit open / suck in / snap shut / drop;
+  the audio's land sound is still the end of that beat because it reads the same constant.
+- **First-time explanations are `teach_*` dialogue keys, gated by `taught_*` flags**
+  (`teachOnce` in `game.ts`). Kinds and snares after the starter is picked, a one-box hint in the
+  first wild fight, and one block each at the first lodge, shop and kennel. Old saves will hear the
+  lodge/shop/kennel ones once on their next visit, which is harmless.
+
 ## Sound (`src/audio/`)
 
 - **Nothing is a recording.** Four voices are synthesised on Web Audio — two pulse
