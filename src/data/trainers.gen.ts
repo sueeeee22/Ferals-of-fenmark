@@ -111,6 +111,37 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "introKey": "gym1_intro",
     "defeatKey": "gym1_defeat"
   },
+  "gym1_again": {
+    "id": "gym1_again",
+    "name": "Dara Vantry",
+    "title": "Head of House Vantry",
+    "team": [
+      {
+        "species": "harpy_adult",
+        "level": 61
+      },
+      {
+        "species": "goose_adult",
+        "level": 61
+      },
+      {
+        "species": "falcon_adult",
+        "level": 61
+      },
+      {
+        "species": "magpie_adult",
+        "level": 61
+      },
+      {
+        "species": "falcon_apex",
+        "level": 63
+      }
+    ],
+    "aiLevel": 3,
+    "prize": 5500,
+    "introKey": "gym1_again",
+    "defeatKey": "gym1_again_defeat"
+  },
   "route2_trainer1": {
     "id": "route2_trainer1",
     "name": "Fenwalker",
@@ -188,6 +219,37 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "badgeName": "Toll",
     "introKey": "gym2_intro",
     "defeatKey": "gym2_defeat"
+  },
+  "gym2_again": {
+    "id": "gym2_again",
+    "name": "Margit Kell",
+    "title": "Head of House Kell",
+    "team": [
+      {
+        "species": "beaver_apex",
+        "level": 62
+      },
+      {
+        "species": "seaeagle_adult",
+        "level": 62
+      },
+      {
+        "species": "seaotter_adult",
+        "level": 62
+      },
+      {
+        "species": "beaver_adult",
+        "level": 62
+      },
+      {
+        "species": "beaver_apex",
+        "level": 64
+      }
+    ],
+    "aiLevel": 3,
+    "prize": 6000,
+    "introKey": "gym2_again",
+    "defeatKey": "gym2_again_defeat"
   },
   "route3_trainer1": {
     "id": "route3_trainer1",
@@ -285,6 +347,37 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "badgeName": "Ridge",
     "introKey": "gym3_intro",
     "defeatKey": "gym3_defeat"
+  },
+  "gym3_again": {
+    "id": "gym3_again",
+    "name": "Thistle Orrin",
+    "title": "Head of House Orrin",
+    "team": [
+      {
+        "species": "meerkat",
+        "level": 63
+      },
+      {
+        "species": "caracal_apex",
+        "level": 63
+      },
+      {
+        "species": "sunbear_adult",
+        "level": 63
+      },
+      {
+        "species": "fennec_adult",
+        "level": 63
+      },
+      {
+        "species": "caracal_apex",
+        "level": 65
+      }
+    ],
+    "aiLevel": 3,
+    "prize": 6500,
+    "introKey": "gym3_again",
+    "defeatKey": "gym3_again_defeat"
   },
   "route4_trainer1": {
     "id": "route4_trainer1",
@@ -387,6 +480,37 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "introKey": "gym4_intro",
     "defeatKey": "gym4_defeat"
   },
+  "gym4_again": {
+    "id": "gym4_again",
+    "name": "Augustine Pell",
+    "title": "Head of House Pell",
+    "team": [
+      {
+        "species": "porcupine_apex",
+        "level": 64
+      },
+      {
+        "species": "collie_apex",
+        "level": 64
+      },
+      {
+        "species": "tiger_apex",
+        "level": 64
+      },
+      {
+        "species": "blackbear_adult",
+        "level": 64
+      },
+      {
+        "species": "blackbear_apex",
+        "level": 66
+      }
+    ],
+    "aiLevel": 3,
+    "prize": 7000,
+    "introKey": "gym4_again",
+    "defeatKey": "gym4_again_defeat"
+  },
   "route5_trainer1": {
     "id": "route5_trainer1",
     "name": "Fenwalker",
@@ -487,6 +611,37 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "badgeName": "Pass",
     "introKey": "gym5_intro",
     "defeatKey": "gym5_defeat"
+  },
+  "gym5_again": {
+    "id": "gym5_again",
+    "name": "Wren Halloway",
+    "title": "Head of House Halloway",
+    "team": [
+      {
+        "species": "stoat_adult",
+        "level": 65
+      },
+      {
+        "species": "greyhound",
+        "level": 65
+      },
+      {
+        "species": "terrier_adult",
+        "level": 65
+      },
+      {
+        "species": "mastiff_apex",
+        "level": 65
+      },
+      {
+        "species": "arcticfox_apex",
+        "level": 67
+      }
+    ],
+    "aiLevel": 3,
+    "prize": 7500,
+    "introKey": "gym5_again",
+    "defeatKey": "gym5_again_defeat"
   },
   "route6_trainer1": {
     "id": "route6_trainer1",
@@ -589,6 +744,37 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "introKey": "gym6_intro",
     "defeatKey": "gym6_defeat"
   },
+  "gym6_again": {
+    "id": "gym6_again",
+    "name": "Leonore Ashgrove",
+    "title": "Head of House Ashgrove",
+    "team": [
+      {
+        "species": "redfox_adult",
+        "level": 66
+      },
+      {
+        "species": "owl_apex",
+        "level": 66
+      },
+      {
+        "species": "owl_adult",
+        "level": 66
+      },
+      {
+        "species": "rat_adult",
+        "level": 66
+      },
+      {
+        "species": "redfox_apex",
+        "level": 68
+      }
+    ],
+    "aiLevel": 3,
+    "prize": 8000,
+    "introKey": "gym6_again",
+    "defeatKey": "gym6_again_defeat"
+  },
   "route7_trainer1": {
     "id": "route7_trainer1",
     "name": "Fenwalker",
@@ -690,6 +876,37 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "introKey": "gym7_intro",
     "defeatKey": "gym7_defeat"
   },
+  "gym7_again": {
+    "id": "gym7_again",
+    "name": "Sera Mourne",
+    "title": "Head of House Mourne",
+    "team": [
+      {
+        "species": "lynx_apex",
+        "level": 67
+      },
+      {
+        "species": "ibex_adult",
+        "level": 67
+      },
+      {
+        "species": "mainecoon_adult",
+        "level": 67
+      },
+      {
+        "species": "arcticfox_adult",
+        "level": 67
+      },
+      {
+        "species": "polarbear_apex",
+        "level": 69
+      }
+    ],
+    "aiLevel": 3,
+    "prize": 8500,
+    "introKey": "gym7_again",
+    "defeatKey": "gym7_again_defeat"
+  },
   "route8_trainer1": {
     "id": "route8_trainer1",
     "name": "Fenwalker",
@@ -790,6 +1007,37 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "badgeName": "Crown",
     "introKey": "gym8_intro",
     "defeatKey": "gym8_defeat"
+  },
+  "gym8_again": {
+    "id": "gym8_again",
+    "name": "Hollis Brack",
+    "title": "Head of House Brack",
+    "team": [
+      {
+        "species": "blackbear_apex",
+        "level": 68
+      },
+      {
+        "species": "moose_apex",
+        "level": 68
+      },
+      {
+        "species": "mastiff_adult",
+        "level": 68
+      },
+      {
+        "species": "badger_adult",
+        "level": 68
+      },
+      {
+        "species": "mastiff_apex",
+        "level": 70
+      }
+    ],
+    "aiLevel": 3,
+    "prize": 9000,
+    "introKey": "gym8_again",
+    "defeatKey": "gym8_again_defeat"
   },
   "route9_trainer1": {
     "id": "route9_trainer1",

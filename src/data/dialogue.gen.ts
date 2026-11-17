@@ -495,6 +495,68 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   ],
 
   // -------------------------------------------------------------------------
+  // The swearing-in. Eight houses called you a usurper by Friday; by Sunday
+  // each of them will swear to you, and not one will do it without a fight.
+  // Spoken by a house head who has already lost to you once, after the crown.
+  // -------------------------------------------------------------------------
+  gym1_again: [
+    "DARA: Majesty. Sit. Not that chair. That one's Aubrey's. There. I said it. It isn't even August.",
+    "House Vantry swears to nobody it hasn't beaten or bedded, and you are not my type. Up you get.",
+  ],
+  gym1_again_defeat: [
+    "DARA: Sworn. The fen is yours, the wardens are yours, the towels were always yours. Mind the tooth.",
+  ],
+  gym2_again: [
+    "MARGIT KELL: The crown owes House Kell sixty thousand. You inherited that on Sunday. My congratulations.",
+    "Beat me again and I'll take a point off the interest. It is the most affection I have ever put in writing.",
+  ],
+  gym2_again_defeat: [
+    "MARGIT: One point. Entered. Dace asked after you, so it must be Tuesday. Good day, Majesty.",
+  ],
+  gym3_again: [
+    "THISTLE: He asked. Dinner. I said yes so fast a footman dropped a tray. Humiliating. Perfect.",
+    "I am in a wonderful mood and I must hit something before I become unbearable. You'll do, Majesty.",
+  ],
+  gym3_again_defeat: [
+    "THISTLE: Orrin swears. And tell Wren I lost beautifully. He worries when I win.",
+  ],
+  gym4_again: [
+    "PELL: Sit. Sleeve up. A crown raises the pulse, the blood, and the number of people who want you opened.",
+    "I'd swear House Pell to you now, but I never sign for a patient I haven't examined. So. Fight me.",
+  ],
+  gym4_again_defeat: [
+    "PELL: Sound heart, bad knees, appalling coat. Pell swears. Come back in a month and bring the cat.",
+  ],
+  gym5_again: [
+    "WREN: I asked her. Dinner. I had it written on my hand in case I lost the words. I lost the words.",
+    "She said yes regardless. I have not sat down since. Fight me. I need one thing today to go to plan.",
+  ],
+  gym5_again_defeat: [
+    "WREN: Twelve hundred spears, sworn. I'd kneel, but she can see me from the ridge and I'd never hear the end.",
+  ],
+  gym6_again: [
+    "LEONORE: The wedding's in October. Sera drew up the seating. Hollis is between two bishops, as a punishment.",
+    "Ashgrove swears to whoever beats me in my own counting house. It's a short list. You, and the farrier.",
+  ],
+  gym6_again_defeat: [
+    "LEONORE: Sworn and sealed, and I've put you at the top table. Wear something else. Anything else.",
+  ],
+  gym7_again: [
+    "SERA MOURNE: I had your coronation in the book for the ninth. You were two days early. I ruled a new page.",
+    "House Mourne swears in writing or not at all. I'll have the fight first. I like a document to be accurate.",
+  ],
+  gym7_again_defeat: [
+    "SERA: Sworn. Dated. Filed under 'Things I did not arrange.' It is a thin file. Don't tell Leonore.",
+  ],
+  gym8_again: [
+    "BRACK: Majesty. Eat. I've had the door taken off its hinges for the evening, as a courtesy. Look. No door.",
+    "You still want me dead for Marlow. Good. A queen should want something. Come and take the oath out of me.",
+  ],
+  gym8_again_defeat: [
+    "BRACK: House Brack swears. I'll see you out myself. Coat on first. Both arms. There. That's manners.",
+  ],
+
+  // -------------------------------------------------------------------------
   // Services
   // -------------------------------------------------------------------------
   lodge_heal: [
@@ -560,7 +622,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   ],
   town_ashgrove_b: [
     "Eleven years those two have been at it. By 'it' I mean letters about drainage.",
-    "I've a wager on him asking her by spring, and a daughter I can't marry off till it pays.",
+    "I've a wager on him asking her by spring, and a roof I can't mend until it pays.",
   ],
   town_briarhold_a: [
     "Pell set my arm, and told me who broke it, how drunk he was, and whose brandy it had been.",

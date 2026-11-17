@@ -895,6 +895,13 @@ function interactWithNpc(content: Content, state: GameState, npc: NpcDef): void 
     case 'rival':
     case 'leader':
       if (npc.flag !== undefined && hasFlag(p, npc.flag)) {
+        // After the crown, a house head will not swear to you until you have
+        // beaten them again. Once, and then they go back to what they say.
+        if (npc.rematch !== undefined && hasFlag(p, 'champion') && !hasFlag(p, `beat_${npc.rematch}`)) {
+          const again = content.trainer(npc.rematch);
+          say(state, content, again.introKey, { kind: 'battle', trainerId: npc.rematch });
+          return;
+        }
         say(state, content, `${npc.dialogue}_after`);
         return;
       }

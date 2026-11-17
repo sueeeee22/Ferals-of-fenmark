@@ -457,10 +457,32 @@ function buildGym(id: string, g: GymSpec, backTo: string, backX: number, backY: 
     introKey: `gym${g.n}_intro`,
     defeatKey: `gym${g.n}_defeat`,
   });
+  // The swearing-in: the same house, a year older and fully grown, for after
+  // the crown. Levels climb with the house so the eighth is still the wall.
+  const againId = `gym${g.n}_again`;
+  const againLevel = 60 + g.n;
+  trainers.push({
+    id: againId,
+    name: g.leader,
+    title: `Head of House ${g.house}`,
+    team: [
+      // Nothing unfinished: a level-68 pup is legal and is not a fight.
+      ...pick(4, againId, all(isType(g.type), legalAt(againLevel), (r) => r.stage !== 'pup'))
+        .map((r) => ({ species: r.id, level: againLevel })),
+      ...pick(1, `${againId}_ace`, all(isType(g.type), legalAt(againLevel), isStage('apex'))).map((r) => ({
+        species: r.id,
+        level: againLevel + 2,
+      })),
+    ],
+    aiLevel: 3,
+    prize: 5000 + g.n * 500,
+    introKey: `gym${g.n}_again`,
+    defeatKey: `gym${g.n}_again_defeat`,
+  });
   m.npcs.push({
     id: `${id}_leader`, kind: 'leader', x: 5, y: 3, facing: 'down',
     sprite: 'leader', name: g.leader, sight: 0,
-    dialogue: `gym${g.n}`, team: leaderId, flag: `beat_${leaderId}`,
+    dialogue: `gym${g.n}`, team: leaderId, flag: `beat_${leaderId}`, rematch: againId,
   });
   return m;
 }

@@ -168,6 +168,11 @@ export interface NpcDef {
    */
   readonly species?: string;
   readonly level?: number;
+  /**
+   * A second team, for after the crown: once this person has been beaten AND
+   * the player is Champion, talking to them starts this fight, once.
+   */
+  readonly rematch?: string;
 }
 
 /** A signpost: where it stands and which block of the script is written on it. */
