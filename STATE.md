@@ -323,6 +323,42 @@ ROADMAP.md is the list. Phases 1-3 are done; Phase 4 (content and feel) is next.
   into the bag and hid for two phases that shops sold nothing. If the bot needs
   something, it gets it the way a player does, and the run fails if it never did.
 
+## The world, the cast and the post-game (Phase 4)
+
+- **Hand-drawn animals live in `POSES` in `src/render/forge.ts`**, keyed by evolution line. A
+  pose draws in design units (x from the middle, y UP from the ground, facing left) through a
+  `Brush`, returns the function that inks the inside, and skips the family skeleton and the
+  generic coat shading entirely. Only the front view: `view === 'back'` returns before poses
+  are looked at. Judge them with a sheet, not by reading (`npm run forge:sheet`).
+- **A sprite must be ONE connected shape.** The screen gate counts anything else on the field
+  as debris. That is why the sea otter's water line touches its body, and why the adder has
+  no tongue.
+- **Scenery is a pass over finished maps** (`dress` in `scripts/gen/maps.ts`), run after every
+  builder has finished. It only replaces plain Grass, never a tile an NPC stands on, and it
+  flood-fills before and after: if a tile that could be walked to no longer can, the generator
+  throws. Add scenery there, not inside `buildTown`/`buildRoute`.
+- **Water is solid until the tide badge.** It existed as a tile for three phases and was on no
+  map. Ponds are small on purpose.
+- **Overworld life is render-only** (`drawGrassRoundFeet`, `drawAir`, `idleFacing` in
+  `src/render/draw.ts`). It reads the frame counter and where the player was drawn. Nothing in
+  `src/core` knows about it, and nothing should.
+- **The cast table is `GYMS` and `ELITE` in `scripts/gen/maps.ts`**; leader n speaks
+  `gym<n>_intro`. `town` is the map id (in saves, never changes); `townName` is what is shown.
+  `badge` is the id the engine keys off (`tide` swims); `badgeName` is what the house calls it.
+- **Cass's teams hold Baloo's line as a stand-in.** `trainerTeamFor` swaps it for the line this
+  save's rival took, for any trainer id starting `rival_` (and for `champion`, for history).
+- **A road trainer's `defeatKey` is its own `<line>_after`**, and lines are handed out in order
+  by `takeGossip()`. Adding a trainer shifts every later trainer's line.
+- **Signposts are `map.signs`**, a Sign tile plus the dialogue key written on it.
+- **`beast` is an NPC kind**: one animal, drawn as itself, fought by walking up to it. Its flag
+  is set when it is beaten OR caught; run, or lose, and it is still there. Three flags starting
+  `beast_` set `beasts_done`.
+- **`rematch` on an NPC** is a second team that is fought once, after the `champion` flag.
+- **The ending is three steps**: the Champion's defeat lines, then the `hallOfFame` scene (which
+  ignores A for `HALL_HOLD_TICKS`), then the `hall_of_fame` block and `goHome`, which puts the
+  player outside her own door, healed, and asks the shell to save.
+- **The playthrough bot stops at the Hall**, exactly as before. It has never seen the post-game.
+
 ## Sound (`src/audio/`)
 
 - **Nothing is a recording.** Four voices are synthesised on Web Audio — two pulse

@@ -1,7 +1,7 @@
 # Roadmap
 
 Each phase is one session-sized brief. "Done" means: gauntlets no worse than before, the change verified in a real browser (Playwright, `tests/browser.ts`), committed, and deployed.
-All nine gates pass as of Phase 3.
+All nine gates pass as of Phase 4.
 
 ## Phase 1 — See the screen — DONE
 `npm run gauntlet:visual` plays the real build in a browser from the title to the second town and reads the pixels: 20 rules, 23 checkpoints, about 75 seconds. How it works and how to debug it: STATE.md, "The screen".
@@ -66,8 +66,32 @@ Also fixed, from the "left for Phase 3" notes:
 - No fishing. Water is crossed with the Tide badge and has its own encounters, which is the surfing equivalent; the maps do not need more.
 - In the browser tour the box, the Dex and naming are only reached because a second animal gets caught on Route 1. The tour's clock is fixed so this is the same every run, but if the early encounter tables change and the catch stops happening, the gate will fail on "the tour never reached name-ask" - that means re-check the catch, not the feature.
 
-## Phase 4 — Content and feel (effort: high, medium for pure writing)
-More NPC dialogue in TONE.md's register (the hard rules in CLAUDE.md apply), a post-game, sprite polish on the weakest families (sea otters are the worst), overworld animation (water, grass rustle), and audio tuning from user feedback.
+## Phase 4 — Content and feel — DONE
+Eight commits, one piece each, all nine gates passing after the last. Each piece was also looked at in a real browser by loading a staged save and pressing buttons; that is NOT a gate (see the first known issue). What to know before touching any of it: STATE.md, "The world, the cast and the post-game (Phase 4)".
+
+- **Sprites.** Fifteen animals are now drawn one at a time instead of from their family's one stance: the sea otter (on its back in the water, clam on its chest), river otter, badger, honey badger, skunk, raccoon, meerkat, stoat, then beaver, hedgehog, squirrel, boar (striped piglet), adder (coiled - it had legs), platypus and pangolin.
+- **The world.** Every town was the same town and every route the same route. A scenery pass now gives each map ponds, flowers, a sandy coast (Saltmere) or snow (Whitlow), by where it is on the road.
+- **Life.** Water moves and has banks; long grass parts round Tabitha's feet and stands in front of her legs; flowers nod; villagers glance away; butterflies and snowflakes drift. None of it is game state.
+- **The script's cast is the game's cast.** The map table held a second, made-up set of leaders, so "DARA VANTRY: Sit." was followed by "Corwin Wren wants to fight." Leaders, the Table and the Champion (Isolde March) now match the script, and badges have their house's names.
+- **Cass.** Her six written meetings were never in the game. They are on routes 2, 3, 5, 7 and 9 and on the step at Ostmere.
+- **More to read.** Two villagers a town who talk about that town, twenty-four road lines instead of twelve with a comeback each, eleven signposts.
+- **A post-game.** Beating the Champion used to end on a THE END screen that could not be left. Now: her last lines, the Hall, the epilogue, and home with the crown on. Waiting there are the Warden of the Cross-Fen with three petitions (the three legendaries, one each on routes 3, 5 and 7), Cass and a level-70 team, and all eight house heads, who will each fight you again before they swear.
+
+Audio was left alone, as asked.
+
+**Known issues and things not built, for whoever is next:**
+- **Nothing automatic covers Cass, the signs, the beasts, the rematches or the ending.** The browser tour stops at the second town and the playthrough bot stops at the Hall. These were checked by hand with staged saves, once each. A save file made by a script is exactly the thing `__fenmark` refuses to allow, so do not mistake it for the gate. Extending the tour past the Hall is the first thing worth doing.
+- **Map ids no longer match four town names** (`harrowfen` is Vantry Fen, `ashgrove` is Orrin Ridge, `kestrelbridge` is Halloway Pass, `blackmourne` is Emberwick; `cross_fen` is Ostmere). The ids are in save files and cannot change.
+- **House types follow the balance order, not the script.** Leonore Ashgrove hands over the "Ember Badge" and runs a Gloom house; Thistle Orrin runs the Ember one. Moving the types would undo Phase 2.
+- **The Champion's ace is still Cass's starter line.** Isolde March fields the starter that beats yours, which made sense when Cass was the Champion. Left because `gauntlet:curve` is tuned against that exact team.
+- **The script names places with no map**: the Kell toll house, Ottrey. Lines only.
+- **An old save walking back north will meet Cass out of order** - a level-13 Cass on route 2 for a level-50 player. Harmless, and odd.
+- **The playthrough finishes with parties at 71-81** (it was 66-80). The bot now heals at the town ahead rather than the one behind, and trains when Cass holds a road. Re-run on the default seed only.
+- **Post-game balance is unmeasured.** No gate fights the rematches (61-70), Cass at 70, or the beasts (65-68, played by the best AI). The beasts use their species' ordinary catch rate.
+- **Back views are still each family's generic one**, including for the fifteen hand-drawn animals. Your own sea otter, seen from behind in a fight, is a lump. The wolverine, capybara, rat, wombat, porcupine and both ungulates with horns are still generic from the front.
+- **Deep snow does not part round her feet**, only long grass does. Sand and road look alike.
+- **The screen gate finds an undrawn person by comparing her square with a bare square of the same ground.** A butterfly or a snowflake over either square is a small difference of its own. Every tile of a kind is kept on the same animation beat for the same reason - do not stagger them.
+- **The audio gate and a dev server both want port 5199.** With `vite` running there the gate fails on 404s that are nothing to do with sound.
 
 ## Phase 5 — Playability polish (effort: medium)
 Phone controls feel, options menu (text speed, music/sfx volume), clearer first ten minutes for a new player. Ask the user to playtest; their reports have found every bug the gates missed.

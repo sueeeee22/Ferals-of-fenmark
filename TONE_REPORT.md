@@ -241,3 +241,36 @@ lists individual short boxes for a human to look at. Two exist, and both are del
 the punchline of the Vantry Fen sign whose previous box is "every door bars from the
 outside." A gate that deleted either of those to satisfy its own regex would be doing the
 opposite of its job.
+
+---
+
+## Phase 4 addendum - what changed, and who graded it
+
+The three "left for other owners" findings above are **closed**: the map table now carries
+the script's cast (Dara Vantry through Hollis Brack, the Table, Isolde March as Champion),
+and Cass's twelve keys are on the road and at the door at Ostmere.
+
+About 150 new boxes were added in the same pass: twenty town blocks (`town_<map>_a/b`),
+`npc_gossip_13` to `24`, fourteen new `_after` comebacks, `sign_7` to `sign_11`, the
+post-game (`crown_petitions`, `crown_petitions_done`, three `beast_*`, `rival_crown*`) and
+the swearing-in (`gym<n>_again`, `gym<n>_again_defeat`).
+
+**These were read against the three lines by the session that wrote them, not by an
+independent critic.** That is a weaker check than the one above and should be treated as
+one. What that read found:
+
+- *Adults.* Every speaker is a grown adult. One box was changed on the way through: a
+  villager at Orrin Ridge had "a daughter I can't marry off till it pays", which puts an
+  unaged daughter next to a marriage joke; it is now a roof.
+- *Creatures.* The animals in the new lines eat chairs, leave sermons early, review
+  sweeping and get sized up by a breeder ("Look at the shoulder on that"). None is near a
+  human's sex life. One draft line was dropped before it was written into the file because
+  it used a borrowed mare as an excuse to visit the farrier - the animal was only a prop,
+  and that is still too close.
+- *Fade to black.* Nothing happens on the page. The nearest things are Dara's "beaten or
+  bedded" and the Emberwick laundress, both talk.
+
+Not graded at all: whether the new lines are as funny as the old ones. They were written to
+the craft rules (joke last, a name and an injury, everyone wants something) and they pass
+`gauntlet:tone`, which measures neither.
+
