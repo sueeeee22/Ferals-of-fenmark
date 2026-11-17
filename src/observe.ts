@@ -18,6 +18,7 @@
 import type { Content, GameState, ShownSide } from './core/game.ts';
 import { activeOf } from './core/battle.ts';
 import { maxHp } from './core/creature.ts';
+import { effectiveness } from './core/types.ts';
 import type { Feral } from './core/creature.ts';
 
 export interface SeenFeral {
@@ -34,6 +35,8 @@ export interface SeenMove {
   readonly type: string;
   readonly pp: number;
   readonly maxPp: number;
+  /** How hard it lands on the animal being shown opposite: 2, 0.5, 0... 1 for a move that does no damage. */
+  readonly mult: number;
 }
 
 export interface SeenBattle {
@@ -244,7 +247,8 @@ export function observe(content: Content, s: GameState): Observation {
         shownEnemyHp: sc.shown.enemy.hp,
         moves: mine.moves.map((m) => {
           const mv = content.dex.move(m.move);
-          return { name: mv.name, type: mv.type, pp: m.pp, maxPp: m.maxPp };
+          const mult = mv.power <= 0 ? 1 : effectiveness(mv.type, content.dex.species(sc.shown.enemy.species).types);
+          return { name: mv.name, type: mv.type, pp: m.pp, maxPp: m.maxPp, mult };
         }),
       };
       break;

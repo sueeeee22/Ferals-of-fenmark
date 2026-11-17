@@ -18,8 +18,9 @@ import {
   STARTERS, WALK_FRAMES, starterChoices, BATTLE_INTRO_FRAMES, HALL_HOLD_TICKS,
   SNARE_THROW_FRAMES, SNARE_PULL_FRAMES, SNARE_WOBBLE_FRAMES, FLASH_FRAMES,
   bagCount, boxScroll, BOX_MAX, BOX_ROWS, DEX_ROWS, NAME_KEYS, NAME_MAX, NAME_ROWS, PARTY_ACTIONS,
-  type SnareThrow,
+  MENU_ROOT, type SnareThrow,
 } from '../core/game.ts';
+import { TYPES, effectiveness, effectTag, kindSheet, type FeralType } from '../core/types.ts';
 import { itemName, shopStock } from '../core/items.ts';
 import { activeOf } from '../core/battle.ts';
 import type { BattleState } from '../core/battle.ts';
@@ -744,6 +745,27 @@ function drawMessageBox(ctx: CanvasRenderingContext2D, text: string, narrow = fa
  */
 const MOVE_BOX = { x: gb.TEXTBOX_X, y: 88, w: gb.TEXTBOX_W, h: 48 };
 
+/**
+ * How hard the highlighted move lands on the animal you are facing: "x2",
+ * "x1/2", "x0", or nothing for an ordinary hit or a move that does no damage.
+ */
+export function moveTagAgainst(content: Content, power: number, type: FeralType, enemySpecies: string): string {
+  if (power <= 0) return '';
+  return effectTag(effectiveness(type, content.dex.species(enemySpecies).types));
+}
+
+/**
+ * The row under the move names: kind and hit mark on the left, power left on
+ * the right. "PP" gives way when the mark needs the room, so the two halves
+ * never run into each other: at least three spaces apart where they can be.
+ */
+export function moveInfoRow(type: string, tag: string, pp: number, maxPp: number): { left: string; right: string } {
+  const left = tag === '' ? type.toUpperCase() : `${type.toUpperCase()} ${tag}`;
+  const full = `PP ${pp}/${maxPp}`;
+  const right = left.length + 3 + full.length <= MOVE_NAME_COLS ? full : `${pp}/${maxPp}`;
+  return { left, right };
+}
+
 function drawMoveList(ctx: CanvasRenderingContext2D, content: Content, scene: BattleScene): void {
   const moves = activeOf(scene.battle.player).moves;
   const box = MOVE_BOX;
@@ -761,9 +783,9 @@ function drawMoveList(ctx: CanvasRenderingContext2D, content: Content, scene: Ba
   if (chosen) {
     const mv = content.dex.move(chosen.move);
     const y = box.y + 39;
-    const pp = `PP ${chosen.pp}/${chosen.maxPp}`;
-    gb.drawText(ctx, nameX, y, mv.type.toUpperCase(), 3);
-    gb.drawText(ctx, nameX + (MOVE_NAME_COLS - pp.length) * 8, y, pp, 3);
+    const row = moveInfoRow(mv.type, moveTagAgainst(content, mv.power, mv.type, scene.shown.enemy.species), chosen.pp, chosen.maxPp);
+    gb.drawText(ctx, nameX, y, row.left, 3);
+    gb.drawText(ctx, nameX + (MOVE_NAME_COLS - row.right.length) * 8, y, row.right, 3);
   }
 }
 
@@ -1241,8 +1263,6 @@ export function partyHeading(scene: {
   return ' PARTY';
 }
 
-/** Mirrors game.ts's private MENU_ROOT — the cursor math there assumes this order. */
-const MENU_ROOT = ['PARTY', 'BAG', 'DEX', 'SAVE', 'BACK'] as const;
 
 function drawMenu(ctx: CanvasRenderingContext2D, content: Content, state: GameState): void {
   if (state.scene.kind !== 'menu') return;
@@ -1271,7 +1291,58 @@ function drawMenu(ctx: CanvasRenderingContext2D, content: Content, state: GameSt
     drawBagOverlay(ctx, state.player.bag, scene.subCursor, scene.note === '' ? 'BAG' : scene.note);
     return;
   }
+  if (scene.sub === 'kinds') {
+    drawKinds(ctx, scene.subCursor);
+    return;
+  }
   drawDex(ctx, content, state, scene);
+}
+
+// ---------------------------------------------------------------------------
+// The kinds chart
+// ---------------------------------------------------------------------------
+
+/** One row of the chart page, and where its second column starts. */
+export const KINDS_ROW_H = 9;
+export const KINDS_COL2 = 10;
+
+/**
+ * The page for one kind, as rows of text: what its MOVES do to other kinds,
+ * then what other kinds' moves do to a FERAL of it. Two columns, because the
+ * longest list is five names and the screen is eighteen characters wide.
+ * Every gap between two things that are not one phrase is at least two
+ * spaces, or the eye (and the screen gate) reads them as one.
+ */
+export function kindsPage(kind: FeralType): string[] {
+  const k = kindSheet(kind);
+  const name = kind.toUpperCase();
+  const pair = (left: string, right: string): string => ` ${left}`.padEnd(KINDS_COL2) + right;
+  const cols = (left: readonly string[], right: readonly string[]): string[] => {
+    const out: string[] = [];
+    for (let i = 0; i < Math.max(left.length, right.length); i++) out.push(pair(left[i] ?? '', right[i] ?? '').trimEnd());
+    return out;
+  };
+  const rows = [`${name} MOVES`, pair('GOOD VS', 'BAD VS')];
+  rows.push(...cols(k.beats, k.blunted));
+  if (k.cannotTouch.length > 0) rows.push(` NO EFFECT   ${k.cannotTouch.join('   ')}`);
+  rows.push(`${name} FERALS`, pair('HURT BY', 'SAFE VS'));
+  rows.push(...cols(k.hurtBy, k.toughVs));
+  if (k.immuneTo.length > 0) rows.push(` IMMUNE   ${k.immuneTo.join('   ')}`);
+  return rows;
+}
+
+function drawKinds(ctx: CanvasRenderingContext2D, cursor: number): void {
+  const kind = TYPES[cursor] ?? TYPES[0];
+  // Two pixels of the world show down each side, as round every other page.
+  gb.drawBox(ctx, 2, 0, LOGICAL_W - 4, LOGICAL_H);
+  const head = `◀   ${kind.toUpperCase()}   ▶`;
+  // Centred on the 8px grid the rows below use.
+  const cols = Math.floor((LOGICAL_W / 8 - head.length) / 2);
+  gb.drawText(ctx, cols * 8, 6, head, 3);
+  const rows = kindsPage(kind);
+  for (let i = 0; i < rows.length; i++) {
+    gb.drawText(ctx, 8, 19 + i * KINDS_ROW_H, rows[i] ?? '', 3);
+  }
 }
 
 // ---------------------------------------------------------------------------

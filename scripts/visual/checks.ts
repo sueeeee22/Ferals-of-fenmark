@@ -16,6 +16,7 @@ import { Tile, tileAt, visibleNpcs, type GameMap } from '../../src/core/world.ts
 import type { Species } from '../../src/core/creature.ts';
 import { itemName, shopStock } from '../../src/core/items.ts';
 import { BOX_MAX, BOX_ROWS, boxScroll, DEX_ROWS, NAME_KEYS, NAME_MAX, NAME_ROWS, PARTY_ACTIONS } from '../../src/core/game.ts';
+import { TYPES, effectTag, kindSheet } from '../../src/core/types.ts';
 import type { SeenFeral } from '../../src/observe.ts';
 import type { Seen, Sight } from './stage.ts';
 import {
@@ -495,7 +496,7 @@ function inspectBanner(t: Tally, where: string, s: Sight, lay: Layout, world: Wo
   t.check('words', got === asDrawn(want), () => `${where}: this place is called ${quote(map.name)} but the banner reads ${quote(got)}`);
 }
 
-const MENU_ROOT = ['PARTY', 'BAG', 'DEX', 'SAVE', 'BACK'] as const;
+const MENU_ROOT = ['PARTY', 'BAG', 'DEX', 'KINDS', 'SAVE', 'BACK'] as const;
 
 function barFor(lay: Layout, box: Rect, y: number): Bar | null {
   return lay.bars.find((b) => contains(box, b) && Math.abs(b.y - y) <= 4) ?? null;
@@ -601,6 +602,19 @@ function inspectMenu(t: Tally, where: string, s: Sight, lay: Layout): void {
     const chosen = rd.runs.find((r) => r.text === MENU_ROOT[seen.cursor]);
     t.check('words', cursorRun !== undefined && chosen !== undefined && cursorRun.y === chosen.y, () =>
       `${where}: the cursor should be on ${MENU_ROOT[seen.cursor]}`);
+    return;
+  }
+
+  if (seen.sub === 'kinds') {
+    // The chart page: the kind being shown, and every kind named in its lists.
+    const kind = TYPES[seen.subCursor];
+    if (kind === undefined) return;
+    const text = allText(rd);
+    t.check('words', hasRun(rd, kind.toUpperCase()), () => `${where}: the chart should be on ${kind}; it reads ${quote(text)}`);
+    const k = kindSheet(kind);
+    for (const name of [...k.beats, ...k.blunted, ...k.cannotTouch, ...k.hurtBy, ...k.toughVs, ...k.immuneTo]) {
+      t.check('words', hasRun(rd, asDrawn(name)), () => `${where}: the ${kind} page should name ${name}; it reads ${quote(text)}`);
+    }
     return;
   }
 
@@ -934,12 +948,17 @@ function inspectBattle(t: Tally, where: string, s: Sight, lay: Layout): void {
     // The highlighted move's type and remaining power, on the row under the names.
     const chosen = b.moves[b.moveCursor];
     if (chosen !== undefined) {
-      const rd = lay.read(box);
-      const pp = `PP ${chosen.pp}/${chosen.maxPp}`;
-      t.check('words', hasRun(rd, pp), () =>
-        `${where}: ${quote(chosen.name)} has ${pp} but the list reads ${quote(rows.join(' / '))}`);
-      t.check('words', hasRun(rd, chosen.type.toUpperCase()), () =>
-        `${where}: ${quote(chosen.name)} is a ${chosen.type} move but the list reads ${quote(rows.join(' / '))}`);
+      // The row under the names: kind, the hit mark against this animal, and
+      // the power left. "PP" gives way when the mark needs the room. Compared
+      // with the gaps closed, because a long kind and mark leave too little
+      // room to keep them three cells apart.
+      const tag = effectTag(chosen.mult);
+      const left = tag === '' ? chosen.type.toUpperCase() : `${chosen.type.toUpperCase()} ${tag}`;
+      const full = `PP ${chosen.pp}/${chosen.maxPp}`;
+      const right = left.length + 3 + full.length <= 17 ? full : `${chosen.pp}/${chosen.maxPp}`;
+      const info = rows[rows.length - 1] ?? '';
+      t.check('words', squash(info) === squash(asDrawn(`${left}${right}`)), () =>
+        `${where}: under the moves should read ${quote(`${left} ... ${right}`)}; it reads ${quote(info)}`);
     }
     return;
   }

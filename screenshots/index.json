@@ -109,209 +109,227 @@
     },
     {
       "n": 12,
-      "name": "shop-shelf",
-      "scene": "shop",
+      "name": "menu-kinds",
+      "scene": "menu/kinds",
       "files": [
-        "12-shop-shelf-gb.png",
-        "12-shop-shelf-phone.png"
+        "12-menu-kinds-gb.png",
+        "12-menu-kinds-phone.png"
       ]
     },
     {
       "n": 13,
-      "name": "shop-sold",
-      "scene": "shop",
+      "name": "menu-kinds-next",
+      "scene": "menu/kinds",
       "files": [
-        "13-shop-sold-gb.png",
-        "13-shop-sold-phone.png"
+        "13-menu-kinds-next-gb.png",
+        "13-menu-kinds-next-phone.png"
       ]
     },
     {
       "n": 14,
-      "name": "route-grass",
-      "scene": "overworld",
+      "name": "shop-shelf",
+      "scene": "shop",
       "files": [
-        "14-route-grass-gb.png",
-        "14-route-grass-phone.png"
+        "14-shop-shelf-gb.png",
+        "14-shop-shelf-phone.png"
       ]
     },
     {
       "n": 15,
-      "name": "battle-wild",
-      "scene": "battle/main",
+      "name": "shop-sold",
+      "scene": "shop",
       "files": [
-        "15-battle-wild-gb.png",
-        "15-battle-wild-phone.png"
+        "15-shop-sold-gb.png",
+        "15-shop-sold-phone.png"
       ]
     },
     {
       "n": 16,
-      "name": "battle-moves",
-      "scene": "battle/moves",
+      "name": "route-grass",
+      "scene": "overworld",
       "files": [
-        "16-battle-moves-gb.png",
-        "16-battle-moves-phone.png"
+        "16-route-grass-gb.png",
+        "16-route-grass-phone.png"
       ]
     },
     {
       "n": 17,
-      "name": "battle-midturn",
+      "name": "battle-wild",
       "scene": "battle/main",
       "files": [
-        "17-battle-midturn-gb.png",
-        "17-battle-midturn-phone.png"
+        "17-battle-wild-gb.png",
+        "17-battle-wild-phone.png"
       ]
     },
     {
       "n": 18,
-      "name": "battle-aftermath",
-      "scene": "overworld",
+      "name": "battle-moves",
+      "scene": "battle/moves",
       "files": [
-        "18-battle-aftermath-gb.png",
-        "18-battle-aftermath-phone.png"
+        "18-battle-moves-gb.png",
+        "18-battle-moves-phone.png"
       ]
     },
     {
       "n": 19,
-      "name": "battle-snare",
+      "name": "battle-midturn",
       "scene": "battle/main",
       "files": [
-        "19-battle-snare-gb.png",
-        "19-battle-snare-phone.png"
+        "19-battle-midturn-gb.png",
+        "19-battle-midturn-phone.png"
       ]
     },
     {
       "n": 20,
-      "name": "save-confirm",
-      "scene": "dialogue",
+      "name": "battle-aftermath",
+      "scene": "overworld",
       "files": [
-        "20-save-confirm-gb.png",
-        "20-save-confirm-phone.png"
+        "20-battle-aftermath-gb.png",
+        "20-battle-aftermath-phone.png"
       ]
     },
     {
       "n": 21,
-      "name": "lodge-heal",
-      "scene": "dialogue",
+      "name": "battle-snare",
+      "scene": "battle/main",
       "files": [
-        "21-lodge-heal-gb.png",
-        "21-lodge-heal-phone.png"
+        "21-battle-snare-gb.png",
+        "21-battle-snare-phone.png"
       ]
     },
     {
       "n": 22,
-      "name": "menu-poultice",
-      "scene": "menu/party",
+      "name": "save-confirm",
+      "scene": "dialogue",
       "files": [
-        "22-menu-poultice-gb.png",
-        "22-menu-poultice-phone.png"
+        "22-save-confirm-gb.png",
+        "22-save-confirm-phone.png"
       ]
     },
     {
       "n": 23,
-      "name": "name-ask",
-      "scene": "naming",
+      "name": "lodge-heal",
+      "scene": "dialogue",
       "files": [
-        "23-name-ask-gb.png",
-        "23-name-ask-phone.png"
+        "23-lodge-heal-gb.png",
+        "23-lodge-heal-phone.png"
       ]
     },
     {
       "n": 24,
-      "name": "name-grid",
-      "scene": "naming",
+      "name": "menu-poultice",
+      "scene": "menu/party",
       "files": [
-        "24-name-grid-gb.png",
-        "24-name-grid-phone.png"
+        "24-menu-poultice-gb.png",
+        "24-menu-poultice-phone.png"
       ]
     },
     {
       "n": 25,
-      "name": "battle-party",
-      "scene": "battle/party",
+      "name": "name-ask",
+      "scene": "naming",
       "files": [
-        "25-battle-party-gb.png",
-        "25-battle-party-phone.png"
+        "25-name-ask-gb.png",
+        "25-name-ask-phone.png"
       ]
     },
     {
       "n": 26,
-      "name": "menu-party-two",
-      "scene": "menu/party",
+      "name": "name-grid",
+      "scene": "naming",
       "files": [
-        "26-menu-party-two-gb.png",
-        "26-menu-party-two-phone.png"
+        "26-name-grid-gb.png",
+        "26-name-grid-phone.png"
       ]
     },
     {
       "n": 27,
-      "name": "menu-party-moved",
-      "scene": "menu/party",
+      "name": "battle-party",
+      "scene": "battle/party",
       "files": [
-        "27-menu-party-moved-gb.png",
-        "27-menu-party-moved-phone.png"
+        "27-battle-party-gb.png",
+        "27-battle-party-phone.png"
       ]
     },
     {
       "n": 28,
-      "name": "dex-list",
-      "scene": "menu/dex",
+      "name": "menu-party-two",
+      "scene": "menu/party",
       "files": [
-        "28-dex-list-gb.png",
-        "28-dex-list-phone.png"
+        "28-menu-party-two-gb.png",
+        "28-menu-party-two-phone.png"
       ]
     },
     {
       "n": 29,
-      "name": "dex-entry",
-      "scene": "menu/dex",
+      "name": "menu-party-moved",
+      "scene": "menu/party",
       "files": [
-        "29-dex-entry-gb.png",
-        "29-dex-entry-phone.png"
+        "29-menu-party-moved-gb.png",
+        "29-menu-party-moved-phone.png"
       ]
     },
     {
       "n": 30,
-      "name": "dex-seen",
+      "name": "dex-list",
       "scene": "menu/dex",
       "files": [
-        "30-dex-seen-gb.png",
-        "30-dex-seen-phone.png"
+        "30-dex-list-gb.png",
+        "30-dex-list-phone.png"
       ]
     },
     {
       "n": 31,
-      "name": "box-party",
-      "scene": "box",
+      "name": "dex-entry",
+      "scene": "menu/dex",
       "files": [
-        "31-box-party-gb.png",
-        "31-box-party-phone.png"
+        "31-dex-entry-gb.png",
+        "31-dex-entry-phone.png"
       ]
     },
     {
       "n": 32,
-      "name": "box-stored",
-      "scene": "box",
+      "name": "dex-seen",
+      "scene": "menu/dex",
       "files": [
-        "32-box-stored-gb.png",
-        "32-box-stored-phone.png"
+        "32-dex-seen-gb.png",
+        "32-dex-seen-phone.png"
       ]
     },
     {
       "n": 33,
-      "name": "battle-trainer",
-      "scene": "battle/main",
+      "name": "box-party",
+      "scene": "box",
       "files": [
-        "33-battle-trainer-gb.png",
-        "33-battle-trainer-phone.png"
+        "33-box-party-gb.png",
+        "33-box-party-phone.png"
       ]
     },
     {
       "n": 34,
+      "name": "box-stored",
+      "scene": "box",
+      "files": [
+        "34-box-stored-gb.png",
+        "34-box-stored-phone.png"
+      ]
+    },
+    {
+      "n": 35,
+      "name": "battle-trainer",
+      "scene": "battle/main",
+      "files": [
+        "35-battle-trainer-gb.png",
+        "35-battle-trainer-phone.png"
+      ]
+    },
+    {
+      "n": 36,
       "name": "town-second",
       "scene": "overworld",
       "files": [
-        "34-town-second-gb.png",
-        "34-town-second-phone.png"
+        "36-town-second-gb.png",
+        "36-town-second-phone.png"
       ]
     }
   ]

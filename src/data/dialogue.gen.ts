@@ -71,7 +71,7 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   teach_kinds: [
     "MARLOW: Since you never listen, once more. Every animal has a kind: Fang, Frost, Ember, Claw, and on.",
     "Each kind beats some kinds and folds to others. Hit an animal with what it folds to and it drops fast.",
-    "The move list shows the kind of each move. Read it. That's the whole trick, and it costs nothing.",
+    "The move list shows each move's kind, and x2 when it hits hard. START, KINDS has the whole chart. Read it.",
   ],
   teach_snares: [
     "MARLOW: There are five snares in your coat. Wild animals only. Wear one down, then open the BAG and throw.",

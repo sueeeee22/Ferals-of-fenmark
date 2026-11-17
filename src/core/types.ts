@@ -167,6 +167,44 @@ export function effectivenessMessage(mult: number): string | null {
   return null;
 }
 
+/**
+ * The short mark the move list puts beside a move: how hard it lands on the
+ * animal in front of you. Empty for an ordinary hit.
+ */
+export function effectTag(mult: number): string {
+  if (mult === 0) return 'x0';
+  if (mult >= 4) return 'x4';
+  if (mult >= 2) return 'x2';
+  if (mult <= 0.25) return 'x1/4';
+  if (mult < 1) return 'x1/2';
+  return '';
+}
+
+/** What one kind's moves do to every kind, and what every kind's moves do to it. */
+export interface KindSheet {
+  /** Its moves hit these for double. */
+  readonly beats: readonly FeralType[];
+  /** Its moves hit these for half. */
+  readonly blunted: readonly FeralType[];
+  /** Its moves do nothing to these. */
+  readonly cannotTouch: readonly FeralType[];
+  /** A feral of this kind takes double from these kinds of move. */
+  readonly hurtBy: readonly FeralType[];
+  /** ...half from these. */
+  readonly toughVs: readonly FeralType[];
+  /** ...nothing from these. */
+  readonly immuneTo: readonly FeralType[];
+}
+
+export function kindSheet(kind: FeralType): KindSheet {
+  const atk = (m: number): FeralType[] => TYPES.filter((d) => effectivenessAgainst(kind, d) === m);
+  const def = (m: number): FeralType[] => TYPES.filter((a) => effectivenessAgainst(a, kind) === m);
+  return {
+    beats: atk(2), blunted: atk(0.5), cannotTouch: atk(0),
+    hurtBy: def(2), toughVs: def(0.5), immuneTo: def(0),
+  };
+}
+
 /** Every type that hits `defenders` for more than 1x. Used by trainer AI and the dex. */
 export function weaknessesOf(
   defenders: readonly [FeralType] | readonly [FeralType, FeralType],

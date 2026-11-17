@@ -882,6 +882,13 @@ async function tour(): Promise<void> {
   await st.press('down');
   await st.press('a');
   await checkpoint('menu-bag', { scene: 'menu', sub: 'bag' });
+  await st.press('b');
+  // The kinds chart: opens on the lead animal's kind; turn one page.
+  await st.press('down', 2);
+  await st.press('a');
+  await checkpoint('menu-kinds', { scene: 'menu', sub: 'kinds' });
+  await st.press('right');
+  await checkpoint('menu-kinds-next', { scene: 'menu', sub: 'kinds' });
   await st.press('b', 2);
 
   // --- The shop: look at the shelf, buy something, check the change ----------------
@@ -1001,7 +1008,7 @@ async function tour(): Promise<void> {
   // --- Saving ----------------------------------------------------------------------
   if ((await st.peek()).scene === 'overworld') {
     await st.press('start');
-    await st.press('down', 3);
+    await st.press('down', 4);
     await st.press('a');
     await readDialogue('saving', { name: 'save-confirm', atBox: 1 });
   }
@@ -1226,7 +1233,8 @@ try {
 // stops being taken is a check that silently stops being made.
 const REQUIRED = [
   'title', 'intro-dialogue', 'starter-winter', 'starter-baloo', 'starter-plato', 'overworld-house',
-  'overworld-town', 'npc-talk', 'menu-root', 'menu-party', 'menu-bag', 'shop-shelf', 'shop-sold',
+  'overworld-town', 'npc-talk', 'menu-root', 'menu-party', 'menu-bag', 'menu-kinds', 'menu-kinds-next',
+  'shop-shelf', 'shop-sold',
   'route-grass', 'battle-wild', 'menu-poultice', 'dex-list', 'dex-entry', 'box-party', 'box-stored',
   'name-ask', 'name-grid',
   'battle-moves', 'battle-midturn', 'battle-aftermath', 'battle-snare', 'save-confirm', 'lodge-heal',

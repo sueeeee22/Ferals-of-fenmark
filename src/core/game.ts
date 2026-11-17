@@ -10,6 +10,7 @@
  */
 
 import { Rng, type RngState } from './rng.ts';
+import { TYPES } from './types.ts';
 import { paginate, pageLength } from './text.ts';
 import { HIT_LINES, hitBucket } from '../data/hitlines.ts';
 import type { Feral, Species, StatusName } from './creature.ts';
@@ -333,7 +334,7 @@ export interface BattleScene {
 export interface MenuScene {
   readonly kind: 'menu';
   cursor: number;
-  sub: 'root' | 'party' | 'bag' | 'dex' | 'save';
+  sub: 'root' | 'party' | 'bag' | 'dex' | 'kinds' | 'save';
   subCursor: number;
   /**
    * Party list: which of PARTY_ACTIONS is highlighted for the animal under the
@@ -1772,7 +1773,8 @@ function endBattle(content: Content, state: GameState, scene: BattleScene, rng: 
 
 // --- Pause menu ------------------------------------------------------------
 
-const MENU_ROOT = ['PARTY', 'BAG', 'DEX', 'SAVE', 'BACK'] as const;
+/** The pause menu, top to bottom. `draw.ts` and both bots read it from here. */
+export const MENU_ROOT = ['PARTY', 'BAG', 'DEX', 'KINDS', 'SAVE', 'BACK'] as const;
 
 function openMenu(sub: MenuScene['sub'], cursor: number, subCursor: number): MenuScene {
   return { kind: 'menu', cursor, sub, subCursor, act: -1, moving: -1, using: '', note: '', entry: false };
@@ -1791,6 +1793,15 @@ function stepMenu(content: Content, state: GameState, scene: MenuScene, b: Butto
       sayRaw(state, ['Saved. The Fenmark remembers.']);
       return;
     }
+    if (choice === 'KINDS') {
+      // Open on the kind of the animal leading your party: the first thing
+      // anyone wants to know is what beats theirs.
+      const lead = state.player.party[0];
+      const first = lead === undefined ? undefined : content.dex.species(lead.species).types[0];
+      scene.sub = 'kinds';
+      scene.subCursor = first === undefined ? 0 : Math.max(0, TYPES.indexOf(first));
+      return;
+    }
     scene.sub = choice === 'PARTY' ? 'party' : choice === 'BAG' ? 'bag' : 'dex';
     scene.subCursor = 0;
     scene.act = -1;
@@ -1803,6 +1814,15 @@ function stepMenu(content: Content, state: GameState, scene: MenuScene, b: Butto
 
   if (scene.sub === 'party') {
     stepMenuParty(content, state, scene, b);
+    return;
+  }
+
+  if (scene.sub === 'kinds') {
+    // One page a kind; any direction turns the page, A or B closes the chart.
+    const n = TYPES.length;
+    if (pressed(state, b, 'right') || pressed(state, b, 'down')) scene.subCursor = (scene.subCursor + 1) % n;
+    if (pressed(state, b, 'left') || pressed(state, b, 'up')) scene.subCursor = (scene.subCursor + n - 1) % n;
+    if (pressed(state, b, 'a') || pressed(state, b, 'b')) scene.sub = 'root';
     return;
   }
 

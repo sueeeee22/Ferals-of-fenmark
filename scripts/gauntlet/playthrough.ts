@@ -11,7 +11,7 @@
 import { performance } from 'node:perf_hooks';
 import {
   newGame, step, chooseStarter, hasFlag, partyAlive,
-  NO_BUTTONS, WALK_FRAMES, NAME_ROWS,
+  NO_BUTTONS, WALK_FRAMES, NAME_ROWS, MENU_ROOT,
   type Buttons, type ButtonName, type Content, type GameState, type StarterId,
 } from '../../src/core/game.ts';
 import { canWalk, DIR_VEC, propsOf, tileAt, warpAt, type Dir, type GameMap, type NpcKind } from '../../src/core/world.ts';
@@ -1017,10 +1017,10 @@ class Bot {
     if (this.scene.kind !== 'overworld') this.settle();
     this.press('start');
     if (this.scene.kind === 'menu') {
-      // SAVE is index 3 in the root menu.
+      const save = MENU_ROOT.indexOf('SAVE');
       const s = this.scene;
       let guard = 0;
-      while (s.kind === 'menu' && s.cursor !== 3 && guard++ < 12) this.press('down');
+      while (s.kind === 'menu' && s.cursor !== save && guard++ < 12) this.press('down');
       this.press('a');
       this.clearDialogue();
     }
