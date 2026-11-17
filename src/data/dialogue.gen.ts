@@ -65,6 +65,31 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   ],
 
   // -------------------------------------------------------------------------
+  // First times. Each block is said once, at the moment the thing first
+  // matters, by somebody who resents having to explain it.
+  // -------------------------------------------------------------------------
+  teach_kinds: [
+    "MARLOW: Since you never listen, once more. Every animal has a kind: Fang, Frost, Ember, Claw, and on.",
+    "Each kind beats some kinds and folds to others. Hit an animal with what it folds to and it drops fast.",
+    "The move list shows the kind of each move. Read it. That's the whole trick, and it costs nothing.",
+  ],
+  teach_snares: [
+    "MARLOW: There are five snares in your coat. Wild animals only. Wear one down, then open the BAG and throw.",
+    "A fresh animal laughs at a snare. A tired one gets shut inside and sulks. Do that enough and it's a team.",
+    "MARLOW: Hold B to run. START for your animals, your bag and saving. Now go, and bring them back fed.",
+  ],
+  teach_lodge: [
+    "LODGE KEEPER: New, are you? A lodge patches up your animals. Free, any hour, as often as you can stand me.",
+    "Lose every fight you've got out there and somebody drags you back to the last lodge you slept in.",
+  ],
+  teach_shop: [
+    "Up and down picks it, left and right says how many, A pays. Snares catch. Poultices mend. B, and you're out.",
+  ],
+  teach_kennel: [
+    "Your party on one side, the box on the other. Left and right to swap sides, A sends one across.",
+  ],
+
+  // -------------------------------------------------------------------------
   // Cass - the rival
   // -------------------------------------------------------------------------
   rival_intro: [

@@ -634,6 +634,17 @@ function say(state: GameState, content: Content, key: string, then: PendingActio
   state.lastText = lines[0] ?? '';
 }
 
+/**
+ * The lines that explain something, the FIRST time it matters, and nothing
+ * every time after. New players did not know what a snare was, what the kinds
+ * meant or what a lodge did; Gen 1 told you at the moment you needed it.
+ */
+function teachOnce(content: Content, p: PlayerState, flag: string, key: string): readonly string[] {
+  if (hasFlag(p, flag)) return [];
+  setFlag(p, flag);
+  return content.dialogue(key);
+}
+
 function sayRaw(state: GameState, lines: readonly string[], then: PendingAction | null = null): void {
   state.scene = { kind: 'dialogue', lines: [...lines], index: 0, chars: 0, page: 0, then };
   state.lastText = lines[0] ?? '';
@@ -861,7 +872,7 @@ function interactWithNpc(content: Content, state: GameState, npc: NpcDef): void 
       p.respawnMap = p.mapId;
       p.respawnX = p.x;
       p.respawnY = p.y;
-      const lines = [...content.dialogue(npc.dialogue)];
+      const lines = [...teachOnce(content, p, 'taught_lodge', 'teach_lodge'), ...content.dialogue(npc.dialogue)];
       lines.push(hurt
         ? 'Your lot are fed, patched and asleep by the fire. Good as new.'
         : 'Nothing wrong with any of them. They sleep here anyway.');
@@ -879,7 +890,7 @@ function interactWithNpc(content: Content, state: GameState, npc: NpcDef): void 
       return;
     }
     case 'shop':
-      say(state, content, npc.dialogue, { kind: 'shop' });
+      sayRaw(state, [...content.dialogue(npc.dialogue), ...teachOnce(content, p, 'taught_shop', 'teach_shop')], { kind: 'shop' });
       return;
     case 'beast': {
       // One animal, in one place. Beat it or catch it and it is gone for good;
@@ -894,7 +905,7 @@ function interactWithNpc(content: Content, state: GameState, npc: NpcDef): void 
       return;
     }
     case 'box':
-      say(state, content, npc.dialogue, { kind: 'box' });
+      sayRaw(state, [...content.dialogue(npc.dialogue), ...teachOnce(content, p, 'taught_kennel', 'teach_kennel')], { kind: 'box' });
       return;
     case 'trainer':
     case 'rival':
@@ -940,7 +951,13 @@ function beginWildBattle(
 ): void {
   const wild = makeFeral(content.dex, speciesId, level, rng, 'wild');
   const battle = startBattle(state.player.party, [wild], { kind: 'wild', aiLevel: beastFlag === null ? 1 : 3 });
-  state.scene = makeBattleScene(content, state, battle, null, beastFlag, `A wild ${wild.nickname} blocks the way.`);
+  const scene = makeBattleScene(content, state, battle, null, beastFlag, `A wild ${wild.nickname} blocks the way.`);
+  state.scene = scene;
+  // The first wild fight, said where the snare is about to matter.
+  if (!hasFlag(state.player, 'taught_catch') && bagCount(state.player, 'snare') > 0) {
+    setFlag(state.player, 'taught_catch');
+    pushEvents(scene, [{ t: 'text', text: 'Tire it out, then try BAG, Snare.' }]);
+  }
 }
 
 function beginTrainerBattle(
@@ -1170,9 +1187,13 @@ function stepStarterPick(
   if (!pressed(state, b, 'a')) return;
   const pick = STARTERS[scene.cursor] ?? STARTERS[0];
   chooseStarter(content, state, pick);
+  // Kinds, snares and the two buttons nobody would guess, before the first
+  // step onto a road with wild animals on it.
   sayRaw(state, [
     `${content.dex.species(pick).name} it is.`,
+    ...teachOnce(content, state.player, 'taught_kinds', 'teach_kinds'),
     'Cass takes the one that beats yours. Of course Cass does.',
+    ...teachOnce(content, state.player, 'taught_snares', 'teach_snares'),
   ]);
 }
 

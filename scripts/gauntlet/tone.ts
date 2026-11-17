@@ -78,6 +78,8 @@ const SHORT_LINE = 15;
 const REQUIRED_KEYS: readonly string[] = [
   'intro',
   'starter_offer', 'starter_winter', 'starter_baloo', 'starter_plato',
+  // The first-time explanations (teachOnce in game.ts).
+  'teach_kinds', 'teach_snares', 'teach_lodge', 'teach_shop', 'teach_kennel',
   'rival_intro',
   'rival_1', 'rival_1_defeat', 'rival_2', 'rival_2_defeat', 'rival_3', 'rival_3_defeat',
   'rival_4', 'rival_4_defeat', 'rival_5', 'rival_5_defeat',
@@ -378,6 +380,7 @@ const BATTLE_KINDS: ReadonlySet<string> = new Set(['trainer', 'rival', 'leader']
     'hall_of_fame', 'blackout', 'shop_buy', 'shop_leave', 'kennel_leave',
     'catch_success', 'catch_fail', 'box_full', 'evolve', 'badge_get',
     'sign_1', 'sign_2', 'sign_3', 'sign_4', 'sign_5', 'sign_6',
+    'teach_kinds', 'teach_snares', 'teach_lodge', 'teach_shop', 'teach_kennel',
   ]) {
     referenced.add(key);
   }
