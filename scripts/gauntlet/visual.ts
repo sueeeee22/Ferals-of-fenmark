@@ -621,7 +621,7 @@ async function fight(plan: FightPlan): Promise<string> {
     if (b.sub === 'main') {
       await shotOnce(plan.shots?.menu, { scene: 'battle', sub: 'main', narrating: false });
       const target = want === 'fight' ? 0 : want === 'switch' ? 2 : 1;
-      if (b.cursor !== target) await press(b.cursor > target ? 'left' : 'right');
+      if (b.cursor !== target) await press(b.cursor > target ? 'up' : 'down');
       else await press('a');
       continue;
     }

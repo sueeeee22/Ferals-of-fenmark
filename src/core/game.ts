@@ -1516,10 +1516,12 @@ function stepBattle(
 
   switch (scene.sub) {
     case 'main': {
-      if (pressed(state, b, 'right')) scene.cursor = (scene.cursor + 1) % 4;
-      if (pressed(state, b, 'left')) scene.cursor = (scene.cursor + 3) % 4;
-      if (pressed(state, b, 'down')) scene.cursor = (scene.cursor + 2) % 4;
-      if (pressed(state, b, 'up')) scene.cursor = (scene.cursor + 2) % 4;
+      // FIGHT/BAG/PARTY/RUN is drawn as ONE column (see drawCommandGrid), so
+      // up and down step one row. They used to jump two, as if it were Gen 1's
+      // 2x2 grid, and the list could not be walked. Left/right also step, so a
+      // thumb trained on the grid still lands somewhere sensible.
+      if (pressed(state, b, 'down') || pressed(state, b, 'right')) scene.cursor = (scene.cursor + 1) % 4;
+      if (pressed(state, b, 'up') || pressed(state, b, 'left')) scene.cursor = (scene.cursor + 3) % 4;
       if (!pressed(state, b, 'a')) return;
       if (scene.cursor === 0) scene.sub = 'moves';
       else if (scene.cursor === 1) scene.sub = 'bag';

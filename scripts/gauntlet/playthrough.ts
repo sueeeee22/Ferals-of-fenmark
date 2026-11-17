@@ -227,7 +227,7 @@ class Bot {
               softenTurns++;
               const weak = this.weakestMoveIndex();
               if (weak >= 0) {
-                for (let g = 0; s.cursor !== 0 && g < 8; g++) this.press('right');
+                for (let g = 0; s.cursor !== 0 && g < 8; g++) this.press('up');
                 this.press('a');
                 let g = 0;
                 while (s.moveCursor !== weak && g++ < 8) this.press('down');
@@ -237,7 +237,7 @@ class Bot {
             }
             if (this.softenKos >= 2 || foe.hp / foeMax <= 0.45 || softenTurns >= 3) {
               const idx = this.snareIndex();
-              for (let g = 0; s.cursor !== 1 && g < 8; g++) this.press('right');
+              for (let g = 0; s.cursor !== 1 && g < 8; g++) this.press('down');
               this.press('a');
               let guard = 0;
               while (s.bagCursor !== idx && guard++ < 24) this.press('down');
@@ -258,7 +258,7 @@ class Bot {
         if (active && potion) {
           const max = maxHp(this.content.dex.species(active.species), active);
           if (active.hp / max < 0.25) {
-            for (let g = 0; s.cursor !== 1 && g < 8; g++) this.press('right');
+            for (let g = 0; s.cursor !== 1 && g < 8; g++) this.press('down');
             this.press('a');
             const idx = this.state.player.bag.indexOf(potion);
             for (let g = 0; s.bagCursor !== idx && g < 24; g++) this.press('down');
@@ -266,7 +266,7 @@ class Bot {
             continue;
           }
         }
-        for (let g = 0; s.cursor !== 0 && g < 8; g++) this.press('right');
+        for (let g = 0; s.cursor !== 0 && g < 8; g++) this.press('up');
         this.press('a');
         continue;
       }
