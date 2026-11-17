@@ -94,8 +94,10 @@ export interface TrainerDef {
   readonly team: readonly TrainerMember[];
   readonly aiLevel: number;
   readonly prize: number;
-  /** Badge granted on defeat, if this is a gym leader. */
+  /** Badge granted on defeat, if this is a gym leader. This is the id the engine keys off. */
   readonly badge?: string;
+  /** What the house calls its badge. Dara hands over the Fen Badge, not "the wing badge". */
+  readonly badgeName?: string;
   readonly introKey: string;
   readonly defeatKey: string;
 }
@@ -467,15 +469,19 @@ export function rivalFor(starter: string): string {
 /**
  * A trainer's team as THIS save meets it.
  *
- * Only the Champion's differs. Cass took the starter that beats yours at the
- * kennel gate, and the script says that is the animal waiting at the end -
- * but the team table has one ace for everybody (Baloo's line), so two players
- * in three met the wrong dog, and one of them met their own. Any member of the
- * Champion's team from a starter's line is swapped for the same stage of the
- * line the rival actually took.
+ * Only Cass's differs. She took the starter that beats yours at the kennel
+ * gate, and that is the animal she brings to every one of her fights - but the
+ * team table can only hold one line for everybody (Baloo's), so two players in
+ * three would meet the wrong dog, and one of them would meet their own. Any
+ * member of one of her teams from a starter's line is swapped for the same
+ * stage of the line this save's Cass actually took.
+ *
+ * (`champion` is in the list because the Champion's ace was hers before she
+ * was given her own fights, and the balance gates are tuned against it.)
  */
 export function trainerTeamFor(def: TrainerDef, rivalStarter: string): readonly TrainerMember[] {
-  if (def.id !== 'champion' || rivalStarter === '') return def.team;
+  const hers = def.id === 'champion' || def.id.startsWith('rival_');
+  if (!hers || rivalStarter === '') return def.team;
   const line = rivalStarter.split('_')[0] ?? '';
   const lines = STARTERS.map((id) => id.split('_')[0] ?? '');
   return def.team.map((m) => {
@@ -800,7 +806,9 @@ function stepOverworld(
     }
     const t = tileAt(map, p.x + dx, p.y + dy);
     if (t === 11 /* Tile.Sign */) {
-      sayRaw(state, ['Someone has carved something here. It is not flattering.']);
+      const post = map.signs?.find((sg) => sg.x === p.x + dx && sg.y === p.y + dy);
+      if (post !== undefined) say(state, content, post.dialogue);
+      else sayRaw(state, ['Someone has carved something here. It is not flattering.']);
       return;
     }
   }
@@ -1634,7 +1642,7 @@ function endBattle(content: Content, state: GameState, scene: BattleScene, rng: 
   if (outcome === 'won' && scene.trainerId !== null) {
     const def = content.trainer(scene.trainerId);
     lines.push(...content.dialogue(def.defeatKey));
-    if (def.badge !== undefined) lines.push(`You take the ${def.badge.toUpperCase()} badge.`);
+    if (def.badge !== undefined) lines.push(`You take the ${(def.badgeName ?? def.badge).toUpperCase()} badge.`);
     if (def.id === 'champion') {
       setFlag(p, 'champion');
       state.scene = { kind: 'hallOfFame', ticks: 0 };

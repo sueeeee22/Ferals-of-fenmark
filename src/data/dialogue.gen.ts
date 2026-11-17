@@ -476,6 +476,92 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   ],
 
   // -------------------------------------------------------------------------
+  // Townsfolk. Two to a town, and each of them is talking about THIS town:
+  // the house that runs it, and what living under that house is like.
+  // -------------------------------------------------------------------------
+  town_fenmark_a: [
+    "You're the Astacio woman. My sister bought a hound off you in the spring.",
+    "It has eaten two chairs and a will. She says it's the best money she ever spent.",
+    "She wasn't in the will.",
+  ],
+  town_fenmark_b: [
+    "The rider in the good black stopped here for water. I charged him for the water.",
+    "A king's dead, and I'm sorry for it, and I have a roof that wants mending by Friday.",
+  ],
+  town_harrowfen_a: [
+    "Every door in Vantry Fen bars from the outside. Dara calls it hospitality.",
+    "My husband was her guest for a fortnight. He calls it the best two weeks of his marriage.",
+  ],
+  town_harrowfen_b: [
+    "Nobody says the brother's name at her. Eleven weeks. We say 'the weather' and mean Aubrey.",
+    "It has been a very hard season for weather.",
+  ],
+  town_saltmere_a: [
+    "I owe House Kell nine crowns. Margit sent a man round to tell me that she knew.",
+    "That's all he said. He had a cup of tea and left. I have not slept since the Tuesday.",
+  ],
+  town_saltmere_b: [
+    "Dace ties up at the wharf at dusk on a Tuesday and he's cast off again by six.",
+    "Twenty years on the barges and that is the only thing the man has ever been on time for.",
+  ],
+  town_ashgrove_a: [
+    "Lady Orrin crossed the market in the grey silk and a cart went straight into the fountain.",
+    "The carter isn't sorry. He's asked for it to be put on his headstone, with the date.",
+  ],
+  town_ashgrove_b: [
+    "Eleven years those two have been at it. By 'it' I mean letters about drainage.",
+    "I've a wager on him asking her by spring, and a daughter I can't marry off till it pays.",
+  ],
+  town_briarhold_a: [
+    "Pell set my arm, and told me who broke it, how drunk he was, and whose brandy it had been.",
+    "I'd only asked about the arm. Now I can't look at my brother-in-law.",
+  ],
+  town_briarhold_b: [
+    "Two ways into the Pell infirmary. On your feet, or carried in from somebody's wedding.",
+    "Boots off at the door either way. Pell has taken them off dead men who argued.",
+  ],
+  town_kestrelbridge_a: [
+    "Twelve hundred spears on this pass, and every man of them has read that letter.",
+    "We put it to a vote in the yard. It was unanimous. He should send the bloody thing.",
+  ],
+  town_kestrelbridge_b: [
+    "Lord Halloway held this road against two armies and never once sat down.",
+    "Thistle Orrin wrote back to him in March. One line. He had to be helped onto a barrel.",
+  ],
+  town_blackmourne_a: [
+    "Osric Vale mended my gate last week. There was nothing the matter with my gate.",
+    "There is a queue of women with broken gates from here to the harbour, and I started it.",
+  ],
+  town_blackmourne_b: [
+    "Three houses in one bed and not one of them will agree who pays the laundress.",
+    "I'm the laundress. I've started charging by the house. Mourne asked for a receipt.",
+  ],
+  town_whitlow_a: [
+    "Sera Mourne knows what I had for breakfast. That I can live with.",
+    "She has also written down what I'll be having tomorrow, and the woman is not wrong.",
+  ],
+  town_whitlow_b: [
+    "It hasn't stopped snowing in Whitlow since the funeral. Mourne has a clerk out measuring it.",
+    "Nobody knows who the report is for. All we know is that somebody will be blamed.",
+  ],
+  town_brackhall_a: [
+    "You'll be fed at Brackhall, and fed well. Eat slowly. Thank the cook by name.",
+    "And get your coat on, both arms, while you are still sitting at the table.",
+  ],
+  town_brackhall_b: [
+    "My brother dined with Hollis Brack in the spring. A lovely evening, by all accounts.",
+    "All of the accounts stop at the door.",
+  ],
+  town_cross_fen_a: [
+    "Four of them sit in that hall, and between them they picked the last three kings.",
+    "I asked what the Table is paid. Nobody knows. That's how you can tell it is a great deal.",
+  ],
+  town_cross_fen_b: [
+    "The Warden of the Cross-Fen came through with his arm in a sling, smiling like a lit window.",
+    "Says he'd do the whole thing again. He is saving up for it.",
+  ],
+
+  // -------------------------------------------------------------------------
   // NPC gossip
   // -------------------------------------------------------------------------
   npc_gossip_1: [
@@ -523,6 +609,55 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "Everyone wants the name said out loud. Everyone has guessed it. Nobody wants to go first.",
   ],
 
+  npc_gossip_13: [
+    "Vantry pays her wardens in coin and her calligrapher in wine.",
+    "The calligrapher is the one she can't replace. He knows it. He's on the good wine now.",
+  ],
+  npc_gossip_14: [
+    "I carried a letter from Halloway to Orrin once. Four days' ride over the ridge.",
+    "He caught me up at the first bridge, took it back, and paid me double to forget the address.",
+  ],
+  npc_gossip_15: [
+    "Kell lent my father forty crowns in a bad winter. We have paid it back three times over.",
+    "The sum has never got one crown smaller. Margit says that's arithmetic. I say it's weather.",
+  ],
+  npc_gossip_16: [
+    "Pell cut an arrowhead out of my cousin at dinner and told the whole table whose it was.",
+    "The meal went on another hour. Nobody passed the salt. Nobody dared reach.",
+  ],
+  npc_gossip_17: [
+    "They say Aldous named every horse in the royal stable himself. Forty horses.",
+    "Nineteen years of war, and that is what the man did with it.",
+  ],
+  npc_gossip_18: [
+    "Lady Ashgrove's farrier has ruined this county for the rest of us.",
+    "My wife looked at my hands on Sunday and sighed. Out loud. In church.",
+  ],
+  npc_gossip_19: [
+    "House Mourne keeps a file on everyone. I went to Whitlow and asked to see mine.",
+    "They said I'd seen it already, and showed me the entry where I had asked.",
+  ],
+  npc_gossip_20: [
+    "The Abbess blessed my hound, then talked for an hour about Margit Kell and damnation.",
+    "The hound got up and left half way through. I wasn't allowed to.",
+  ],
+  npc_gossip_21: [
+    "Boyd Tern buried nine men last month and went to all nine himself.",
+    "Stood at the back in the rain. Brought his own shovel. Wouldn't take the good chair.",
+  ],
+  npc_gossip_22: [
+    "Ruth Ansell took forty-one heads for the old king and knows what each one wanted for supper.",
+    "I would not sit down to eat with her. I'd be flattered to be asked, mind.",
+  ],
+  npc_gossip_23: [
+    "March ran this country for nineteen years and the king never noticed.",
+    "Then the king died, and the country never noticed that either.",
+  ],
+  npc_gossip_24: [
+    "My sister married a Brack. A lovely man. He holds the door for everybody.",
+    "In nine years of marriage she has never once seen anybody take him up on it.",
+  ],
+
   // -------------------------------------------------------------------------
   // Beaten road trainers and gym guards. The reducer says `<npc.dialogue>_after`
   // once the npc's flag is set, so every gossip key used as an npc dialogue
@@ -560,6 +695,58 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
     "Your animal watched the entire thing. I felt reviewed. I did not care to be reviewed.",
   ],
 
+  npc_gossip_1_after: [
+    "Beaten on a road, mid-week, by a stranger. Margit Kell would bill me for the use of the road.",
+  ],
+  npc_gossip_12_after: [
+    "I'll say this for losing. Nobody asks you for names afterwards. They just step over you.",
+  ],
+  npc_gossip_13_after: [
+    "I'd have this written up, but the only calligrapher in the fen is booked through August.",
+    "And it's all chests.",
+  ],
+  npc_gossip_14_after: [
+    "Twice now I've been stopped on a road by somebody with better reasons than mine.",
+    "At least you didn't take a letter off me.",
+  ],
+  npc_gossip_15_after: [
+    "Take the purse. It was Kell's money. It is always Kell's money. I only carry it about for her.",
+  ],
+  npc_gossip_16_after: [
+    "If I take this to Pell he'll tell the county how I came by it. I'll limp.",
+    "A limp keeps its mouth shut.",
+  ],
+  npc_gossip_17_after: [
+    "Nineteen years of war and he got to name forty horses.",
+    "I lasted four minutes and I didn't get to name a thing.",
+  ],
+  npc_gossip_18_after: [
+    "My wife will hear about this, and she will sigh again. That farrier has a lot to answer for.",
+  ],
+  npc_gossip_19_after: [
+    "That'll be in my file by Thursday. 'Lost on the road. Took it badly.'",
+    "They're thorough at Mourne. They will get the second part exactly right.",
+  ],
+  npc_gossip_20_after: [
+    "The Abbess says a beating is a gift from God. The Abbess says a great many things.",
+    "The hound had the right idea.",
+  ],
+  npc_gossip_21_after: [
+    "Don't trouble Tern with it. I'm not dead, I'm embarrassed, and he won't do a service for that.",
+    "I asked.",
+  ],
+  npc_gossip_22_after: [
+    "Well. If Ruth Ansell ever comes for me, I'll ask for eggs.",
+    "It worked out all right for number twelve. Briefly.",
+  ],
+  npc_gossip_23_after: [
+    "Nobody will notice this, either. That's the one comfort of the age.",
+    "Go on. I have a ditch to lie in and I'd like to get started.",
+  ],
+  npc_gossip_24_after: [
+    "After you. No, I insist. I only married into that family. I never picked up the habit.",
+  ],
+
   // -------------------------------------------------------------------------
   // Signs
   // -------------------------------------------------------------------------
@@ -577,6 +764,27 @@ export const DIALOGUE: Readonly<Record<string, readonly string[]>> = Object.free
   sign_6: [
     "NOTICE: By order of House Brack, this gate closes at dusk.",
     "Leave before then, and leave with your coat on properly.",
+  ],
+
+  sign_7: [
+    "FENMARK. Astacio kennels, first gate on the left.",
+    "No credit. That includes you, my lord.",
+  ],
+  sign_8: [
+    "SALTMERE. House Kell weighs every cart in and every cart out.",
+    "Other scales are available. They are also owned by House Kell.",
+  ],
+  sign_9: [
+    "HALLOWAY PASS. Twelve hundred spears. State your business.",
+    "If your business is Lady Orrin, state it faster than he has.",
+  ],
+  sign_10: [
+    "EMBERWICK. Seat of House Ashgrove. Three crests on the gate.",
+    "Do not ask the porter which of them goes on top.",
+  ],
+  sign_11: [
+    "WHITLOW. House Mourne. Your arrival has been noted.",
+    "So has the hour. So has the state of your boots.",
   ],
 
   // -------------------------------------------------------------------------

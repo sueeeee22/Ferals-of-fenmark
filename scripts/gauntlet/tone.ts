@@ -326,8 +326,9 @@ const BATTLE_KINDS: ReadonlySet<string> = new Set(['trainer', 'rival', 'leader']
         fail(`${where} dialogue '${npc.dialogue}' has no entry - renders as a placeholder`);
       }
 
-      // Every battle npc with a flag gets talked to again after it is beaten.
-      if (battle && npc.flag !== undefined) {
+      // Every battle npc with a flag gets talked to again after it is beaten -
+      // unless beating it is also what makes it leave (Cass does not wait about).
+      if (battle && npc.flag !== undefined && npc.hiddenByFlag !== npc.flag) {
         const after = `${npc.dialogue}_after`;
         if (DIALOGUE[after] === undefined) {
           fail(`${where} needs '${after}' for the post-defeat line - renders as a placeholder`);
@@ -360,6 +361,15 @@ const BATTLE_KINDS: ReadonlySet<string> = new Set(['trainer', 'rival', 'leader']
     for (const npc of map.npcs) {
       referenced.add(npc.dialogue);
       referenced.add(`${npc.dialogue}_after`);
+    }
+    // Signposts name a block of the script, and a block nobody wrote would be
+    // a placeholder on a post in the middle of a town.
+    for (const post of map.signs ?? []) {
+      referenced.add(post.dialogue);
+      if (DIALOGUE[post.dialogue] === undefined) {
+        failures++;
+        console.error(`  FAIL  ${map.id} signpost names '${post.dialogue}', which has no entry`);
+      }
     }
   }
   // Keys the reducer and the service screens look up by literal.

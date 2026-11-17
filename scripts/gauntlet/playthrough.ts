@@ -875,7 +875,11 @@ class Bot {
     const flags = new Set(this.state.player.flags);
     for (let depth = 0; depth < 6 && frontier.length > 0; depth++) {
       const next: string[] = [];
-      for (const id of frontier) {
+      // Two towns are often equally near - the one behind and the one ahead.
+      // Take the one ahead (maps list their north exit first, so: last first).
+      // Taking the one behind walked the bot a town north every time it stopped
+      // to heal, until it was "grinding" at level 57 on Route 1.
+      for (const id of [...frontier].reverse()) {
         let map: GameMap;
         try {
           map = this.content.world.map(id);
@@ -1175,7 +1179,19 @@ function playthrough(loaded: LoadedContent, starter: StarterId): RunResult {
     );
     for (const [i, id] of elite.entries()) {
       const mapId = id === 'champion' ? 'champion_hall' : `elite_${i + 1}`;
-      if (!bot.travelTo(mapId)) {
+      // Cass is on the road and on the step, and she does not move for being
+      // asked. Losing to her is not the end of a run any more than losing to
+      // the Table is: do what a player does, and come back stronger.
+      let arrived = bot.travelTo(mapId);
+      for (let tries = 0; !arrived && tries < 6; tries++) {
+        const lead = bot.state.player.party.reduce((b, f) => Math.max(b, f.level), 58);
+        trace(`  road to ${mapId} is held; lead=${lead}, going away to get better`);
+        bot.shop();
+        bot.grindTo(Math.min(80, lead + 3), 600000, 4);
+        bot.healUp();
+        arrived = bot.travelTo(mapId);
+      }
+      if (!arrived) {
         return bail(
           `could not reach ${mapId} from ${bot.state.player.mapId} ` +
             `(flags: ${bot.state.player.flags.filter((f) => f.startsWith('beat_')).join(',')})`,

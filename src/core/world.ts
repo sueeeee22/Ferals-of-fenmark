@@ -163,6 +163,13 @@ export interface NpcDef {
   readonly hiddenByFlag?: string;
 }
 
+/** A signpost: where it stands and which block of the script is written on it. */
+export interface SignDef {
+  readonly x: number;
+  readonly y: number;
+  readonly dialogue: string;
+}
+
 export interface GameMap {
   readonly id: string;
   readonly name: string;
@@ -172,6 +179,7 @@ export interface GameMap {
   readonly tiles: Uint8Array;
   readonly warps: readonly Warp[];
   readonly npcs: readonly NpcDef[];
+  readonly signs?: readonly SignDef[];
   readonly encounters: EncounterTable | null;
   /** Indoor maps do not show the location banner and use a different palette. */
   readonly indoor: boolean;

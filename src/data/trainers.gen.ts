@@ -14,8 +14,8 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 210,
-    "introKey": "npc_gossip_2",
-    "defeatKey": "npc_gossip_9"
+    "introKey": "npc_gossip_1",
+    "defeatKey": "npc_gossip_1_after"
   },
   "route1_trainer2": {
     "id": "route1_trainer2",
@@ -33,13 +33,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 210,
-    "introKey": "npc_gossip_3",
-    "defeatKey": "npc_gossip_10"
+    "introKey": "npc_gossip_2",
+    "defeatKey": "npc_gossip_2_after"
   },
   "gym1_guard1": {
     "id": "gym1_guard1",
     "name": "Sworn Blade",
-    "title": "of House Wren",
+    "title": "of House Vantry",
     "team": [
       {
         "species": "goose_pup",
@@ -52,13 +52,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 0,
     "prize": 520,
-    "introKey": "npc_gossip_2",
-    "defeatKey": "npc_gossip_7"
+    "introKey": "npc_gossip_3",
+    "defeatKey": "npc_gossip_3_after"
   },
   "gym1": {
     "id": "gym1",
-    "name": "Corwin Wren",
-    "title": "Head of House Wren",
+    "name": "Dara Vantry",
+    "title": "Head of House Vantry",
     "team": [
       {
         "species": "goose_pup",
@@ -72,6 +72,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "aiLevel": 1,
     "prize": 1700,
     "badge": "wing",
+    "badgeName": "Fen",
     "introKey": "gym1_intro",
     "defeatKey": "gym1_defeat"
   },
@@ -87,8 +88,8 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 300,
-    "introKey": "npc_gossip_3",
-    "defeatKey": "npc_gossip_10"
+    "introKey": "npc_gossip_4",
+    "defeatKey": "npc_gossip_4_after"
   },
   "route2_trainer2": {
     "id": "route2_trainer2",
@@ -106,13 +107,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 300,
-    "introKey": "npc_gossip_4",
-    "defeatKey": "npc_gossip_11"
+    "introKey": "npc_gossip_5",
+    "defeatKey": "npc_gossip_5_after"
   },
   "gym2_guard1": {
     "id": "gym2_guard1",
     "name": "Sworn Blade",
-    "title": "of House Calloway",
+    "title": "of House Kell",
     "team": [
       {
         "species": "riverotter_pup",
@@ -125,13 +126,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 0,
     "prize": 640,
-    "introKey": "npc_gossip_3",
-    "defeatKey": "npc_gossip_8"
+    "introKey": "npc_gossip_6",
+    "defeatKey": "npc_gossip_6_after"
   },
   "gym2": {
     "id": "gym2",
-    "name": "Ines Calloway",
-    "title": "Head of House Calloway",
+    "name": "Margit Kell",
+    "title": "Head of House Kell",
     "team": [
       {
         "species": "seaeagle_pup",
@@ -149,6 +150,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "aiLevel": 1,
     "prize": 2200,
     "badge": "tide",
+    "badgeName": "Toll",
     "introKey": "gym2_intro",
     "defeatKey": "gym2_defeat"
   },
@@ -164,8 +166,8 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 390,
-    "introKey": "npc_gossip_4",
-    "defeatKey": "npc_gossip_11"
+    "introKey": "npc_gossip_7",
+    "defeatKey": "npc_gossip_7_after"
   },
   "route3_trainer2": {
     "id": "route3_trainer2",
@@ -183,13 +185,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 390,
-    "introKey": "npc_gossip_5",
-    "defeatKey": "npc_gossip_12"
+    "introKey": "npc_gossip_8",
+    "defeatKey": "npc_gossip_8_after"
   },
   "gym3_guard1": {
     "id": "gym3_guard1",
     "name": "Sworn Blade",
-    "title": "of House Ashgrove",
+    "title": "of House Orrin",
     "team": [
       {
         "species": "sunbear_pup",
@@ -202,13 +204,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 760,
-    "introKey": "npc_gossip_4",
-    "defeatKey": "npc_gossip_9"
+    "introKey": "npc_gossip_9",
+    "defeatKey": "npc_gossip_9_after"
   },
   "gym3_guard2": {
     "id": "gym3_guard2",
     "name": "House Second",
-    "title": "of House Ashgrove",
+    "title": "of House Orrin",
     "team": [
       {
         "species": "caracal_pup",
@@ -221,13 +223,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 760,
-    "introKey": "npc_gossip_5",
-    "defeatKey": "npc_gossip_10"
+    "introKey": "npc_gossip_10",
+    "defeatKey": "npc_gossip_10_after"
   },
   "gym3": {
     "id": "gym3",
-    "name": "Leonore Ashgrove",
-    "title": "Head of House Ashgrove",
+    "name": "Thistle Orrin",
+    "title": "Head of House Orrin",
     "team": [
       {
         "species": "meerkat",
@@ -245,6 +247,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "aiLevel": 2,
     "prize": 2700,
     "badge": "ember",
+    "badgeName": "Ridge",
     "introKey": "gym3_intro",
     "defeatKey": "gym3_defeat"
   },
@@ -260,8 +263,8 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 480,
-    "introKey": "npc_gossip_5",
-    "defeatKey": "npc_gossip_12"
+    "introKey": "npc_gossip_11",
+    "defeatKey": "npc_gossip_11_after"
   },
   "route4_trainer2": {
     "id": "route4_trainer2",
@@ -279,13 +282,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 480,
-    "introKey": "npc_gossip_6",
-    "defeatKey": "npc_gossip_1"
+    "introKey": "npc_gossip_12",
+    "defeatKey": "npc_gossip_12_after"
   },
   "gym4_guard1": {
     "id": "gym4_guard1",
     "name": "Sworn Blade",
-    "title": "of House Thistle",
+    "title": "of House Pell",
     "team": [
       {
         "species": "collie_pup",
@@ -298,13 +301,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 880,
-    "introKey": "npc_gossip_5",
-    "defeatKey": "npc_gossip_10"
+    "introKey": "npc_gossip_13",
+    "defeatKey": "npc_gossip_13_after"
   },
   "gym4_guard2": {
     "id": "gym4_guard2",
     "name": "House Second",
-    "title": "of House Thistle",
+    "title": "of House Pell",
     "team": [
       {
         "species": "badger_adult",
@@ -317,13 +320,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 880,
-    "introKey": "npc_gossip_6",
-    "defeatKey": "npc_gossip_11"
+    "introKey": "npc_gossip_14",
+    "defeatKey": "npc_gossip_14_after"
   },
   "gym4": {
     "id": "gym4",
-    "name": "Ottiline Thistle",
-    "title": "Head of House Thistle",
+    "name": "Augustine Pell",
+    "title": "Head of House Pell",
     "team": [
       {
         "species": "tiger_adult",
@@ -345,6 +348,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "aiLevel": 2,
     "prize": 3200,
     "badge": "thorn",
+    "badgeName": "Bone",
     "introKey": "gym4_intro",
     "defeatKey": "gym4_defeat"
   },
@@ -360,8 +364,8 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 570,
-    "introKey": "npc_gossip_6",
-    "defeatKey": "npc_gossip_1"
+    "introKey": "npc_gossip_15",
+    "defeatKey": "npc_gossip_15_after"
   },
   "route5_trainer2": {
     "id": "route5_trainer2",
@@ -379,13 +383,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 570,
-    "introKey": "npc_gossip_7",
-    "defeatKey": "npc_gossip_2"
+    "introKey": "npc_gossip_16",
+    "defeatKey": "npc_gossip_16_after"
   },
   "gym5_guard1": {
     "id": "gym5_guard1",
     "name": "Sworn Blade",
-    "title": "of House Vantry",
+    "title": "of House Halloway",
     "team": [
       {
         "species": "collie_adult",
@@ -398,13 +402,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 1000,
-    "introKey": "npc_gossip_6",
-    "defeatKey": "npc_gossip_11"
+    "introKey": "npc_gossip_17",
+    "defeatKey": "npc_gossip_17_after"
   },
   "gym5_guard2": {
     "id": "gym5_guard2",
     "name": "House Second",
-    "title": "of House Vantry",
+    "title": "of House Halloway",
     "team": [
       {
         "species": "corgi_pup",
@@ -417,13 +421,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 1000,
-    "introKey": "npc_gossip_7",
-    "defeatKey": "npc_gossip_12"
+    "introKey": "npc_gossip_18",
+    "defeatKey": "npc_gossip_18_after"
   },
   "gym5": {
     "id": "gym5",
-    "name": "Dara Vantry",
-    "title": "Head of House Vantry",
+    "name": "Wren Halloway",
+    "title": "Head of House Halloway",
     "team": [
       {
         "species": "rat_adult",
@@ -445,6 +449,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "aiLevel": 2,
     "prize": 3700,
     "badge": "fang",
+    "badgeName": "Pass",
     "introKey": "gym5_intro",
     "defeatKey": "gym5_defeat"
   },
@@ -460,8 +465,8 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 660,
-    "introKey": "npc_gossip_7",
-    "defeatKey": "npc_gossip_2"
+    "introKey": "npc_gossip_19",
+    "defeatKey": "npc_gossip_19_after"
   },
   "route6_trainer2": {
     "id": "route6_trainer2",
@@ -479,13 +484,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 660,
-    "introKey": "npc_gossip_8",
-    "defeatKey": "npc_gossip_3"
+    "introKey": "npc_gossip_20",
+    "defeatKey": "npc_gossip_20_after"
   },
   "gym6_guard1": {
     "id": "gym6_guard1",
     "name": "Sworn Blade",
-    "title": "of House Mourne",
+    "title": "of House Ashgrove",
     "team": [
       {
         "species": "blackcat_pup",
@@ -498,13 +503,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 2,
     "prize": 1120,
-    "introKey": "npc_gossip_7",
-    "defeatKey": "npc_gossip_12"
+    "introKey": "npc_gossip_21",
+    "defeatKey": "npc_gossip_21_after"
   },
   "gym6_guard2": {
     "id": "gym6_guard2",
     "name": "House Second",
-    "title": "of House Mourne",
+    "title": "of House Ashgrove",
     "team": [
       {
         "species": "redfox_pup",
@@ -517,13 +522,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 2,
     "prize": 1120,
-    "introKey": "npc_gossip_8",
-    "defeatKey": "npc_gossip_1"
+    "introKey": "npc_gossip_22",
+    "defeatKey": "npc_gossip_22_after"
   },
   "gym6": {
     "id": "gym6",
-    "name": "Sera Mourne",
-    "title": "Head of House Mourne",
+    "name": "Leonore Ashgrove",
+    "title": "Head of House Ashgrove",
     "team": [
       {
         "species": "komodo_adult",
@@ -545,6 +550,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "aiLevel": 3,
     "prize": 4200,
     "badge": "gloom",
+    "badgeName": "Ember",
     "introKey": "gym6_intro",
     "defeatKey": "gym6_defeat"
   },
@@ -560,8 +566,8 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 750,
-    "introKey": "npc_gossip_8",
-    "defeatKey": "npc_gossip_3"
+    "introKey": "npc_gossip_23",
+    "defeatKey": "npc_gossip_23_after"
   },
   "route7_trainer2": {
     "id": "route7_trainer2",
@@ -579,13 +585,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 750,
-    "introKey": "npc_gossip_9",
-    "defeatKey": "npc_gossip_4"
+    "introKey": "npc_gossip_24",
+    "defeatKey": "npc_gossip_24_after"
   },
   "gym7_guard1": {
     "id": "gym7_guard1",
     "name": "Sworn Blade",
-    "title": "of House Sable",
+    "title": "of House Mourne",
     "team": [
       {
         "species": "mainecoon_apex",
@@ -598,13 +604,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 2,
     "prize": 1240,
-    "introKey": "npc_gossip_8",
-    "defeatKey": "npc_gossip_1"
+    "introKey": "npc_gossip_1",
+    "defeatKey": "npc_gossip_1_after"
   },
   "gym7_guard2": {
     "id": "gym7_guard2",
     "name": "House Second",
-    "title": "of House Sable",
+    "title": "of House Mourne",
     "team": [
       {
         "species": "mainecoon_apex",
@@ -617,13 +623,13 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 2,
     "prize": 1240,
-    "introKey": "npc_gossip_9",
-    "defeatKey": "npc_gossip_2"
+    "introKey": "npc_gossip_2",
+    "defeatKey": "npc_gossip_2_after"
   },
   "gym7": {
     "id": "gym7",
-    "name": "Halvard Sable",
-    "title": "Head of House Sable",
+    "name": "Sera Mourne",
+    "title": "Head of House Mourne",
     "team": [
       {
         "species": "mainecoon_pup",
@@ -645,6 +651,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "aiLevel": 3,
     "prize": 4700,
     "badge": "frost",
+    "badgeName": "Mourne",
     "introKey": "gym7_intro",
     "defeatKey": "gym7_defeat"
   },
@@ -660,8 +667,8 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 840,
-    "introKey": "npc_gossip_9",
-    "defeatKey": "npc_gossip_4"
+    "introKey": "npc_gossip_3",
+    "defeatKey": "npc_gossip_3_after"
   },
   "route8_trainer2": {
     "id": "route8_trainer2",
@@ -679,8 +686,8 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 840,
-    "introKey": "npc_gossip_10",
-    "defeatKey": "npc_gossip_5"
+    "introKey": "npc_gossip_4",
+    "defeatKey": "npc_gossip_4_after"
   },
   "gym8_guard1": {
     "id": "gym8_guard1",
@@ -698,8 +705,8 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 2,
     "prize": 1360,
-    "introKey": "npc_gossip_9",
-    "defeatKey": "npc_gossip_2"
+    "introKey": "npc_gossip_5",
+    "defeatKey": "npc_gossip_5_after"
   },
   "gym8_guard2": {
     "id": "gym8_guard2",
@@ -717,12 +724,12 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 2,
     "prize": 1360,
-    "introKey": "npc_gossip_10",
-    "defeatKey": "npc_gossip_3"
+    "introKey": "npc_gossip_6",
+    "defeatKey": "npc_gossip_6_after"
   },
   "gym8": {
     "id": "gym8",
-    "name": "Ruen Brack",
+    "name": "Hollis Brack",
     "title": "Head of House Brack",
     "team": [
       {
@@ -745,6 +752,7 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     "aiLevel": 3,
     "prize": 5200,
     "badge": "maw",
+    "badgeName": "Crown",
     "introKey": "gym8_intro",
     "defeatKey": "gym8_defeat"
   },
@@ -760,8 +768,8 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 930,
-    "introKey": "npc_gossip_10",
-    "defeatKey": "npc_gossip_5"
+    "introKey": "npc_gossip_7",
+    "defeatKey": "npc_gossip_7_after"
   },
   "route9_trainer2": {
     "id": "route9_trainer2",
@@ -779,13 +787,175 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
     ],
     "aiLevel": 1,
     "prize": 930,
-    "introKey": "npc_gossip_11",
-    "defeatKey": "npc_gossip_6"
+    "introKey": "npc_gossip_8",
+    "defeatKey": "npc_gossip_8_after"
+  },
+  "rival_1": {
+    "id": "rival_1",
+    "name": "Cass",
+    "title": "who got here first",
+    "team": [
+      {
+        "species": "collie_pup",
+        "level": 11
+      },
+      {
+        "species": "baloo_pup",
+        "level": 13
+      }
+    ],
+    "aiLevel": 1,
+    "prize": 1080,
+    "introKey": "rival_1",
+    "defeatKey": "rival_1_defeat"
+  },
+  "rival_2": {
+    "id": "rival_2",
+    "name": "Cass",
+    "title": "who got here first",
+    "team": [
+      {
+        "species": "stag_pup",
+        "level": 17
+      },
+      {
+        "species": "squirrel_pup",
+        "level": 17
+      },
+      {
+        "species": "baloo_adult",
+        "level": 19
+      }
+    ],
+    "aiLevel": 1,
+    "prize": 1440,
+    "introKey": "rival_2",
+    "defeatKey": "rival_2_defeat"
+  },
+  "rival_3": {
+    "id": "rival_3",
+    "name": "Cass",
+    "title": "who got here first",
+    "team": [
+      {
+        "species": "goose_adult",
+        "level": 28
+      },
+      {
+        "species": "retriever_adult",
+        "level": 28
+      },
+      {
+        "species": "kodiak_adult",
+        "level": 28
+      },
+      {
+        "species": "baloo_adult",
+        "level": 30
+      }
+    ],
+    "aiLevel": 2,
+    "prize": 2100,
+    "introKey": "rival_3",
+    "defeatKey": "rival_3_defeat"
+  },
+  "rival_4": {
+    "id": "rival_4",
+    "name": "Cass",
+    "title": "who got here first",
+    "team": [
+      {
+        "species": "greyhound",
+        "level": 38
+      },
+      {
+        "species": "meerkat",
+        "level": 38
+      },
+      {
+        "species": "goose_adult",
+        "level": 38
+      },
+      {
+        "species": "badger_adult",
+        "level": 38
+      },
+      {
+        "species": "baloo_apex",
+        "level": 40
+      }
+    ],
+    "aiLevel": 2,
+    "prize": 2700,
+    "introKey": "rival_4",
+    "defeatKey": "rival_4_defeat"
+  },
+  "rival_5": {
+    "id": "rival_5",
+    "name": "Cass",
+    "title": "who got here first",
+    "team": [
+      {
+        "species": "falcon_apex",
+        "level": 48
+      },
+      {
+        "species": "lynx_apex",
+        "level": 48
+      },
+      {
+        "species": "mainecoon_apex",
+        "level": 48
+      },
+      {
+        "species": "platypus",
+        "level": 48
+      },
+      {
+        "species": "baloo_apex",
+        "level": 50
+      }
+    ],
+    "aiLevel": 3,
+    "prize": 3300,
+    "introKey": "rival_5",
+    "defeatKey": "rival_5_defeat"
+  },
+  "rival_final": {
+    "id": "rival_final",
+    "name": "Cass",
+    "title": "who got here first",
+    "team": [
+      {
+        "species": "sunbear_adult",
+        "level": 51
+      },
+      {
+        "species": "komodo_adult",
+        "level": 51
+      },
+      {
+        "species": "squirrel_adult",
+        "level": 51
+      },
+      {
+        "species": "boar_adult",
+        "level": 51
+      },
+      {
+        "species": "baloo_apex",
+        "level": 53
+      }
+    ],
+    "aiLevel": 3,
+    "prize": 3480,
+    "introKey": "rival_final",
+    "defeatKey": "rival_final_defeat"
   },
   "elite_1": {
     "id": "elite_1",
-    "name": "Ysolde Vane",
-    "title": "of the Cross-Fen",
+    "name": "Ruth Ansell",
+    "title": "of the Table",
     "team": [
       {
         "species": "riverotter_pup",
@@ -815,8 +985,8 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
   },
   "elite_2": {
     "id": "elite_2",
-    "name": "Marek Auldwin",
-    "title": "of the Cross-Fen",
+    "name": "Nikolai Drue",
+    "title": "of the Table",
     "team": [
       {
         "species": "wolf_apex",
@@ -846,8 +1016,8 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
   },
   "elite_3": {
     "id": "elite_3",
-    "name": "Perrin Vosk",
-    "title": "of the Cross-Fen",
+    "name": "Odile Harrow",
+    "title": "of the Table",
     "team": [
       {
         "species": "housecat",
@@ -877,8 +1047,8 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
   },
   "elite_4": {
     "id": "elite_4",
-    "name": "Alarice Dunn",
-    "title": "of the Cross-Fen",
+    "name": "Boyd Tern",
+    "title": "of the Table",
     "team": [
       {
         "species": "harpy_apex",
@@ -908,8 +1078,8 @@ export const TRAINERS: Readonly<Record<string, TrainerDef>> = {
   },
   "champion": {
     "id": "champion",
-    "name": "Cass",
-    "title": "who took the crown first",
+    "name": "Isolde March",
+    "title": "who never left the building",
     "team": [
       {
         "species": "porcupine_adult",

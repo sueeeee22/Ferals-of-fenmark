@@ -31,6 +31,8 @@ interface GymSpec {
   readonly leader: string;
   readonly type: FeralType;
   readonly badge: string;
+  /** What the badge is CALLED. `badge` is the id the engine keys off (the tide badge swims). */
+  readonly badgeName: string;
   readonly level: number;
 }
 
@@ -58,22 +60,35 @@ interface GymSpec {
  * hard while punishing none of them - Brock's exact shape, with Plato cast as
  * Charmander. House Wren simply moves to the front; Kestrelbridge takes Fang.
  */
+/*
+ * THE CAST IS THE SCRIPT'S CAST. The dialogue table was written for Dara
+ * Vantry, Margit Kell, Thistle Orrin and the rest; this table used to hold a
+ * second, made-up set (Corwin Wren, Ines Calloway...), so a player heard
+ * "DARA VANTRY: Sit." and was then told that Corwin Wren wanted to fight.
+ * Leader n here speaks `gym<n>_intro`, and must be the person that block is for.
+ *
+ * `town` is the map id and is in every save file, so it never changes; it is
+ * `townName` that the player sees. Two of the ids no longer match their names
+ * (the map `ashgrove` is Orrin Ridge - House Ashgrove sits at Emberwick) and
+ * that is the price of not breaking saves.
+ */
 const GYMS: readonly GymSpec[] = [
-  { n: 1, town: 'harrowfen', townName: 'Harrowfen', house: 'Wren', leader: 'Corwin Wren', type: 'Wing', badge: 'wing', level: 12 },
-  { n: 2, town: 'saltmere', townName: 'Saltmere', house: 'Calloway', leader: 'Ines Calloway', type: 'Tide', badge: 'tide', level: 18 },
-  { n: 3, town: 'ashgrove', townName: 'Ashgrove', house: 'Ashgrove', leader: 'Leonore Ashgrove', type: 'Ember', badge: 'ember', level: 24 },
-  { n: 4, town: 'briarhold', townName: 'Briarhold', house: 'Thistle', leader: 'Ottiline Thistle', type: 'Thorn', badge: 'thorn', level: 29 },
-  { n: 5, town: 'kestrelbridge', townName: 'Kestrelbridge', house: 'Vantry', leader: 'Dara Vantry', type: 'Fang', badge: 'fang', level: 34 },
-  { n: 6, town: 'blackmourne', townName: 'Blackmourne', house: 'Mourne', leader: 'Sera Mourne', type: 'Gloom', badge: 'gloom', level: 39 },
-  { n: 7, town: 'whitlow', townName: 'Whitlow', house: 'Sable', leader: 'Halvard Sable', type: 'Frost', badge: 'frost', level: 44 },
-  { n: 8, town: 'brackhall', townName: 'Brackhall', house: 'Brack', leader: 'Ruen Brack', type: 'Maw', badge: 'maw', level: 49 },
+  { n: 1, town: 'harrowfen', townName: 'Vantry Fen', house: 'Vantry', leader: 'Dara Vantry', type: 'Wing', badge: 'wing', badgeName: 'Fen', level: 12 },
+  { n: 2, town: 'saltmere', townName: 'Saltmere', house: 'Kell', leader: 'Margit Kell', type: 'Tide', badge: 'tide', badgeName: 'Toll', level: 18 },
+  { n: 3, town: 'ashgrove', townName: 'Orrin Ridge', house: 'Orrin', leader: 'Thistle Orrin', type: 'Ember', badge: 'ember', badgeName: 'Ridge', level: 24 },
+  { n: 4, town: 'briarhold', townName: 'Briarhold', house: 'Pell', leader: 'Augustine Pell', type: 'Thorn', badge: 'thorn', badgeName: 'Bone', level: 29 },
+  { n: 5, town: 'kestrelbridge', townName: 'Halloway Pass', house: 'Halloway', leader: 'Wren Halloway', type: 'Fang', badge: 'fang', badgeName: 'Pass', level: 34 },
+  { n: 6, town: 'blackmourne', townName: 'Emberwick', house: 'Ashgrove', leader: 'Leonore Ashgrove', type: 'Gloom', badge: 'gloom', badgeName: 'Ember', level: 39 },
+  { n: 7, town: 'whitlow', townName: 'Whitlow', house: 'Mourne', leader: 'Sera Mourne', type: 'Frost', badge: 'frost', badgeName: 'Mourne', level: 44 },
+  { n: 8, town: 'brackhall', townName: 'Brackhall', house: 'Brack', leader: 'Hollis Brack', type: 'Maw', badge: 'maw', badgeName: 'Crown', level: 49 },
 ];
 
+/** The Table at Ostmere: the four who chose the last three kings. */
 const ELITE: readonly { readonly n: number; readonly name: string; readonly type: FeralType; readonly level: number }[] = [
-  { n: 1, name: 'Ysolde Vane', type: 'Claw', level: 52 },
-  { n: 2, name: 'Marek Auldwin', type: 'Feral', level: 54 },
-  { n: 3, name: 'Perrin Vosk', type: 'Hearth', level: 56 },
-  { n: 4, name: 'Alarice Dunn', type: 'Crown', level: 58 },
+  { n: 1, name: 'Ruth Ansell', type: 'Claw', level: 52 },
+  { n: 2, name: 'Nikolai Drue', type: 'Feral', level: 54 },
+  { n: 3, name: 'Odile Harrow', type: 'Hearth', level: 56 },
+  { n: 4, name: 'Boyd Tern', type: 'Crown', level: 58 },
 ];
 
 // ===========================================================================
@@ -179,6 +194,8 @@ interface Built {
   tiles: number[];
   warps: object[];
   npcs: object[];
+  /** Signposts: a Sign tile, and the block of the script written on it. */
+  signs?: { x: number; y: number; dialogue: string }[];
   encounters: object | null;
   indoor: boolean;
   music: string;
@@ -195,6 +212,32 @@ function set(m: Built, x: number, y: number, t: number): void {
 
 function rect(m: Built, x: number, y: number, w: number, h: number, t: number): void {
   for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) set(m, i, j, t);
+}
+
+/** Put up a signpost. */
+function sign(m: Built, x: number, y: number, dialogue: string): void {
+  set(m, x, y, Tile.Sign);
+  (m.signs ??= []).push({ x, y, dialogue });
+}
+
+/** Which block of the script is on each place's signpost. */
+const SIGN_KEY: Readonly<Record<string, string>> = {
+  harrowfen: 'sign_1', route_2: 'sign_2', ashgrove: 'sign_3', cross_fen: 'sign_4',
+  briarhold: 'sign_5', brackhall: 'sign_6', fenmark: 'sign_7', saltmere: 'sign_8',
+  kestrelbridge: 'sign_9', blackmourne: 'sign_10', whitlow: 'sign_11',
+};
+
+/**
+ * How many lines the road has to say. Road trainers and house guards each take
+ * the next one, so nobody repeats what the last person said until all
+ * twenty-four have been heard.
+ */
+const GOSSIP_LINES = 24;
+let nextGossip = 0;
+function takeGossip(): string {
+  const key = `npc_gossip_${(nextGossip % GOSSIP_LINES) + 1}`;
+  nextGossip++;
+  return key;
 }
 
 function border(m: Built, t: number): void {
@@ -297,17 +340,23 @@ function buildTown(
     buildGym(gymId, g, id, 9, 16);
   }
 
-  // Two gossiping townsfolk, because a town with nobody in it is a diorama.
+  // Two townsfolk, because a town with nobody in it is a diorama - and each
+  // has something to say about THIS town. They used to draw from one pool of
+  // twelve lines, so the same remark about a bargeman followed you up the map.
   m.npcs.push({
     id: `${id}_gossip_a`, kind: 'talker', x: 5, y: 11, facing: 'down',
     sprite: 'villager', name: 'Villager', sight: 0,
-    dialogue: `npc_gossip_${(hash(id) % 12) + 1}`,
+    dialogue: `town_${id}_a`,
   });
   m.npcs.push({
     id: `${id}_gossip_b`, kind: 'talker', x: 14, y: 12, facing: 'left',
     sprite: 'villager', name: 'Villager', sight: 0,
-    dialogue: `npc_gossip_${(hash(`${id}b`) % 12) + 1}`,
+    dialogue: `town_${id}_b`,
   });
+
+  // The signpost, by the crossroads.
+  const signKey = SIGN_KEY[id];
+  if (signKey !== undefined) sign(m, 11, 10, signKey);
   return m;
 }
 
@@ -355,6 +404,7 @@ function buildGym(id: string, g: GymSpec, backTo: string, backX: number, backY: 
   const guardPosts = g.n <= 2 ? [5] : [3, 7];
   for (const [i, gx] of guardPosts.entries()) {
     const tid = `gym${g.n}_guard${i + 1}`;
+    const line = takeGossip();
     trainers.push({
       id: tid,
       name: i === 0 ? 'Sworn Blade' : 'House Second',
@@ -364,13 +414,13 @@ function buildGym(id: string, g: GymSpec, backTo: string, backX: number, backY: 
       })),
       aiLevel: g.n <= 2 ? 0 : g.n <= 5 ? 1 : 2,
       prize: 400 + g.n * 120,
-      introKey: `npc_gossip_${((g.n + i) % 12) + 1}`,
-      defeatKey: `npc_gossip_${((g.n + i + 5) % 12) + 1}`,
+      introKey: line,
+      defeatKey: `${line}_after`,
     });
     m.npcs.push({
       id: `${id}_guard${i + 1}`, kind: 'trainer', x: gx, y: 8, facing: 'down',
       sprite: 'guard', name: 'Sworn Blade', sight: 4,
-      dialogue: `npc_gossip_${((g.n + i) % 12) + 1}`,
+      dialogue: line,
       team: tid, flag: `beat_${tid}`,
     });
   }
@@ -403,6 +453,7 @@ function buildGym(id: string, g: GymSpec, backTo: string, backX: number, backY: 
     aiLevel: g.n <= 2 ? 1 : g.n <= 5 ? 2 : 3,
     prize: 1200 + g.n * 500,
     badge: g.badge,
+    badgeName: g.badgeName,
     introKey: `gym${g.n}_intro`,
     defeatKey: `gym${g.n}_defeat`,
   });
@@ -446,6 +497,9 @@ function buildRoute(
     set(m, tx, ty, Tile.Rock);
   }
 
+  const signKey = SIGN_KEY[id];
+  if (signKey !== undefined) sign(m, 11, 2, signKey);
+
   // A one-way ledge back toward the previous town.
   rect(m, 11, 18, 6, 1, Tile.LedgeDown);
 
@@ -467,6 +521,7 @@ function buildRoute(
   for (let i = 0; i < 2; i++) {
     const tid = `route${n}_trainer${i + 1}`;
     const lvl = Math.max(2, Math.round((levels[0] + levels[1]) / 2) + 1);
+    const line = takeGossip();
     trainers.push({
       id: tid,
       name: i === 0 ? 'Fenwalker' : 'Houseless Sword',
@@ -476,8 +531,8 @@ function buildRoute(
       })),
       aiLevel: 1,
       prize: 120 + n * 90,
-      introKey: `npc_gossip_${((n + i) % 12) + 1}`,
-      defeatKey: `npc_gossip_${((n + i + 7) % 12) + 1}`,
+      introKey: line,
+      defeatKey: `${line}_after`,
     });
     m.npcs.push({
       id: `${id}_t${i + 1}`,
@@ -488,7 +543,7 @@ function buildRoute(
       sprite: 'trainer',
       name: i === 0 ? 'Fenwalker' : 'Houseless Sword',
       sight: 3,
-      dialogue: `npc_gossip_${((n + i) % 12) + 1}`,
+      dialogue: line,
       team: tid,
       flag: `beat_${tid}`,
     });
@@ -580,14 +635,82 @@ for (let i = 0; i < GYMS.length; i++) {
   });
 }
 
+/*
+ * CASS. Six meetings were written and none of them were in the game: she said
+ * hello in the yard and was next seen wearing the Champion's lines. They are
+ * on the road now, where the script puts them - after the first badge, before
+ * Orrin, after the barn, in Mourne grey, below the wardens - and at the door
+ * at Ostmere.
+ *
+ * Her team is built round the starter that beats yours. The table holds
+ * Baloo's line as a stand-in; `trainerTeamFor` in the reducer swaps it for the
+ * line this save's Cass actually took.
+ *
+ * She stands beside the road looking across it, so she cannot be walked past,
+ * and she leaves when it is over (`hiddenByFlag`): Cass does not wait about to
+ * be talked to.
+ */
+function cassTeam(tid: string, level: number, size: number): { species: string; level: number }[] {
+  const own = ['baloo_apex', 'baloo_adult', 'baloo_pup']
+    .map((sid) => BY_ID.get(sid))
+    .find((r) => r !== undefined && minLevelFor(r) <= level);
+  const support = Math.max(2, level - 2);
+  // Past the early roads she is not carrying anything unfinished: a level-48
+  // terrier pup is legal, and it is also not a threat.
+  const grown = (r: RosterEntry): boolean => support < 22 || r.stage !== 'pup';
+  const others = pick(size - 1, tid, all(legalAt(support), stageCapAt(support), grown));
+  return [
+    ...others.map((r) => ({ species: r.id, level: support })),
+    { species: own?.id ?? 'baloo_pup', level },
+  ];
+}
+
+function addCass(
+  m: Built, key: string, at: readonly [number, number], sight: number,
+  level: number, size: number, aiLevel: number,
+): void {
+  trainers.push({
+    id: key,
+    name: 'Cass',
+    title: 'who got here first',
+    team: cassTeam(key, level, size),
+    aiLevel,
+    prize: 300 + level * 60,
+    introKey: key,
+    defeatKey: `${key}_defeat`,
+  });
+  m.npcs.push({
+    id: `${m.id}_cass`, kind: 'rival', x: at[0], y: at[1], facing: 'left',
+    sprite: 'rival', name: 'Cass', sight,
+    dialogue: key, team: key, flag: `beat_${key}`, hiddenByFlag: `beat_${key}`,
+  });
+}
+
+const CASS_ROAD: ReadonlyArray<readonly [string, string, number, number, number]> = [
+  // route, script block, her ace's level, animals, how well she plays
+  ['route_2', 'rival_1', 13, 2, 1],
+  ['route_3', 'rival_2', 19, 3, 1],
+  ['route_5', 'rival_3', 30, 4, 2],
+  ['route_7', 'rival_4', 40, 5, 2],
+  ['route_9', 'rival_5', 50, 5, 3],
+];
+
 // The last road, gated on the eighth badge, into the endgame.
 buildRoute('route_9', 'The Cross-Fen Road', 9, 'brackhall', 'cross_fen', routeLevels[8] ?? [46, 52], {
   flag: 'beat_gym8',
   text: 'The Cross-Fen takes eight badges or it takes nothing.',
 });
 
+for (const [routeId, key, level, size, ai] of CASS_ROAD) {
+  const road = maps.find((mm) => mm.id === routeId);
+  if (road) addCass(road, key, [11, 21], 3, level, size, ai);
+}
+
 // The endgame: four consecutive chambers, then the Champion. No healing between.
-const crossFen = buildTown('cross_fen', 'The Cross-Fen', { lodge: true, northTo: 'route_9' });
+const crossFen = buildTown('cross_fen', 'Ostmere', { lodge: true, northTo: 'route_9' });
+// "I'll be at the door at Ostmere. Not to stop you. Just so you have to walk
+// past me." She is on the step, and there is a lodge behind you afterwards.
+addCass(crossFen, 'rival_final', [10, 16], 1, 53, 5, 3);
 rect(crossFen, 7, 12, 6, 4, Tile.House);
 set(crossFen, 9, 15, Tile.Door);
 rect(crossFen, 9, 10, 1, 7, Tile.Path);
@@ -597,7 +720,7 @@ for (const e of ELITE) {
   const id = `elite_${e.n}`;
   const next = e.n < 4 ? `elite_${e.n + 1}` : 'champion_hall';
   const m = addMap({
-    id, name: 'The Cross-Fen', width: 11, height: 13,
+    id, name: 'The Table', width: 11, height: 13,
     tiles: blank(11, 13, Tile.Floor), warps: [], npcs: [],
     encounters: null, indoor: true, music: 'elite',
   });
@@ -612,7 +735,7 @@ for (const e of ELITE) {
   trainers.push({
     id,
     name: e.name,
-    title: 'of the Cross-Fen',
+    title: 'of the Table',
     team: [
       ...pick(4, id, all(isType(e.type), legalAt(e.level), stageCapAt(e.level - 6))).map((r) => ({
         species: r.id,
@@ -635,7 +758,7 @@ for (const e of ELITE) {
   });
 }
 
-// The Champion: Cass. Of course it is.
+// The Champion: Isolde March, who never left the building. Cass is on the step outside.
 const hall = addMap({
   id: 'champion_hall', name: 'The High Seat', width: 11, height: 13,
   tiles: blank(11, 13, Tile.Floor), warps: [], npcs: [],
@@ -647,8 +770,8 @@ set(hall, 5, 12, Tile.Door);
 hall.warps.push({ x: 5, y: 12, toMap: 'elite_4', toX: 5, toY: 1 });
 trainers.push({
   id: 'champion',
-  name: 'Cass',
-  title: 'who took the crown first',
+  name: 'Isolde March',
+  title: 'who never left the building',
   team: [
     // Levels step up to the ace, as Gen 1's champion's do (59 to 65). All five
     // used to sit at 60, two under the ace. That was only comfortable because
@@ -667,8 +790,8 @@ trainers.push({
   defeatKey: 'champion_defeat',
 });
 hall.npcs.push({
-  id: 'champion_cass', kind: 'rival', x: 5, y: 3, facing: 'down',
-  sprite: 'rival', name: 'Cass', sight: 0,
+  id: 'champion_march', kind: 'leader', x: 5, y: 3, facing: 'down',
+  sprite: 'elite', name: 'Isolde March', sight: 0,
   dialogue: 'champion', team: 'champion', flag: 'beat_champion',
 });
 
@@ -850,6 +973,7 @@ function emitMaps(): string {
     parts.push(`    tiles: new Uint8Array([${m.tiles.join(',')}]),`);
     parts.push(`    warps: ${JSON.stringify(m.warps)},`);
     parts.push(`    npcs: ${JSON.stringify(m.npcs)},`);
+    if (m.signs !== undefined) parts.push(`    signs: ${JSON.stringify(m.signs)},`);
     parts.push(`    encounters: ${JSON.stringify(m.encounters)},`);
     parts.push(`    indoor: ${String(m.indoor)},`);
     parts.push(`    music: ${JSON.stringify(m.music)},`);
