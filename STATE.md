@@ -379,6 +379,17 @@ ROADMAP.md is the list. Phases 1-3 are done; Phase 4 (content and feel) is next.
   first wild fight, and one block each at the first lodge, shop and kennel. Old saves will hear the
   lodge/shop/kennel ones once on their next visit, which is harmless.
 
+- **The pause menu is `MENU_ROOT` in `game.ts`, exported**: `draw.ts` and the playthrough bot read
+  it, so inserting an entry no longer silently moves SAVE under a bot pressing "down three times".
+  `scripts/visual/checks.ts` keeps its own copy on purpose (the gate does not trust the game's
+  list) and `visual.ts` presses down four times to reach SAVE.
+- **The kinds chart (`kindsPage` in `draw.ts`, `kindSheet` in `core/types.ts`)** is drawn in two
+  columns on the 8px grid. The screen gate's reader ends a run at three empty cells, so anything that
+  is not one phrase is kept three spaces apart, or the gate reads "FANG" as part of "◀ FANG ▶".
+- **The move list's bottom row** is kind + hit mark on the left, power on the right
+  (`moveInfoRow`). "PP" is dropped when the mark needs the room. `observe.ts` reports each move's
+  multiplier against the SHOWN enemy (`mult`), and the gate rebuilds the row from that.
+
 ## Sound (`src/audio/`)
 
 - **Nothing is a recording.** Four voices are synthesised on Web Audio — two pulse

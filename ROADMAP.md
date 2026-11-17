@@ -101,10 +101,10 @@ Five things the user found by playing, one commit each, all nine gates passing. 
 - **Hair, not hats.** Six hairstyles, three hair shades, beards, per person. Tabitha has the only ponytail; Cass a brown bob.
 - **The catch.** The snare is a closed woven trap; the animal is pulled in, shown inside it while it wobbles, and stays shut in it after the catch.
 - **First-time explanations.** Kinds, snares and controls from Marlow after the starter pick; a hint in the first wild fight; a line at the first lodge, shop and kennel.
+- **The kinds chart.** START, KINDS: a page per kind - what its moves are good and bad against, and what hurts a feral of that kind or bounces off it. In a fight, the move list marks the highlighted move x2 / x4 / x1/2 / x1/4 / x0 against the animal you are facing.
 
 **Left open:**
 - No Gen 1-style catching DEMONSTRATION (someone catching an animal in front of you). The explanation is spoken, plus the one-box hint in the first fight.
-- Kinds are explained once, in words. Nothing yet shows the chart, and the first super-effective hit is not pointed out.
 - Side-view faces are small: a bob or long hair leaves a three-pixel face in profile. Readable, not pretty.
 - Signposts and a few one-liners are still deliberately terse. They read on their own, so they were left. If a playtester flags another line, it is a dialogue.gen.ts edit plus `gauntlet:tone`.
 
