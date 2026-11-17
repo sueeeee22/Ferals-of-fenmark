@@ -850,41 +850,114 @@ function drawBagOverlay(
 }
 
 /**
- * The snare itself: a woven hoop with a weighted knot, eight pixels across.
- * Drawn as rings rather than a sprite so it can be scaled and rotated by the
- * animation without a second set of pixel art.
+ * The snare itself: a round woven trap with a seam round its middle and a
+ * clasp on the seam - a closed ball, not a hoop, so that once something is in
+ * it, it is plainly IN it. Plotted pixel by pixel rather than with the canvas's
+ * arcs and rotation, both of which anti-alias - colours the Game Boy does not
+ * have. The weave and the seam turn with `tilt`, which is what makes a wobble
+ * read as the ball rocking rather than sliding.
+ *
+ * `inside` is the animal caught in it, drawn as a dark shape behind the weave.
+ * `open` lifts the top half off by that many pixels, showing the dark inside.
+ * `split` throws the two halves apart, for a break-out.
  */
-function drawSnareLoop(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  r: number,
-  tilt: number,
-): void {
-  // Plotted pixel by pixel rather than with the canvas's arcs and rotation,
-  // both of which anti-alias - a spinning hoop of colours the Game Boy does not
-  // have. The spin is carried by the binding, which is a line through the
-  // centre at the hoop's current angle.
+interface TrapLook {
+  readonly tilt?: number;
+  readonly open?: number;
+  readonly split?: number;
+  readonly inside?: Pixels | null;
+  /** Shake the shape inside by a pixel: something in there is fighting it. */
+  readonly struggle?: number;
+  readonly latched?: boolean;
+}
+
+function drawTrap(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, look: TrapLook = {}): void {
   const x0 = Math.round(cx);
   const y0 = Math.round(cy);
-  const rr = Math.max(2, Math.round(r));
+  const rr = Math.max(3, Math.round(r));
   const outer = rr * rr + rr;
   const inner = (rr - 1) * (rr - 1) + (rr - 1);
+  const tilt = look.tilt ?? 0;
+  const cos = Math.cos(tilt);
+  const sin = Math.sin(tilt);
+  const open = Math.round(look.open ?? 0);
+  const split = Math.round(look.split ?? 0);
+  const inside = look.inside ?? null;
+  const struggle = look.struggle ?? 0;
+  const plot = (x: number, y: number, s: gb.Shade): void => {
+    ctx.fillStyle = shadeColor(s);
+    ctx.fillRect(x, y, 1, 1);
+  };
   for (let dy = -rr; dy <= rr; dy++) {
     for (let dx = -rr; dx <= rr; dx++) {
       const d = dx * dx + dy * dy;
       if (d > outer) continue;
-      ctx.fillStyle = shadeColor(d > inner ? 3 : 1);
-      ctx.fillRect(x0 + dx, y0 + dy, 1, 1);
+      // Where this pixel sits on the ball itself, turned with the ball.
+      const rx = Math.round(dx * cos + dy * sin);
+      const ry = Math.round(-dx * sin + dy * cos);
+      const lid = ry < 0;
+      let shade: gb.Shade;
+      if (d > inner) {
+        shade = 3;
+      } else if (ry === 0 || (open > 0 && lid && ry === -1)) {
+        // The seam. With the lid up, the bottom half's rim is the dark mouth.
+        shade = 3;
+      } else if (open > 0 && !lid && ry === 1) {
+        shade = 3;
+      } else if (Math.abs(rx) <= 1 && Math.abs(ry) <= 1) {
+        shade = 3;
+      } else {
+        const weave = ((rx + ry) % 3 + 3) % 3 === 0 || ((rx - ry) % 3 + 3) % 3 === 0;
+        let body = false;
+        if (inside !== null && open === 0 && split === 0) {
+          // The whole sprite squeezed into the ball, sitting at the bottom.
+          const u = Math.floor(((rx + struggle + rr) / (2 * rr + 1)) * SPRITE_SIZE);
+          const v = Math.floor(((ry + rr) / (2 * rr + 1)) * SPRITE_SIZE);
+          body = u >= 0 && u < SPRITE_SIZE && v >= 0 && v < SPRITE_SIZE && (inside[v * SPRITE_SIZE + u] ?? 0) !== 0;
+        }
+        shade = body ? (weave ? 3 : 2) : weave ? 1 : 0;
+      }
+      // The clasp: a light square on the seam, filled dark once it has locked.
+      if (Math.abs(rx) === 0 && Math.abs(ry) === 0) shade = look.latched === true ? 3 : 0;
+      let ox = 0;
+      let oy = 0;
+      if (lid) {
+        oy -= open + split;
+        ox -= split;
+      } else if (split > 0) {
+        ox += split;
+        oy += Math.floor(split / 2);
+      }
+      plot(x0 + dx + ox, y0 + dy + oy, shade);
     }
   }
-  ctx.fillStyle = shadeColor(2);
-  for (let t = -(rr - 1); t <= rr - 1; t++) {
-    ctx.fillRect(Math.round(x0 + Math.cos(tilt) * t), Math.round(y0 + Math.sin(tilt) * t), 1, 1);
+}
+
+/**
+ * An animal turned into a solid shape of one shade, at any size, by sampling
+ * its pixels - so it can be pulled into the trap without the canvas smoothing
+ * colours into it.
+ */
+function drawSilhouette(
+  ctx: CanvasRenderingContext2D,
+  pixels: Pixels,
+  cx: number,
+  cy: number,
+  scale: number,
+  shade: gb.Shade,
+): void {
+  const size = Math.round(SPRITE_SIZE * scale);
+  if (size < 1) return;
+  const left = Math.round(cx - size / 2);
+  const top = Math.round(cy - size / 2);
+  ctx.fillStyle = shadeColor(shade);
+  for (let y = 0; y < size; y++) {
+    const v = Math.floor((y / size) * SPRITE_SIZE);
+    for (let x = 0; x < size; x++) {
+      const u = Math.floor((x / size) * SPRITE_SIZE);
+      if ((pixels[v * SPRITE_SIZE + u] ?? 0) !== 0) ctx.fillRect(left + x, top + y, 1, 1);
+    }
   }
-  // The knot, so it reads as thrown rather than as a coin.
-  ctx.fillStyle = shadeColor(3);
-  ctx.fillRect(x0 - 1, y0 - 1, 2, 2);
 }
 
 /** A ring of dashes flying outward — used for both the click and the break-out. */
@@ -906,19 +979,43 @@ function drawBurst(
   }
 }
 
+/** Streaks running from where the animal was into the trap's open mouth. */
+function drawPullStreaks(ctx: CanvasRenderingContext2D, cx: number, cy: number, reach: number, frame: number): void {
+  ctx.fillStyle = shadeColor(3);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + 0.3;
+    // Each streak is a short dash that slides inward as the pull goes on.
+    for (let s = 0; s < 3; s++) {
+      const d = reach - ((frame * 2 + s * 4) % Math.max(4, reach));
+      if (d < 3) continue;
+      ctx.fillRect(Math.round(cx + Math.cos(a) * d), Math.round(cy + Math.sin(a) * d), 1, 1);
+    }
+  }
+}
+
 /**
  * The throw, in four beats. The catch was already decided before any of this
  * ran, so nothing here can change the outcome — it only spends the right amount
  * of time telling you about it.
  *
- *   1. arc      the snare leaves your hands and travels to the animal
- *   2. pull     the animal folds down into it and the snare drops to the grass
- *   3. wobble   one rock per shake earned, so a near miss LOOKS like a near miss
- *   4. settle   a click and a flash, or the snare bursting and the animal back
+ *   1. arc      the shut trap leaves your hands and flies to the animal
+ *   2. pull     it pops open, the animal goes dark and is sucked inside, the
+ *               lid snaps shut on it, and the trap drops to the ground
+ *   3. wobble   the trap rocks, with the animal visibly in it, once per shake
+ *               earned, so a near miss LOOKS like a near miss
+ *   4. settle   the clasp locks with a flash, or the trap bursts in two and
+ *               the animal is back
  *
- * Returns true if the enemy sprite has already been drawn (or deliberately
- * hidden) so the caller skips its own draw.
+ * The audio (`src/audio/index.ts`) keys its land, wobble and verdict sounds off
+ * the same SNARE_* marks: the land is the end of beat 2.
  */
+/** The trap at rest after a catch: shut, locked, with the animal in it. */
+function drawCaughtTrap(ctx: CanvasRenderingContext2D, enemyPixels: Pixels): void {
+  drawTrap(ctx, ENEMY_ANCHOR.cx, ENEMY_ANCHOR.baseline - TRAP_R + 1, TRAP_R, { inside: enemyPixels, latched: true });
+}
+
+const TRAP_R = 7;
+
 function drawSnareThrow(
   ctx: CanvasRenderingContext2D,
   snare: SnareThrow,
@@ -926,8 +1023,10 @@ function drawSnareThrow(
 ): void {
   const f = snare.frames;
   const tx = ENEMY_ANCHOR.cx;
-  const ty = ENEMY_ANCHOR.baseline - SPRITE_SIZE * ENEMY_ANCHOR.scale * 0.5;
-  const groundY = ENEMY_ANCHOR.baseline - 5;
+  const enemyH = SPRITE_SIZE * ENEMY_ANCHOR.scale;
+  const ty = ENEMY_ANCHOR.baseline - enemyH * 0.5;
+  const trapR = TRAP_R;
+  const groundY = ENEMY_ANCHOR.baseline - trapR + 1;
 
   const drawEnemy = (scale: number, cx: number, baseline: number): void => {
     if (scale <= 0.02) return;
@@ -949,7 +1048,7 @@ function drawSnareThrow(
     const x = sx + (tx - sx) * k;
     // A parabola, not a straight line: 34px of lift at the apex.
     const y = sy + (ty - sy) * k - Math.sin(k * Math.PI) * 34;
-    drawSnareLoop(ctx, x, y, 4, k * Math.PI * 3);
+    drawTrap(ctx, x, y, 5, { tilt: k * Math.PI * 3 });
     return;
   }
 
@@ -957,9 +1056,36 @@ function drawSnareThrow(
   const pf = f - SNARE_THROW_FRAMES;
   if (pf < SNARE_PULL_FRAMES) {
     const k = pf / SNARE_PULL_FRAMES;
-    // The animal shrinks toward the snare and slides down with it.
-    drawEnemy(ENEMY_ANCHOR.scale * (1 - k), tx, ENEMY_ANCHOR.baseline - (ENEMY_ANCHOR.baseline - groundY) * k);
-    drawSnareLoop(ctx, tx, ty + (groundY - ty) * k, 4 + k * 2, 0);
+    const trapY = ty - enemyH * 0.5 - 2;
+    if (k < 0.2) {
+      // It hits, hangs in the air above the animal and opens. The animal
+      // flashes from itself to a dark shape: whatever this is, it has it.
+      const q = k / 0.2;
+      if (pf % 4 < 2) drawEnemy(ENEMY_ANCHOR.scale, tx, ENEMY_ANCHOR.baseline);
+      else drawSilhouette(ctx, enemyPixels, tx, ty, ENEMY_ANCHOR.scale, 3);
+      drawTrap(ctx, tx, trapY, trapR, { open: q * 4 });
+      return;
+    }
+    if (k < 0.7) {
+      // The dark shape shrinks and is drawn up into the mouth.
+      const q = (k - 0.2) / 0.5;
+      const e = q * q;
+      const cy = ty + (trapY - ty) * e;
+      drawSilhouette(ctx, enemyPixels, tx, cy, ENEMY_ANCHOR.scale * (1 - e * 0.92), 3);
+      drawPullStreaks(ctx, tx, trapY, 22 - q * 10, pf);
+      drawTrap(ctx, tx, trapY, trapR, { open: 4 });
+      return;
+    }
+    if (k < 0.82) {
+      // Snap. The lid comes down on it.
+      const q = (k - 0.7) / 0.12;
+      drawTrap(ctx, tx, trapY, trapR, { open: 4 * (1 - q), inside: q >= 1 ? enemyPixels : null });
+      drawBurst(ctx, tx, trapY, trapR + 2 + q * 3, 3);
+      return;
+    }
+    // Shut, with the animal in it, and falling to the ground.
+    const q = (k - 0.82) / 0.18;
+    drawTrap(ctx, tx, trapY + (groundY - trapY) * q * q, trapR, { inside: enemyPixels });
     return;
   }
 
@@ -970,24 +1096,27 @@ function drawSnareThrow(
     const idx = Math.floor(wf / SNARE_WOBBLE_FRAMES);
     const k = (wf % SNARE_WOBBLE_FRAMES) / SNARE_WOBBLE_FRAMES;
     // One full rock per wobble, alternating side so it never looks like a loop.
-    const lean = Math.sin(k * Math.PI) * 0.5 * (idx % 2 === 0 ? 1 : -1);
-    drawSnareLoop(ctx, tx + lean * 6, groundY, 6, lean);
+    const lean = Math.sin(k * Math.PI) * 0.55 * (idx % 2 === 0 ? 1 : -1);
+    // The animal throws itself at the side it is rocking toward.
+    const struggle = k > 0.15 && k < 0.85 ? (lean > 0 ? 1 : -1) : 0;
+    drawTrap(ctx, tx + lean * 6, groundY, trapR, { tilt: lean, inside: enemyPixels, struggle });
     return;
   }
 
   // --- Beat 4: the answer --------------------------------------------------
   const sf = wf - wobbles * SNARE_WOBBLE_FRAMES;
   if (snare.caught) {
-    drawSnareLoop(ctx, tx, groundY, 6, 0);
-    // A single bright flash at the click, then stillness. Gen 1's ding.
-    if (sf < 10) drawBurst(ctx, tx, groundY, 7 + sf, 3);
+    // The clasp locks, a single bright flash, then stillness. Gen 1's ding.
+    drawTrap(ctx, tx, groundY, trapR, { inside: enemyPixels, latched: true });
+    if (sf < 10) drawBurst(ctx, tx, groundY, trapR + 2 + sf, 3);
     return;
   }
-  // It got out. The snare bursts and the animal is back where it started,
-  // growing out of the wreckage rather than simply reappearing.
+  // It got out. The trap bursts in two and the animal is back where it
+  // started, growing out of the wreckage rather than simply reappearing.
   const k = Math.min(1, sf / 12);
-  drawBurst(ctx, tx, groundY, 6 + k * 12, 2);
   drawEnemy(ENEMY_ANCHOR.scale * k, ENEMY_ANCHOR.cx, ENEMY_ANCHOR.baseline);
+  if (sf < 12) drawTrap(ctx, tx, groundY, trapR, { split: 1 + k * 6 });
+  drawBurst(ctx, tx, groundY, 6 + k * 12, 2);
 }
 
 /**
@@ -1024,6 +1153,10 @@ function drawBattle(ctx: CanvasRenderingContext2D, content: Content, state: Game
   // somewhere other than its usual spot.
   if (scene.snare !== null) {
     drawSnareThrow(ctx, scene.snare, creaturePixels(content, enemy.species));
+  } else if (enemy.trapped === true) {
+    // Caught means IN THE TRAP. The animal used to stand back up on the field
+    // while the box said it was yours, which undid the whole animation.
+    drawCaughtTrap(ctx, creaturePixels(content, enemy.species));
   } else if (!enemy.gone && visibleThroughFlinch(scene, 'enemy')) {
     gb.drawSprite(
       ctx, creaturePixels(content, enemy.species),

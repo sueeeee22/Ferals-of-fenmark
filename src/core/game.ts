@@ -222,8 +222,8 @@ export const FLASH_FRAMES = 18;
 
 /** The arc, from hand to animal. */
 export const SNARE_THROW_FRAMES = 22;
-/** The animal folding down into the snare. */
-export const SNARE_PULL_FRAMES = 14;
+/** The trap opening, the animal sucked in, the lid shutting and the trap dropping. */
+export const SNARE_PULL_FRAMES = 34;
 /** One rock, left or right. */
 export const SNARE_WOBBLE_FRAMES = 22;
 /** The click, or the burst. */
@@ -249,6 +249,11 @@ export interface ShownSide {
   status: StatusName | null;
   /** It has gone down, and has been told so: its sprite is off the field. */
   gone: boolean;
+  /**
+   * It is shut in a snare that held. Set when that throw is launched, so the
+   * screen keeps showing the closed trap afterwards instead of the animal.
+   */
+  trapped?: boolean;
 }
 
 export interface BattleScene {
@@ -1396,6 +1401,7 @@ function tellNext(content: Content, state: GameState, scene: BattleScene, rng: R
     // than narrating it keeps the wobble count and the picture in step.
     if (ev.t === 'shake') {
       scene.snare = { frames: 0, shakes: ev.count, caught: ev.count >= 4 };
+      if (ev.count >= 4) scene.shown.enemy.trapped = true;
       state.lastText = 'You sling a snare.';
       return;
     }
