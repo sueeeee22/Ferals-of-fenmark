@@ -78,6 +78,13 @@ soundButton?.addEventListener('click', () => {
 });
 paintSoundButton();
 
+// The events a browser counts as permission to start sound. A tap's press is
+// NOT one of them (its release is), and the pad only listened to presses, so on
+// a phone the sound never started. Capture phase, so nothing can swallow them.
+for (const type of ['pointerup', 'touchend', 'click', 'keydown', 'mousedown'] as const) {
+  window.addEventListener(type, () => audio.unlock(), { capture: true, passive: true });
+}
+
 // ---------------------------------------------------------------------------
 // Input — keyboard and on-screen touch controls both just add/remove names
 // from `held`; `currentButtons()` snapshots it into the `Buttons` the reducer

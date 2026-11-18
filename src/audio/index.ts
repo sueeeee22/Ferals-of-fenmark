@@ -130,6 +130,16 @@ export function createAudio(content: Content): Audio {
   let enabled = readPreference();
   let prev: Frame = { ...BLANK };
 
+  /**
+   * On an iPhone, Web Audio obeys the ring/silent switch unless the page says
+   * it is playback, like a music app. Safari 17 and later only; elsewhere the
+   * property does not exist and this does nothing.
+   */
+  function playThroughSilentSwitch(): void {
+    const nav = navigator as Navigator & { audioSession?: { type: string } };
+    if (nav.audioSession !== undefined) nav.audioSession.type = 'playback';
+  }
+
   function readPreference(): boolean {
     try {
       return localStorage.getItem(STORAGE_KEY) !== 'off';
@@ -139,21 +149,47 @@ export function createAudio(content: Content): Audio {
     }
   }
 
+  /**
+   * Wake the clock, from inside the gesture that is allowed to.
+   *
+   * A tap's PRESS is not a gesture that may start sound - only its release
+   * (touchend / pointerup) or a click or a key is. Chrome remembers a resume
+   * asked for too early and honours it on the release; iOS Safari does not, so
+   * a phone player tapping the on-screen pad never heard anything until they
+   * clicked SOUND off and on again, the one control that is a real click.
+   * main.ts now calls this on every release too. iOS also wants something
+   * actually PLAYED inside the gesture before it believes it, hence the blip.
+   * 'interrupted' is Safari's word for a clock a phone call stopped.
+   */
+  function wake(ctx: AudioContext): void {
+    if (ctx.state === 'running') return;
+    void ctx.resume().catch(() => undefined);
+    try {
+      const blip = ctx.createBufferSource();
+      blip.buffer = ctx.createBuffer(1, 1, 22050);
+      blip.connect(ctx.destination);
+      blip.start(0);
+    } catch {
+      // Nothing to prime with; the resume above is the part that matters.
+    }
+  }
+
   function unlock(): void {
     if (live !== null) {
       // Returning from a backgrounded tab or a phone call leaves the clock
       // suspended; without this the game comes back permanently silent.
-      if (live.state === 'suspended') void live.resume();
+      if (enabled) wake(live);
       return;
     }
     if (!enabled) return;
     try {
+      playThroughSilentSwitch();
       const ctx = new AudioContext();
       live = ctx;
       apu = new Apu(ctx);
       player = new Player(apu);
       sfx = new Sfx(apu);
-      if (ctx.state === 'suspended') void ctx.resume();
+      wake(ctx);
     } catch {
       // No Web Audio, or the browser refused. The game is entirely playable
       // without sound and must never fail to boot because of it.

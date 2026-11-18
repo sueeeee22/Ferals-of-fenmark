@@ -412,6 +412,13 @@ ROADMAP.md is the list. Phases 1-3 are done; Phase 4 (content and feel) is next.
   is built in `unlock()` on the first keypress or tap, and a backgrounded tab comes back
   suspended, so `unlock()` also resumes. Skipping the resume gives a game that goes
   permanently silent after a phone call.
+- **A tap's PRESS is not permission to start sound; its release is.** Browsers only let audio start
+  inside keydown, mousedown, click, touchend, or a touch pointerup. The on-screen pad called `unlock()` on
+  pointerdown only. Chrome keeps a too-early `resume()` and honours it on the release, so desktop and
+  every gate were fine; iPhone Safari refuses it, so a phone player heard nothing until they clicked
+  SOUND off and on (the only real click). `main.ts` now calls `unlock()` on every release, click and
+  key in the capture phase, and `wake()` plays a one-sample blip inside the gesture, which iOS wants.
+  `gauntlet:audio` taps the pad at phone size with `resume()` refused outside those events.
 - **`BattleScene.sfx`/`sfxSeq` exist because events are gone by the time audio sees the
   state.** A hit flash cannot tell a critical from a graze. The sound is recorded at the
   moment of the drain, exactly as `flash` is, and nothing in the game reads it back.

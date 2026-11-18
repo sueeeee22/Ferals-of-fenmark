@@ -285,6 +285,61 @@ async function main(): Promise<void> {
 
     await live.close();
 
+    // --- A phone, played with the on-screen pad, under iPhone rules --------
+    //
+    // A tap's PRESS may not start sound; only its release, a click or a key may,
+    // and Safari refuses a resume asked for at any other moment (Chrome quietly
+    // keeps it for later, which is why a desktop run never saw this). The pad
+    // listened to presses only, so on an iPhone the game stayed silent until the
+    // player clicked SOUND off and on. This page refuses resume() outside those
+    // events, taps A three times, and requires the clock to be running.
+    const phone = await browser.newContext({ viewport: { width: 414, height: 800 }, hasTouch: true, isMobile: true });
+    const tablet = await phone.newPage();
+    await tablet.addInitScript(() => {
+      const w = window as unknown as { __gesture: boolean; __clocks: AudioContext[] };
+      w.__gesture = false;
+      w.__clocks = [];
+      for (const t of ['touchend', 'click', 'keydown', 'mouseup']) {
+        window.addEventListener(t, () => {
+          w.__gesture = true;
+          setTimeout(() => { w.__gesture = false; }, 0);
+        }, { capture: true });
+      }
+      const resume = Object.getOwnPropertyDescriptor(AudioContext.prototype, 'resume')?.value as
+        (this: AudioContext) => Promise<void>;
+      AudioContext.prototype.resume = function (this: AudioContext): Promise<void> {
+        return w.__gesture ? resume.call(this) : Promise.reject(new Error('not inside a gesture'));
+      };
+      const Real = window.AudioContext;
+      window.AudioContext = class extends Real {
+        constructor(options?: AudioContextOptions) {
+          super(options);
+          w.__clocks.push(this);
+          if (!w.__gesture) void this.suspend();
+        }
+      };
+    });
+    await tablet.goto('http://127.0.0.1:5199/', { waitUntil: 'load' });
+    await tablet.waitForTimeout(700);
+    const pad = await tablet.locator('[data-button="a"]').first().boundingBox();
+    if (pad === null) {
+      fail('the on-screen A button is not on the page at phone size');
+    } else {
+      for (let i = 0; i < 3; i++) {
+        await tablet.touchscreen.tap(pad.x + pad.width / 2, pad.y + pad.height / 2);
+        await tablet.waitForTimeout(300);
+      }
+      const clocks = await tablet.evaluate(
+        () => (window as unknown as { __clocks: AudioContext[] }).__clocks.map((c) => c.state),
+      );
+      console.log(`\n  a phone, three taps on A, iPhone rules: ${clocks.length === 0 ? 'no audio context' : clocks.join(', ')}`);
+      if (clocks.length === 0) fail('three taps on the on-screen pad never created an audio context');
+      else if (clocks.some((c) => c !== 'running')) {
+        fail(`after three taps on the on-screen pad the sound is "${clocks.join(', ')}" - a phone player hears nothing`);
+      }
+    }
+    await phone.close();
+
     if (errors.length > 0) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
   } finally {
     await browser.close();
